@@ -11,8 +11,9 @@
  * in this file are functions for checking the convergence behaviour on the AMG levels (for bugfixing etc.)
  */
 #include <sstream>
-
 #include <sys/stat.h>
+#include "common/util/file_util.h"
+
 
 namespace ug
 {
@@ -32,10 +33,10 @@ void AMGBase<TAlgebra>::write_interfaces()
 	{
 
 		//	\TODO: Implement also Windows support. Comment in below afterwards
-//		std::string path=std::string("/level") + ToString(level) + "/";
-//		mkdir((std::string(m_writeMatrixPath) + path).c_str(), 0777);
+		std::string path=std::string("/level") + ToString(level) + "/";
+		CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
 
-		const char *filename = (/*std::string(m_writeMatrixPath) + path + */std::string("AMG_interface_L") + ToString(level) + "_" + ToString(pcl::GetProcRank()) + std::string(".mat")).c_str();
+		const char *filename = (std::string(m_writeMatrixPath) + path + std::string("AMG_interface_L") + ToString(level) + "_" + ToString(pcl::GetProcRank()) + std::string(".mat")).c_str();
 		std::fstream file(filename, std::ios::out);
 		file << 1 << std::endl; // connection viewer version
 
@@ -122,11 +123,9 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 	size_t pid = 0;
 #endif
 
-//	std::string path=std::string("/level") + ToString(level) + "/";
-//	mkdir((std::string(m_writeMatrixPath) + path).c_str(), 0777);
-
-	std::string name = (/*m_writeMatrixPath + path +*/ std::string("AMG_L") + ToString(level) + "_" + filename + ".mat");
-
+	std::string path=std::string("/level") + ToString(level) + "/";
+	CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
+	std::string name = (m_writeMatrixPath + path + std::string("AMG_L") + ToString(level) + "_" + filename + ".mat");
 
 
 #ifdef UG_PARALLEL
@@ -145,7 +144,7 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 #endif
 	f << "v " << name2 << "\n";
 
-	std::fstream file((/*std::string(m_writeMatrixPath)+ path +*/ name2).c_str(), std::ios::out);
+	std::fstream file((std::string(m_writeMatrixPath)+ path + name2).c_str(), std::ios::out);
 	if(solution)
 		for(size_t i=0; i<d.size(); i++)
 			file << i << " " << d[i] - solution2[i] << std::endl;
