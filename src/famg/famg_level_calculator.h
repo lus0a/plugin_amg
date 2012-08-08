@@ -154,7 +154,8 @@ public:
 
 	typedef typename matrix_type::value_type value_type;
 
-	typedef typename CPUAlgebra::matrix_type prolongation_matrix_type;
+	//typedef typename CPUAlgebra::matrix_type prolongation_matrix_type;
+	typedef typename TAlgebra::matrix_type prolongation_matrix_type;
 
 private:
 	// refernce to famg object. this will be done differently in the future
@@ -197,11 +198,11 @@ private:
 #else
 	const matrix_type &A_OL2;
 #endif
-	FAMGNodes rating;
+	FAMGNodes<prolongation_matrix_type> rating;
 	stdvector< vector_type > &m_testvectors;
 
 	// the calculator which calculates our interpolation weighs
-	FAMGInterpolationCalculator<matrix_type, vector_type> calculator;
+	FAMGInterpolationCalculator<matrix_type, prolongation_matrix_type, vector_type> calculator;
 
 	bool bTiming; //< if true, timing will be outputed
 
@@ -210,7 +211,9 @@ private:
 
 
 	//! list of possible interpolating parents for each node
-	stdvector<stdvector<neighborstruct2> > possible_parents;
+	typedef typename prolongation_matrix_type::value_type smallmat_ptype;
+	typedef neighborstruct2<smallmat_ptype> neighT;
+	stdvector<stdvector< neighT > > possible_parents;
 
 	stdvector<bool> prolongation_calculated;
 
@@ -448,10 +451,11 @@ public:
 			}*/
 			#endif
 		}
-		else
+		else // = !(bExternalCoarsening == false && m_famg.m_fileCoarsening != m_famg.READ_COARSENING)
 		{
-			if(m_famg.m_writeMatrices)	m_famg.write_debug_matrix_markers(level, rating);
+			if(m_famg.m_writeMatrices) m_famg.write_debug_matrix_markers(level, rating);
 			PoldIndices.resize(N, N);
+			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
 			if(m_famg.m_fileCoarsening == m_famg.READ_COARSENING)
 				read_coarsening();
 			else
