@@ -30,6 +30,8 @@
 
 std::string GetProcFilename(std::string path, std::string name, std::string extension);
 
+#define WRITEVEC_IN_SOLVER 0
+
 namespace ug{
 
 
@@ -137,6 +139,7 @@ bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
 
 	cleanup();
 
+
 	update_positions();
 
 	// init m_amghelper for grid printing
@@ -177,6 +180,14 @@ bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
 	size_t level=0;
 
 	mat.defragment();
+
+	//UG_LOG("======= WARNING: MODIFIED A by A = D^{-1} A =======\n");
+	/*for(size_t r=0; r<mat.num_rows(); r++)
+	{
+		value_type m = mat(r, r);
+		for(typename matrix_type::row_iterator it = mat.begin_row(r); it != mat.end_row(r); ++it)
+			it.value() /= m;
+	}*/
 
 	double createAMGlevelTiming=0;
 
@@ -501,6 +512,7 @@ AMGBase<TAlgebra>::AMGBase() :
 	m_iNrOfPreiterationsCheck = 8;
 	m_dPreiterationsMimumDefect = 1e-8;
 	m_iYCycle = 0;
+	m_bOneInit = false;
 }
 
 
