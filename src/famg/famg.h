@@ -73,7 +73,8 @@ public:
 
 	typedef typename matrix_type::value_type value_type;
 
-	typedef typename CPUAlgebra::matrix_type prolongation_matrix_type;
+	//typedef typename CPUAlgebra::matrix_type prolongation_matrix_type;
+	typedef typename TAlgebra::matrix_type prolongation_matrix_type;
 
 //  functions
 	FAMG() ;
@@ -112,7 +113,8 @@ public:
 
 	size_t iDebugLevelOverlapAMG, iDebugLevelOverlapMatrix, iDebugLevelTestvectorCalc, iDebugLevelPhase3,
 			iDebugLevelCalculateParentPairs, iDebugLevelColoring, iDebugLevelRecvCoarsening, iDebugLevelGetRatings, iDebugLevelPrecalculateCoarsening,
-			iDebugLevelAggressiveCoarsening, iDebugLevelSendCoarsening, iDebugLevelCommunicateProlongation, iDebugLevelAfterCommunicateProlongation;
+			iDebugLevelAggressiveCoarsening, iDebugLevelSendCoarsening, iDebugLevelCommunicateProlongation, iDebugLevelAfterCommunicateProlongation,
+			iDebugLevelExternalCoarsening;
 	void set_debug_level_overlap(size_t amg, size_t matrix) { iDebugLevelOverlapAMG = amg; iDebugLevelOverlapMatrix = matrix; }
 	void set_debug_level_testvector_calc(size_t lvl) { iDebugLevelTestvectorCalc = lvl; }
 	void set_debug_level_phase_3(size_t lvl) { iDebugLevelPhase3 = lvl; }
@@ -125,6 +127,7 @@ public:
 	void set_debug_level_send_coarsening(size_t lvl) { iDebugLevelSendCoarsening = lvl; }
 	void set_debug_level_communicate_prolongation(size_t lvl) { iDebugLevelCommunicateProlongation = lvl; }
 	void set_debug_level_after_communciate_prolongation(size_t lvl) { iDebugLevelAfterCommunicateProlongation = lvl; }
+	void set_debug_level_external_coarsening(size_t lvl) { iDebugLevelExternalCoarsening = lvl; }
 
 
 	double get_damping_for_smoother_in_interpolation_calculation() const { return m_dDampingForSmootherInInterpolationCalculation; }
@@ -160,6 +163,7 @@ public:
 
 	void add_testvector(vector_type& c, double weight)
 	{
+		m_iTestvectors = TESTVECTORS_EXTERNAL;
 		UG_ASSERT(m_testvectors.size() == m_omegaVectors.size(), "???");
 		m_testvectors.push_back(c);
 		m_omegaVectors.push_back(weight);
@@ -167,6 +171,7 @@ public:
 
 	void add_testvector(IVectorWriter<vector_type> *vw, double weight)
 	{
+		m_iTestvectors = TESTVECTORS_EXTERNAL;
 		m_vVectorWriters.push_back(vw);
 		m_omegaVectorWriters.push_back(weight);
 	}
@@ -176,9 +181,23 @@ public:
 		m_writeTestvectors = wt;
 	}
 
-	void set_testvector_from_matrix_rows(bool bEnable)
+
+	enum{
+		TESTVECTORS_EXTERNAL,
+		TESTVECTORS_DIRICHLET_MATRIX_ROWS,
+		TESTVECTORS_LE
+	} m_iTestvectors;
+
+	void set_testvector_from_matrix_rows()
 	{
-		m_bTestvectorsFromMatrixRows = bEnable;
+		m_iTestvectors = TESTVECTORS_DIRICHLET_MATRIX_ROWS;
+	}
+
+	double le_weight;
+	void set_testvectors_LE(double weight)
+	{
+		le_weight=weight;
+		m_iTestvectors = TESTVECTORS_LE;
 	}
 
 	void init_for_EVP(const vector_type &u, const vector_type &b);
@@ -226,6 +245,7 @@ private:
 	void get_testvectors(stdvector<vector_type> &testvectors, stdvector<double> &omega);
 	void get_testvectors_from_matrix_rows
 			(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega);
+	void get_testvectors_LE(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega);
 
 private:
 // data
@@ -250,7 +270,6 @@ private:
 	bool m_bAggressiveCoarsening;
 	bool m_bExternalCoarsening;
 	bool m_bUsePrecalculate;
-	bool m_bTestvectorsFromMatrixRows;
 	bool m_bWriteFValues;
 
 	SmartPtr<ILinearIterator<vector_type> > m_testvectorsmoother;

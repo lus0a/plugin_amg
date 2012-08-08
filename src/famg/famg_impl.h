@@ -32,7 +32,6 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 	m_dDampingForSmootherInInterpolationCalculation = 0.8;
 	m_bAggressiveCoarsening = false;
 	m_writeTestvectors = false;
-	m_bTestvectorsFromMatrixRows = false;
 	m_bWriteFValues = false;
 
 	m_dProlongationTruncation = 0.0;
@@ -42,16 +41,17 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 
 	m_dStrongConnectionExternal = 0.1;
 
+	m_iTestvectors = TESTVECTORS_DIRICHLET_MATRIX_ROWS;
 
 	m_bExternalCoarsening = false;
 	m_bUsePrecalculate = true;
 
 	iDebugLevelOverlapAMG = iDebugLevelOverlapMatrix = iDebugLevelTestvectorCalc = iDebugLevelPhase3 =
-	iDebugLevelCalculateParentPairs = iDebugLevelColoring = iDebugLevelRecvCoarsening = iDebugLevelGetRatings = iDebugLevelPrecalculateCoarsening =
-				iDebugLevelAggressiveCoarsening = iDebugLevelSendCoarsening = iDebugLevelCommunicateProlongation = iDebugLevelAfterCommunicateProlongation = 0;
+			iDebugLevelCalculateParentPairs = iDebugLevelColoring = iDebugLevelRecvCoarsening = iDebugLevelGetRatings =
+			iDebugLevelPrecalculateCoarsening =	iDebugLevelAggressiveCoarsening = iDebugLevelSendCoarsening =
+			iDebugLevelCommunicateProlongation = iDebugLevelAfterCommunicateProlongation = iDebugLevelExternalCoarsening = 0;
 
 	m_bWriteFValues = false;
-
 	m_bProjectedEVP = false;
 	m_fileCoarsening = NONE;
 #ifdef UG_PARALLEL
@@ -100,19 +100,21 @@ void FAMG<TAlgebra>::get_testvectors(stdvector<vector_type> &testvectors, stdvec
 	testvectors.resize(m_vVectorWriters.size() + m_testvectors.size());
 	omega.resize(m_vVectorWriters.size() + m_testvectors.size());
 
-	for(size_t i=0; i<m_testvectors.size(); i++)
-	{
-		testvectors[i] = m_testvectors[i];
-		omega[i] = m_omegaVectors[i];
-	}
-
 	for(size_t i=0; i<m_vVectorWriters.size(); i++)
 	{
-		size_t index = i+m_testvectors.size();
+		size_t index = i;
 		m_vVectorWriters[i]->update(testvectors[index]);
 		omega[index] = m_omegaVectorWriters[i];
 
 	}
+	for(size_t i=0; i<m_testvectors.size(); i++)
+	{
+		size_t index = i+m_vVectorWriters.size();
+		testvectors[index] = m_testvectors[i];
+		omega[index] = m_omegaVectors[i];
+	}
+
+
 }
 
 template<typename TAlgebra>
@@ -134,6 +136,34 @@ void FAMG<TAlgebra>::get_testvectors_from_matrix_rows
 	}
 }
 
+template<typename TAlgebra>
+void FAMG<TAlgebra>::get_testvectors_LE
+	(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega)
+{
+	AMG_PROFILE_FUNC();
+
+	UG_ASSERT(m_writeMatrices, "needs position data");
+	testvectors.resize(2);
+	for(size_t i=0; i<testvectors.size(); i++)
+		testvectors[i].resize(A.num_rows());
+
+	omega.resize(2);
+	omega[0] = 1.0;
+	omega[1] = le_weight;
+
+	for(size_t i=0; i<A.num_rows(); i++)
+	{
+		for(size_t j=0; j<testvectors.size(); j++)
+			testvectors[j][i] = 0.0;
+		if(!A.is_isolated(i))
+		{
+			testvectors[0][i] = 1.0;
+			BlockRef(testvectors[1][i], 0) = m_amghelper.positions[0][i][1];
+			BlockRef(testvectors[1][i], 1) = m_amghelper.positions[0][i][0];
+		}
+	}
+}
+
 
 template<typename TAlgebra>
 void FAMG<TAlgebra>::precalc_level(size_t level)
@@ -147,14 +177,17 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 	if(level == 0)
 	{
 		testvectors.clear();
-		if(m_bTestvectorsFromMatrixRows)
+		if(m_iTestvectors == TESTVECTORS_DIRICHLET_MATRIX_ROWS)
 			get_testvectors_from_matrix_rows(*levels[level]->pAgglomeratedA, testvectors, omega);
+		else if(m_iTestvectors == TESTVECTORS_LE)
+			get_testvectors_LE(*levels[level]->pAgglomeratedA, testvectors, omega);
 		else
 			get_testvectors(testvectors, omega);
 	}
 
 #ifdef UG_PARALLEL
-	if((level != 0 || m_bTestvectorsFromMatrixRows == false)
+	// check this: do FE tv need to be known?
+	if((level != 0 || m_iTestvectors == TESTVECTORS_EXTERNAL)
 			&& levels[level]->bHasBeenMerged)
 	{
 		vector_type t;
