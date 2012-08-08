@@ -30,7 +30,7 @@ namespace ug {
 
 class FAMGNode
 {
-	friend class FAMGNodes;
+	template<typename> friend class FAMGNodes;
 
 private:
 	inline void set_fine(){rating = FAMG_FINE_RATING;}
@@ -99,18 +99,19 @@ public:
 
 //! this structure holds coarse/fine information as well as master/slave
 //! for use in amg. it tries to replace the missing "node" object here
+template<typename TProlongationMatrix>
 class FAMGNodes
 {
 public:
 #ifdef UG_PARALLEL
-	FAMGNodes(SparseMatrix<double> &_P, size_t level, ug::cAMG_helper &amghelper,
+	FAMGNodes(TProlongationMatrix &_P, size_t level, ug::cAMG_helper &amghelper,
 			ParallelNodes &pn)
 	: m_level(level), P(_P), PN(pn), m_amghelper(amghelper)
 	{
 		m_iNrOfCoarse = 0;
 	}
 #else
-	FAMGNodes(SparseMatrix<double> &_P, size_t level, ug::cAMG_helper &amghelper)
+	FAMGNodes(TProlongationMatrix &_P, size_t level, ug::cAMG_helper &amghelper)
 		: m_level(level), P(_P), m_amghelper(amghelper)
 		{
 			m_iNrOfCoarse = 0;
@@ -195,7 +196,7 @@ public:
 		UG_DLOG(LIB_ALG_AMG, 4, "has " << PN.size() << " possible parent nodes. ");
 		for(size_t i=0; i<PN.size(); )
 		{
-			double irating = get_rating(PN[i].parents) + PN[i].F/1000;
+			double irating = get_rating(PN[i].parents);
 
 			if(irating < 0)
 			{
@@ -204,6 +205,7 @@ public:
 				UG_DLOG(LIB_ALG_AMG, 4, " removed pair " << i << " ");
 				continue;
 			}
+			irating += PN[i].F/1000;
 
 			// choose the pairs with best minimization F.
 			if(irating < minrating) // || (irating == minrating && PN[i].F < minF))
@@ -409,9 +411,10 @@ public:
 
 	void set_dirichlet(size_t index)
 	{
-		if(nodes[index].is_dirichlet() == false && i_must_assign(index))
+		set_coarse(index);
+		/*if(nodes[index].is_dirichlet() == false && i_must_assign(index))
 			m_iUnassigned--;
-		nodes[index].set_dirichlet();
+		nodes[index].set_dirichlet();*/
 	}
 
 	void set_coarse(size_t index)
@@ -466,7 +469,7 @@ private:
 
 	size_t m_level;
 
-	SparseMatrix<double> &P;
+	TProlongationMatrix &P;
 #ifdef UG_PARALLEL
 	ParallelNodes &PN;
 #endif
@@ -474,9 +477,9 @@ private:
 };
 
 
-template<typename TNeighborstruct>
+template<typename TNeighborstruct, typename prolongation_matrix_type>
 void UpdateNeighbors(const cgraph &SymmNeighGraph, size_t node, stdvector<stdvector<TNeighborstruct> > &possible_neighbors,
-		FAMGNodes &nodes, maxheap<FAMGNode> &heap)
+		FAMGNodes<prolongation_matrix_type> &nodes, maxheap<FAMGNode> &heap)
 {
 	for(cgraph::const_row_iterator conn = SymmNeighGraph.begin_row(node); conn != SymmNeighGraph.end_row(node); ++conn)
 	{
@@ -501,9 +504,9 @@ void UpdateNeighbors(const cgraph &SymmNeighGraph, size_t node, stdvector<stdvec
 	}
 }
 
-template<typename neighborstruct, typename heap_type>
+template<typename neighborstruct, typename heap_type, typename prolongation_matrix_type>
 void GetRatings(stdvector<stdvector<neighborstruct> > &possible_neighbors,
-		FAMGNodes &nodes, heap_type &heap)
+		FAMGNodes<prolongation_matrix_type> &nodes, heap_type &heap)
 {
 	UG_DLOG(LIB_ALG_AMG, 4, "\nGetRatings...\n\n");
 	for(size_t i=0; i<nodes.size(); i++)
