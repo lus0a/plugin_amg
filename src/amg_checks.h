@@ -491,7 +491,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 	{
 		cH.set(0.0);
 		double nH2=nH1;
-		for(i=0; i<10; i++)
+		for(i=0; i<50; i++)
 		{
 			for(int j=0; j< m_cycleType; j++)
 				add_correction_and_update_defect(cH, dH, level+1);
@@ -502,8 +502,8 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 			else UG_LOG(".");*/
 			//if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_c_L")).c_str(), cH, level+1);
 			//if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_d_L")).c_str(), dH, level+1);
-			if(nH2/preHnorm < 1e-8 || nH2 < 1e-16)
-				break;
+			/*if(nH2/preHnorm < 1e-30 || nH2 < 1e-30)
+				break;*/
 		}
 		res.iInnerIterations = i;
 		res.coarseDefect = nH2;
