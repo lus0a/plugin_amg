@@ -42,9 +42,9 @@ void AddConnectionsBetweenSlaves(pcl::InterfaceCommunicator<IndexLayout> &commun
  * and gets arrays processesWithLowerColor and processesWithHigherColor
  * \sa ColorProcessorGraph
  */
-template<typename algebra_type>
+template<typename TAlgebra>
 void
-FAMGLevelCalculator<algebra_type>::
+FAMGLevelCalculator<TAlgebra>::
 	color_process_graph()
 {
 	AMG_PROFILE_FUNC();
@@ -82,12 +82,12 @@ FAMGLevelCalculator<algebra_type>::
 
 
 
-
+template<typename TPMatrix>
 class FAMGCoarseningCommunicationScheme :
-	public CommunicationScheme<FAMGCoarseningCommunicationScheme, char>
+	public CommunicationScheme<FAMGCoarseningCommunicationScheme<TPMatrix>, char>
 {
 public:
-	FAMGCoarseningCommunicationScheme(FAMGNodes &r) : rating(r)
+	FAMGCoarseningCommunicationScheme(FAMGNodes<TPMatrix> &r) : rating(r)
 	{
 
 	}
@@ -130,7 +130,7 @@ public:
 		return sizeof(int);
 	}
 private:
-	FAMGNodes &rating;
+	FAMGNodes<TPMatrix> &rating;
 };
 
 
@@ -147,10 +147,9 @@ private:
  * that is: nextMasterLayout.interface(pid1) if i is master on this processor,
  * or nextSlaveLayout.interface(pid1) if i is slave on this processor
  */
-template<typename algebra_type>
+template<typename TAlgebra>
 void
-FAMGLevelCalculator<algebra_type>::
-	receive_coarsening_from_processes_with_lower_color()
+FAMGLevelCalculator<TAlgebra>::receive_coarsening_from_processes_with_lower_color()
 {
 	AMG_PROFILE_FUNC();
 	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelRecvCoarsening);
@@ -165,7 +164,7 @@ FAMGLevelCalculator<algebra_type>::
 		return;
 	}
 
-	FAMGCoarseningCommunicationScheme scheme(rating);
+	FAMGCoarseningCommunicationScheme<prolongation_matrix_type> scheme(rating);
 	ReceiveOnInterfaces(PN.communicator(), processesWithLowerColor, OLCoarseningReceiveLayout, scheme);
 
 	// issue receive of coarsening data from processes with lower color
@@ -184,9 +183,9 @@ FAMGLevelCalculator<algebra_type>::
  * we send data to processes in processesWithHigherColor about which nodes we have set coarse.
  * for this, we use OLCoarseningSendLayout.
  */
-template<typename algebra_type>
+template<typename TAlgebra>
 void
-FAMGLevelCalculator<algebra_type>::
+FAMGLevelCalculator<TAlgebra>::
 	send_coarsening_data_to_processes_with_higher_color()
 {
 	AMG_PROFILE_FUNC();
@@ -201,7 +200,7 @@ FAMGLevelCalculator<algebra_type>::
 	}
 
 
-	FAMGCoarseningCommunicationScheme scheme(rating);
+	FAMGCoarseningCommunicationScheme<prolongation_matrix_type> scheme(rating);
 	SendOnInterfaces(PN.communicator(), processesWithHigherColor, OLCoarseningSendLayout, scheme);
 
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
@@ -244,8 +243,8 @@ bool GenerateOverlap2(const ParallelMatrix<matrix_type> &_mat, ParallelMatrix<ma
  * creates overlap 2 matrix A_OL2,
  * \sa GenerateOverlap
  */
-template<typename algebra_type>
-void FAMGLevelCalculator<algebra_type>::create_OL2_matrix()
+template<typename TAlgebra>
+void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 {
 	UG_DLOG(LIB_ALG_AMG, 0, "\ncreate OL2 matrix...\n");
 #ifdef UG_DEBUG
@@ -407,9 +406,9 @@ void FAMGLevelCalculator<algebra_type>::create_OL2_matrix()
 //	UG_SET_DEBUG_LEVEL(LIB_ALG_MATRIX, iDebugLevelMatrixPre);
 }
 
-template<typename algebra_type>
+template<typename TAlgebra>
 void
-FAMGLevelCalculator<algebra_type>::
+FAMGLevelCalculator<TAlgebra>::
 	calculate_uncalculated_fine_nodes()
 {
 	AMG_PROFILE_FUNC();
@@ -426,7 +425,7 @@ FAMGLevelCalculator<algebra_type>::
 			rating.update_rating(i, possible_parents[i]);
 		}
 
-		neighborstruct2 &n = possible_parents[i][0];
+		neighborstruct2<smallmat_ptype> &n = possible_parents[i][0];
 
 		for(size_t j=0; j < n.parents.size(); j++)
 		{

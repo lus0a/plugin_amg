@@ -18,10 +18,10 @@
 
 namespace ug{
 
-template<typename TNeighborstruct, typename TMatrix, typename TVector>
-bool OnDemand_UpdateRating(size_t node, stdvector<TNeighborstruct> &PN, FAMGNodes &nodes,
+template<typename TNeighborstruct, typename TMatrix, typename TPMatrix, typename TVector>
+bool OnDemand_UpdateRating(size_t node, stdvector<TNeighborstruct> &PN, FAMGNodes<TPMatrix> &nodes,
 		stdvector<bool> &prolongation_calculated, cgraph &SymmNeighGraph,
-		FAMGInterpolationCalculator<TMatrix, TVector> &calculator)
+		FAMGInterpolationCalculator<TMatrix, TPMatrix, TVector> &calculator)
 {
 	AMG_PROFILE_FUNC();
 	if(prolongation_calculated[node])
@@ -66,10 +66,10 @@ bool OnDemand_UpdateRating(size_t node, stdvector<TNeighborstruct> &PN, FAMGNode
 	}
 }
 
-template<typename neighborstruct, typename matrix_type, typename vector_type>
-void OnDemand_Update(size_t node, stdvector<stdvector<neighborstruct> > &possible_parents, FAMGNodes &nodes,
+template<typename TNeighborstruct, typename TMatrix, typename TPMatrix, typename TVector>
+void OnDemand_Update(size_t node, stdvector<stdvector<TNeighborstruct> > &possible_parents, FAMGNodes<TPMatrix> &nodes,
 		maxheap<FAMGNode> &heap,
-		stdvector<bool> &prolongation_calculated,	cgraph &SymmNeighGraph, FAMGInterpolationCalculator<matrix_type, vector_type> &calculator)
+		stdvector<bool> &prolongation_calculated,	cgraph &SymmNeighGraph, FAMGInterpolationCalculator<TMatrix, TPMatrix, TVector> &calculator)
 {
 	AMG_PROFILE_FUNC();
 	if(!nodes[node].is_valid_rating())
@@ -111,8 +111,8 @@ void AddUnmarkedNeighbors(cgraph &SymmNeighGraph, size_t i, stdvector<bool> &mar
 
 
 
-template<typename algebra_type>
-void FAMGLevelCalculator<algebra_type>::on_demand_coarsening()
+template<typename TAlgebra>
+void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 {
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
@@ -174,7 +174,7 @@ void FAMGLevelCalculator<algebra_type>::on_demand_coarsening()
 	while(1)
 	{
 		UG_ASSERT(possible_parents[i].size() > 0, "node " << i << "has no possible parents?");
-		neighborstruct2 &n = possible_parents[i][0];
+		neighborstruct2<smallmat_ptype> &n = possible_parents[i][0];
 
 		UG_DLOG(LIB_ALG_AMG, 2, "\n\n\nSelect next node...\n");
 		UG_DLOG(LIB_ALG_AMG, 2, "======================================\n");

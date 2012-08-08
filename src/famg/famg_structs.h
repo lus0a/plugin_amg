@@ -10,36 +10,38 @@ struct s_interpolation
 	TIndex from;
 };
 
-template<typename value_type, typename TIndex>
-struct neighborstruct2_t
+template<typename value_type> //, typename TIndex=size_t>
+struct neighborstruct2
 {
-	void print(FAMGNodes &rating)
+	template<typename T>
+	void print(FAMGNodes<T> &rating)
 	{
 		UG_LOG(parents.size() << " parents, F = " << F << ": ");
 		for(size_t i=0; i<parents.size(); i++)
 			UG_LOG((i>0 ? "," : "") << "p" << i << ": " << parents[i].from << " [" << rating.get_original_index(parents[i].from) << "] -> " << parents[i].value);
 		UG_LOG(std::endl);
 	}
-	FixedArray1<s_interpolation<value_type, TIndex>, 2> parents;
+	FixedArray1<s_interpolation<value_type, size_t>, 2> parents;
 	double F;
 };
 
-template<typename value_type=double, typename TIndex=size_t>
-struct neighborstruct_var_t
+template<typename value_type=double> //, typename TIndex=size_t>
+struct neighborstruct_var
 {
-	void print(FAMGNodes &rating)
+	template<typename T>
+	void print(FAMGNodes<T> &rating)
 	{
 		UG_LOG(parents.size() << " parents, F = " << F << ": ");
 		for(size_t i=0; i<parents.size(); i++)
 			UG_LOG((i>0 ? "," : "") << "p" << i << ": " << parents[i].from << " [" << rating.get_original_index(parents[i].from) << "] -> " << parents[i].value);
 		UG_LOG(std::endl);
 	}
-	stdvector<s_interpolation<value_type, TIndex> > parents;
+	stdvector<s_interpolation<value_type, size_t> > parents;
 	double F;
 };
 
-typedef neighborstruct2_t<double, size_t> neighborstruct2;
-typedef neighborstruct_var_t<double, size_t> neighborstruct_var;
+//typedef neighborstruct2_t<double, size_t> neighborstruct2;
+//typedef neighborstruct_var_t<double, size_t> neighborstruct_var;
 
 
 }

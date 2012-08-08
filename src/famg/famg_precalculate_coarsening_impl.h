@@ -72,7 +72,7 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 	{
 		// get node i with best rating
 		size_t i = heap.remove_max();
-		neighborstruct2 &n = possible_parents[i][0];
+		neighborstruct2<smallmat_ptype> &n = possible_parents[i][0];
 
 		UG_DLOG(LIB_ALG_AMG, 4, "\n\n\nSelect next node...\n");
 		UG_DLOG(LIB_ALG_AMG, 4, "node " << i << " has rating " << rating[i] << ". now gets fine. parents: ");
