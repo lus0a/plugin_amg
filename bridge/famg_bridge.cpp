@@ -74,9 +74,10 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("add_testvector", (void(T::*)(IVectorWriter<vector_type> *vw, double weight))&T::add_testvector, "testVector#weight",
 					"adds a testvector with weight by using the IVectorWriter interface")
 			.add_method("set_write_testvectors", &T::set_write_testvectors, "bWrite", "if true, write testvectors to path specified in set_matrix_write_path")
-			.add_method("set_testvector_from_matrix_rows", &T::set_testvector_from_matrix_rows, "", "testvector is obtained by setting 1 for dirichlet nodes (nodes with only A(i,i) != 0) and 0 everywhere else")
 			.add_method("set_testvector_smoother", &T::set_testvector_smoother, "smoother", "sets the smoother to smooth testvectors")
 			.add_method("set_testvector_smooths", &T::set_testvector_smooths, "n", "number of smoothing steps to smooth testvectors")
+			.add_method("set_testvector_from_matrix_rows", &T::set_testvector_from_matrix_rows, "", "testvector is obtained by setting 1 for dirichlet nodes (nodes with only A(i,i) != 0) and 0 everywhere else")
+			.add_method("set_testvectors_LE", &T::set_testvectors_LE)
 
 			.add_method("reset_testvectors", &T::reset_testvectors, "", "removes all added testvectors")
 
@@ -99,6 +100,7 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_write_coarsening", &T::set_write_coarsening)
 			.add_method("set_read_coarsening", &T::set_read_coarsening)
 
+
 	#ifdef UG_PARALLEL
 			.add_method("set_parallel_coarsening", &T::set_parallel_coarsening, "", "parallelCoarsening", "e.g. GetColorCoarsening()")
 	#endif
@@ -116,7 +118,7 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_debug_level_send_coarsening", &T::set_debug_level_send_coarsening)
 			.add_method("set_debug_level_communicate_prolongation", &T::set_debug_level_communicate_prolongation)
 			.add_method("set_debug_level_after_communciate_prolongation", &T::set_debug_level_after_communciate_prolongation)
-
+			.add_method("set_debug_level_external_coarsening", &T::set_debug_level_external_coarsening)
 
 			.add_method("set_write_f_values", &T::set_write_f_values)
 
