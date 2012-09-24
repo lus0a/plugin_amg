@@ -199,18 +199,21 @@ void CreateRugeStuebenProlongation(SparseMatrix<double> &P, const Matrix_type &A
 			{
 
 				UG_LOG("node " << i << " was marked direct, but no interpolation found. barrier = " << barrier << std::endl);
+				UG_LOG("[\n");
 				for(typename Matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
 				{
 					if(conn.index() == i) continue; // skip diagonal
 					if(!nodes[conn.index()].is_coarse())
-					{	UG_LOG(conn.index() << " is not coarse\n"); }
+					{	UG_LOG(" " << conn.index() << " is not coarse\n"); }
 					else
-					{	UG_LOG(conn.index() << " has value " << amg_offdiag_value(conn.value()) << "\n"); }
+					{	UG_LOG(" " << conn.index() << " has value " << amg_offdiag_value(conn.value()) << "\n"); }
 				}
+				UG_LOG("]\n");
 				//UG_ASSERT(0,i);
 				// no suitable interpolating nodes for node i,
 				// so this node has to be treated by indirect interpolation
-				nodes.set_unassigned_fine_indirect(i);
+				//nodes.set_unassigned_fine_indirect(i);
+				nodes.set_coarse(i);
 			}
 		}
 		/*else
