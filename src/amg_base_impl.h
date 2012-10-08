@@ -137,7 +137,9 @@ bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
 	SetMPIErrHandler();
 #endif
 
+//	UG_LOG("matrix " << mat.num_rows() << "\n");
 	cleanup();
+//	UG_LOG("matrix after: " << mat.num_rows() << "\n");
 
 
 	update_positions();
@@ -513,6 +515,7 @@ AMGBase<TAlgebra>::AMGBase() :
 	m_dPreiterationsMimumDefect = 1e-8;
 	m_iYCycle = 0;
 	m_bOneInit = false;
+	m_bVerbose = false;
 }
 
 
@@ -540,9 +543,6 @@ template<typename TAlgebra>
 void AMGBase<TAlgebra>::init_fsmoothing()
 {
 	AMG_PROFILE_FUNC();
-#ifdef UG_PARALLEL
-
-	UG_LOG("\n\nInit FSmoothing...\n");
 	// last level is basesolver level
 	for(size_t k=0; k<levels.size()-1; k++)
 	{
@@ -572,7 +572,6 @@ void AMGBase<TAlgebra>::init_fsmoothing()
 		for(size_t i = 0; i < m_diag.size(); ++i)
 			GetInverse(levels[k]->m_diagInv[i], m_diag[i]);
 	}
-#endif
 }
 
 
@@ -583,7 +582,7 @@ bool AMGBase<TAlgebra>::f_smoothing(vector_type &corr, vector_type &d, size_t le
 	AMGLevel &L = *levels[level];
 	stdvector<bool> &is_fine = L.is_fine;
 	matrix_operator_type &A = *L.pAgglomeratedA;
-#ifdef UG_PARALLEL
+
 
 	//UG_ASSERT(L.m_diagInv.size() == is_fine.size(), "fine markers do not match in size on level " << level);
 	for(size_t i=0; i<L.m_diagInv.size(); i++)
@@ -593,18 +592,12 @@ bool AMGBase<TAlgebra>::f_smoothing(vector_type &corr, vector_type &d, size_t le
 		else
 			corr[i] = 0.0;
 	}
+
+#ifdef UG_PARALLEL
 	corr.set_storage_type(PST_ADDITIVE);
 	corr.change_storage_type(PST_CONSISTENT);
-#else
-	UG_ASSERT(A.num_rows() == is_fine.size(), "fine markers do not match in size on level " << level);
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		if(is_fine[i])
-			corr[i] = d[i] / A(i,i);
-		else
-			corr[i] = 0.0;
-	}
 #endif
+
 	A.matmul_minus(d, corr);
 	return true;
 }

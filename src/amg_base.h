@@ -280,7 +280,7 @@ protected:
 
 	/**
 	 * this function processes the prolongation in old indices and returns a prolongation with new indices,
-	 * computing the new indices and and everything associated with the new indices (fine marks, parent indices etc.)
+	 * computing the new indices and everything associated with the new indices (fine marks, parent indices etc.)
 	 * in detail, this is
 	 * - since we calculate the prolongation only in the master/inner nodes, we need to send this communication to the slave nodes (so we get additive AH=RAP again)
 	 * 	 @sa communicate_prolongation
@@ -337,12 +337,6 @@ protected:
 	 * @param newSlaveLayout	new slave layout for P, condensed from PN.get_total_slave_layout();
 	 */
 	void create_minimal_layout_for_prolongation(ParallelNodes &PN, prolongation_matrix_type &P, IndexLayout &newMasterLayout, IndexLayout &newSlaveLayout);
-
-
-#endif
-
-#ifdef UG_PARALLEL
-public:
 
 	/**
 	 * since we can turn off cores, we need to collect the data from them
@@ -405,6 +399,11 @@ public:
 	bool add_correction_and_update_defect(vector_type &c, vector_type &d, size_t level, size_t exactLevel);
 
 	bool get_correction(vector_type &c, const vector_type &d);
+
+	void set_verbose(bool bVerbose)
+	{
+		m_bVerbose = bVerbose;
+	}
 
 	/// calculates vH[j] = v[m_parentIndex[level+1][j]];
 	bool injection(vector_type &vH, const vector_type &v, size_t level);
@@ -695,6 +694,7 @@ protected:
 			  presmoother(NULL),
 			  postsmoother(NULL)
 #ifdef UG_PARALLEL
+		// todo: remove this
 			  ,collectedA(new matrix_operator_type)
 #endif
 		{
@@ -719,12 +719,12 @@ protected:
 		SmartPtr<ILinearIterator<vector_type> > presmoother;	///< presmoothers for each level
 		SmartPtr<ILinearIterator<vector_type> > postsmoother;	///< postsmoothers for each level
 
+		stdvector< typename block_traits<typename matrix_type::value_type>::inverse_type > m_diagInv;	///< inverse for diagonal, for f-smoothing
+
 #ifdef UG_PARALLEL
 		pcl::InterfaceCommunicator<IndexLayout> com; 										///< the communicator object on this level
 		IndexLayout slaveLayout, masterLayout;												///< layouts
 		IndexLayout slaveLayoutAfterAgglomeration, masterLayoutAfterAgglomeration;			///< since layouts can change due to neighbors merging, these are the new layouts
-
-		stdvector< typename block_traits<typename matrix_type::value_type>::inverse_type > m_diagInv;	///< inverse for diagonal, for f-smoothing
 
 		// agglomeration
 		bool bHasBeenMerged;								///< if true, this core is either father or child of a collected group
@@ -763,6 +763,8 @@ protected:
 	bool isNotMerging(size_t level);
 
 #endif
+
+	bool m_bVerbose;
 
 	void calculate_level_information(size_t level, double createAMGlevelTiming);
 };
