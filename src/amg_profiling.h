@@ -30,4 +30,7 @@
 	#define AMG_BPROFILE_END()
 #endif
 
+
+#define AMG_LOG(lvl, msg) { if(m_verbose >= lvl) UG_LOG(msg); }
+
 #endif /* __H__LIB_ALGEBRA__AMG_PROFILING_H_ */

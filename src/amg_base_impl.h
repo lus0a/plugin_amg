@@ -239,7 +239,7 @@ bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
 		precalc_level(level);
 		if(m_agglomerateLevel == level)
 		{
-			UG_LOG("Processor " << pcl::GetProcRank() << " got agglomerated at level " << level << ".\n");
+			AMG_LOG(2, "Processor " << pcl::GetProcRank() << " got agglomerated at level " << level << ".\n");
 			//if(GetLogAssistant().get_output_process() != -1)
 				//GetLogAssistant().set_output_process(pcl::GetProcRank()+1);
 			break;
@@ -340,7 +340,7 @@ bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
 #ifdef UG_PARALLEL
 	pcl::ProcessCommunicator &pc = mat.process_communicator(); //!
 	m_totalUsedLevels = pc.allreduce(m_usedLevels, PCL_RO_MAX);
-	UG_LOG("total used levels: " << m_totalUsedLevels << "\n");
+	AMG_LOG(1, "total used levels: " << m_totalUsedLevels << "\n");
 
 	for(level=0;level<m_totalUsedLevels; level++)
 	{
@@ -370,17 +370,17 @@ bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
 			li.set_coarsening_rate(0.0);
 
 		if(level >= m_usedLevels){
-		UG_LOG(li.tostring() << "\n");
-		UG_LOG(" level took " << li.m_dCreationTimeMS << " ms" << std::endl << std::endl);}
+		AMG_LOG(1, li.tostring() << "\n");
+		AMG_LOG(1, " level took " << li.m_dCreationTimeMS << " ms" << std::endl << std::endl);}
 	}
 
 #endif
 
-	UG_LOG("finished. now init fsmoothing.\n");
+	AMG_LOG(1, "finished. now init fsmoothing.\n");
 	init_fsmoothing();
 
 
-	UG_LOG("AMG Setup finished. Used Levels: " << m_usedLevels << ". ");
+	AMG_LOG(1, "AMG Setup finished. Used Levels: " << m_usedLevels << ". ");
 	m_dTimingWholeSetupMS = SWwhole.ms();
 	UG_DLOG(LIB_ALG_AMG, 1, "AMG Setup took " << m_dTimingWholeSetupMS << " ms." << std::endl);
 
@@ -420,7 +420,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 	(void) static_nrUnknowns;
 	Stopwatch SW; SW.start();
 
-	UG_LOG("creating direct solver on level " << level << "\n");
+	AMG_LOG(1, "creating direct solver on level " << level << "\n");
 
 #ifdef UG_PARALLEL
 	pcl::ProcessCommunicator &pc = A.process_communicator(); //!
@@ -535,7 +535,6 @@ void AMGBase<TAlgebra>::cleanup()
 template<typename TAlgebra>
 AMGBase<TAlgebra>::~AMGBase()
 {
-	UG_LOG("~AMGBase.\n");
 	cleanup();
 }
 
@@ -549,25 +548,28 @@ void AMGBase<TAlgebra>::init_fsmoothing()
 		//UG_LOG("---- level " << k << " ---- ");
 		matrix_operator_type &mat = *levels[k]->pAgglomeratedA;
 
+
+#ifdef UG_PARALLEL
 		ParallelVector<Vector< typename matrix_operator_type::value_type > > m_diag;
+		m_diag.set_layouts(mat.master_layout(), mat.slave_layout());
+		m_diag.set_communicator(mat.communicator());
+#else
+		std::vector<typename matrix_operator_type::value_type > m_diag;
+#endif
 		size_t size = mat.num_rows();
 		levels[k]->m_diagInv.resize(size);
 		m_diag.resize(size);
 
-		m_diag.set_layouts(mat.master_layout(), mat.slave_layout());
-		m_diag.set_communicator(mat.communicator());
 
 		// copy diagonal
 		for(size_t i = 0; i < m_diag.size(); ++i)
 			m_diag[i] = mat(i, i);
 
+#ifdef UG_PARALLEL
 		//	make diagonal consistent
 		m_diag.set_storage_type(PST_ADDITIVE);
-
-		/*UG_LOG("______________________________________________\n");
-		PrintLayout(mat.get_process_communicator(), mat.get_communicator(),
-						mat.get_master_layout(), mat.get_slave_layout());*/
 		m_diag.change_storage_type(PST_CONSISTENT);
+#endif
 
 		for(size_t i = 0; i < m_diag.size(); ++i)
 			GetInverse(levels[k]->m_diagInv[i], m_diag[i]);
@@ -1060,13 +1062,13 @@ void AMGBase<TAlgebra>::write_debug_matrices(matrix_type &AH, prolongation_matri
 		prolongation_matrix_type &P, size_t level)
 {
 	AMG_PROFILE_FUNC();
-	UG_LOG("write matrices");
+	AMG_LOG(1, "writing 4 matrices to " << m_writeMatrixPath << ": A ");
 
 	//if(A.num_rows() < AMG_WRITE_MATRICES_MAX)
 	{
-		write_debug_matrix(A, level, level, "AMG_A_L");		UG_LOG(".");
-		write_debug_matrix(P, level+1, level, "AMG_P_L");	UG_LOG(".");
-		write_debug_matrix(R, level, level+1, "AMG_R_L");	UG_LOG(".");
+		write_debug_matrix(A, level, level, "AMG_A_L");		AMG_LOG(1, "P ");
+		write_debug_matrix(P, level+1, level, "AMG_P_L");	AMG_LOG(1, "R ");
+		write_debug_matrix(R, level, level+1, "AMG_R_L");	AMG_LOG(1, "AH ");
 	}
 
 	std::string path=std::string("/level") + ToString(level) + "/";
@@ -1079,7 +1081,7 @@ void AMGBase<TAlgebra>::write_debug_matrices(matrix_type &AH, prolongation_matri
 #endif
 	AMGWriteToFile(AH, level+1, level+1, name.c_str(), m_amghelper);
 
-	UG_LOG(". done.\n");
+	AMG_LOG(1, " done.\n");
 }
 
 template<typename TAlgebra>

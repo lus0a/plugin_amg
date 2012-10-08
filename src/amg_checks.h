@@ -416,7 +416,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 	double nH1 = ConstTwoNorm(dH);
 	UG_LOG("norm of dH = " << nH1 << "\n");
 
-	double preHnorm=nH1;
+	//double preHnorm=nH1;
 	size_t i=0;
 
 #ifdef UG_PARALLEL

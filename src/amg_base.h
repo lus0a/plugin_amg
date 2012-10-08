@@ -47,6 +47,9 @@ void MyPrintLayout(pcl::InterfaceCommunicator<IndexLayout> &communicator, IndexL
 #endif
 
 
+//extern DebugID DebugRSAMGProlongation;
+#define DebugRSAMGProlongation LIB_ALG_AMG
+
 template <typename TAlgebra>
 class AMGBase:
 	public IPreconditioner<	TAlgebra >
@@ -462,6 +465,7 @@ public:
 	void 	set_checkLevel_post_iterations(size_t i)				{ m_checkLevelPostIterations = i; }
 	size_t	get_checkLevel_post_iterations() const					{ return m_checkLevelPostIterations; }
 
+	void 	set_verbose(int verbose) { m_verbose = verbose; }
 
 	void 	set_presmoother(SmartPtr<ILinearIterator<vector_type> > presmoother) {	m_presmoother = presmoother; }
 	void 	set_postsmoother(SmartPtr<ILinearIterator<vector_type> > postsmoother) { m_postsmoother = postsmoother; }
@@ -645,7 +649,9 @@ protected:
 	size_t	m_preferredNodesOnOneProcessor;		///< preferred nr of nodes on one processor (for agglomeration)
 	bool 	m_bUseCollectedSolver;
 
-	bool	m_bFSmoothing;
+	int		m_verbose;							///< verbose level. 0 = no output.
+
+	bool	m_bFSmoothing;						///< if true, use F-Smoothing
 	bool	m_bOneInit;							///< if true, do not re-create AMG we preprocess is called
 
 	size_t 	m_iNrOfPreiterationsCheck;			///< nr of mg cycles performed before checking

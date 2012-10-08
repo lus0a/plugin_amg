@@ -27,6 +27,9 @@ using namespace std;
 
 namespace ug
 {
+//DebugID DebugRSAMGCoarsening("DebugRSAMGCoarsening");
+#define DebugRSAMGCoarsening LIB_ALG_AMG
+
 time_t global_t=0;
 
 
@@ -207,7 +210,7 @@ void MarkUnassignedNeighborsFine(const cgraph &graph, nodeinfo_pq_type &PQ, AMGN
 	{
 		int indexN = (*conn);
 
-		IF_DEBUG(LIB_ALG_AMG, 3)
+		IF_DEBUG(DebugRSAMGCoarsening, 3)
 		{
 			UG_LOG(indexN << " ");
 			if(nodes[indexN].is_assigned())

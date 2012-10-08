@@ -197,18 +197,20 @@ void CreateRugeStuebenProlongation(SparseMatrix<double> &P, const Matrix_type &A
 						sumPosInterpolatory, sumNegInterpolatory, diag);
 			else
 			{
-
-				UG_LOG("node " << i << " was marked direct, but no interpolation found. barrier = " << barrier << std::endl);
-				UG_LOG("[\n");
-				for(typename Matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+				IF_DEBUG(DebugRSAMGProlongation, 2)
 				{
-					if(conn.index() == i) continue; // skip diagonal
-					if(!nodes[conn.index()].is_coarse())
-					{	UG_LOG(" " << conn.index() << " is not coarse\n"); }
-					else
-					{	UG_LOG(" " << conn.index() << " has value " << amg_offdiag_value(conn.value()) << "\n"); }
+					UG_LOG("node " << i << " was marked direct, but no interpolation found. barrier = " << barrier << std::endl);
+					UG_LOG("[\n");
+					for(typename Matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+					{
+						if(conn.index() == i) continue; // skip diagonal
+						if(!nodes[conn.index()].is_coarse())
+						{	UG_LOG(" " << conn.index() << " is not coarse\n"); }
+						else
+						{	UG_LOG(" " << conn.index() << " has value " << amg_offdiag_value(conn.value()) << "\n"); }
+					}
+					UG_LOG("]\n");
 				}
-				UG_LOG("]\n");
 				//UG_ASSERT(0,i);
 				// no suitable interpolating nodes for node i,
 				// so this node has to be treated by indirect interpolation
@@ -225,9 +227,9 @@ void CreateRugeStuebenProlongation(SparseMatrix<double> &P, const Matrix_type &A
 	}
 
 	if(nodes.get_unassigned())
-		UG_DLOG(LIB_ALG_AMG, 1, nodes.get_unassigned() << " ? ")
+		UG_DLOG(DebugRSAMGProlongation, 1, nodes.get_unassigned() << " ? ")
 	if(nodes.get_unassigned_indirect_fine())
-		UG_DLOG(LIB_ALG_AMG, 1, "Pass 1: " << nodes.get_unassigned_indirect_fine() << " nodes need indirect interpolation.")
+		UG_DLOG(DebugRSAMGProlongation, 1, "Pass 1: " << nodes.get_unassigned_indirect_fine() << " nodes need indirect interpolation.")
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
