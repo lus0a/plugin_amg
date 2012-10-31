@@ -134,7 +134,7 @@ bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
 		return true;
 
 #ifdef UG_PARALLEL
-	SetMPIErrHandler();
+//	SetMPIErrHandler();
 #endif
 
 //	UG_LOG("matrix " << mat.num_rows() << "\n");
