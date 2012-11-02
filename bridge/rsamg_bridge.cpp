@@ -15,6 +15,7 @@
 // include bridge
 #include "bridge/bridge.h"
 #include "bridge/util.h"
+#include "bridge/util_algebra_dependent.h"
 
 #include "lib_algebra/lib_algebra.h"
 
