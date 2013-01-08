@@ -1,7 +1,8 @@
 ################################################################################
-# BIOGAS
+# AMG
 #
-# The biogas plugin.
+# The algebraic multigrid plugin.
+# Ruge-Stüben AMG and Filtering AMG
 ################################################################################
 
 cmake_minimum_required(VERSION 2.6)
