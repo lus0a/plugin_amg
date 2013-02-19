@@ -1222,7 +1222,7 @@ private:
 	{
 		AMG_PROFILE_FUNC();
 		localTestvectors.resize(m_testvectors.size());
-		size_t level = m_amghelper.positions.size()-1;
+		//size_t level = m_amghelper.positions.size()-1;
 		//UG_LOG("Getting testvectors for node " << node << ":\n");
 		for (size_t k = 0; k < m_testvectors.size(); k++)
 		{
