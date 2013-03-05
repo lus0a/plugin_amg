@@ -19,7 +19,8 @@ set(srcAMGBridge 	bridge/amg_bridge.cpp
 					bridge/rsamg_bridge.cpp)
 
 if(PARALLEL)
-	set(srcAMG src/rsamg/rsamg_parallel_coarsening.cpp)
+	set(srcAMG src/rsamg/rsamg_parallel_coarsening.cpp
+	            src/amg_debug.cpp)
 endif(PARALLEL)
 	
 	set(srcAMG ${srcAMG}

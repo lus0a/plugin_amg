@@ -23,11 +23,16 @@
 #include "lib_algebra/common/connection_viewer_output.h"
 
 namespace ug {
+
+extern DebugID RSAMGCoarseningDebug;
+extern DebugID RSAMGProlongationDebug;
+extern DebugID AMGAgglomerationDebug;
+
 // WriteToFile
 //--------------------------------------------------
 //! writes to a file in somewhat SparseMatrix-market format (for connection viewer)
 template<typename T>
-void AMGWriteToFile(const SparseMatrix<T> &A, int fromlevel, int tolevel, const char *filename, const cAMG_helper &h)
+void AMGWriteToFile(const T &A, int fromlevel, int tolevel, const char *filename, const cAMG_helper &h)
 {
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
@@ -45,9 +50,9 @@ void AMGWriteToFile(const SparseMatrix<T> &A, int fromlevel, int tolevel, const 
 	file << 1 << std::endl;
 	for(size_t i=0; i < A.num_rows(); i++)
 	{
-		for(typename SparseMatrix<T>::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+		for(typename T::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
 			if(conn.value() != 0.0)
-				file << h.GetOriginalIndex(tolevel, minlevel, i) << " " << h.GetOriginalIndex(fromlevel, minlevel, conn.index()) << " " << conn.value() << std::endl;
+				file << h.GetOriginalIndex(tolevel, minlevel, i) << " " << h.GetOriginalIndex(fromlevel, minlevel, conn.index()) << " " << conn.value() << "\n";
 	}
 }
 
@@ -55,7 +60,7 @@ void AMGWriteToFile(const SparseMatrix<T> &A, int fromlevel, int tolevel, const 
 //--------------------------------------------------
 //! writes to a file in somewhat SparseMatrix-market format (for connection viewer)
 template<typename T>
-void AMGWriteToFilePS(const SparseMatrix<T> &A, int fromlevel, int tolevel, const char *filename, const cAMG_helper &h)
+void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, const char *filename, const cAMG_helper &h)
 {
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
@@ -73,7 +78,7 @@ void AMGWriteToFilePS(const SparseMatrix<T> &A, int fromlevel, int tolevel, cons
 		ps.move_to(h.positions[minlevel][from].x, h.positions[minlevel][from].y);
 		ps.print_text( std::string("0") + ToString(i));
 
-		for(typename SparseMatrix<T>::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+		for(typename T::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
 		{
 			if(conn.value() != 0.0)
 			{
@@ -88,7 +93,7 @@ void AMGWriteToFilePS(const SparseMatrix<T> &A, int fromlevel, int tolevel, cons
 		}
 	}
 
-	std::cout << std::endl;
+	//std::cout << std::endl;
 }
 
 // could be in cpp

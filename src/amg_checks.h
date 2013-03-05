@@ -45,8 +45,8 @@ void AMGBase<TAlgebra>::write_interfaces()
 
 		file << 1 << std::endl;
 
-		IndexLayout &masterLayout = levels[level]->pA->master_layout();
-		IndexLayout &slaveLayout = levels[level]->pA->slave_layout();
+		const IndexLayout &masterLayout = levels[level]->pA->layouts()->master();
+		const IndexLayout &slaveLayout = levels[level]->pA->layouts()->slave();
 		std::vector<std::string> v;
 		v.resize(h.positions[level].size());
 
@@ -55,22 +55,22 @@ void AMGBase<TAlgebra>::write_interfaces()
 		//PRINTLAYOUT(levels[level]->com, levels[level]->masterLayout, levels[level]->slaveLayout);
 		//PRINTLAYOUT(levels[level]->com, masterLayout, slaveLayout);
 
-		for(IndexLayout::iterator iter = masterLayout.begin(); iter != masterLayout.end(); ++iter)
+		for(IndexLayout::const_iterator iter = masterLayout.begin(); iter != masterLayout.end(); ++iter)
 		{
-			IndexLayout::Interface &interface = masterLayout.interface(iter);
+			const IndexLayout::Interface &interface = masterLayout.interface(iter);
 			int pid = masterLayout.proc_id(iter);
-			for(IndexLayout::Interface::iterator iter = interface.begin(); iter != interface.end(); ++iter)
+			for(IndexLayout::Interface::const_iterator iter = interface.begin(); iter != interface.end(); ++iter)
 			{
 				size_t i = interface.get_element(iter);
 				v[i].append(std::string("M") + ToString(pid) + std::string(" "));
 			}
 		}
 
-		for(IndexLayout::iterator iter = slaveLayout.begin(); iter != slaveLayout.end(); ++iter)
+		for(IndexLayout::const_iterator iter = slaveLayout.begin(); iter != slaveLayout.end(); ++iter)
 		{
-			IndexLayout::Interface &interface = slaveLayout.interface(iter);
+			const IndexLayout::Interface &interface = slaveLayout.interface(iter);
 			int pid = slaveLayout.proc_id(iter);
-			for(IndexLayout::Interface::iterator iter = interface.begin(); iter != interface.end(); ++iter)
+			for(IndexLayout::Interface::const_iterator iter = interface.begin(); iter != interface.end(); ++iter)
 			{
 				size_t i = interface.get_element(iter);
 				v[i].append(std::string("S") + ToString(pid) + std::string(" "));
@@ -129,7 +129,7 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 
 
 #ifdef UG_PARALLEL
-	name = GetParallelName(name, levels[level]->pA->process_communicator(), true);
+	name = GetParallelName(name, levels[level]->pA->layouts()->proc_comm(), true);
 	/*if(levels[level]->bHasBeenMerged && m_agglomerateLevel != level)
 		AMGWriteToFile(levels[level]->uncollectedA, level, level, name.c_str(), m_amghelper);
 	else*/
@@ -140,7 +140,7 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 
 	std::string name2 = (std::string("AMG_L") + ToString(level) + "_" + filename + "_p"+ ToString(pid) + ".values");
 #ifdef UG_PARALLEL
-	name2 = GetParallelName(name2, levels[level]->pA->process_communicator(), false);
+	name2 = GetParallelName(name2, levels[level]->pA->layouts()->proc_comm(), false);
 #endif
 	f << "v " << name2 << "\n";
 
@@ -252,7 +252,7 @@ bool AMGBase<TAlgebra>::check(const vector_type &const_c, const vector_type &con
 
 	UG_LOG("out\n");
 #ifdef UG_PARALLEL
-//	const_c.process_communicator().barrier();
+//	const_c.layouts()->proc_comm().barrier();
 #endif
 	return true;
 }

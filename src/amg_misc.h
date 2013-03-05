@@ -13,19 +13,16 @@ namespace ug
 {
 
 template<typename TMatrix>
-void ReduceToStrongConnections(TMatrix &m1, const TMatrix &const_m2, double theta)
+void ReduceToStrongConnections(TMatrix &m1, const TMatrix &m2, double theta)
 {
 	PROFILE_FUNC();
 	UG_LOG("Reducing matrix...");
-	TMatrix &m2 = const_cast<TMatrix&>(const_m2);
 	std::vector<typename TMatrix::connection> con;
 	m1.resize(m2.num_rows(), m2.num_cols());
 
 #ifdef UG_PARALLEL
-	m1.set_layouts(m2.master_layout(), m2.slave_layout());
-	m1.set_communicator(m2.communicator());
-	m1.set_process_communicator(m2.process_communicator());
-	m1.copy_storage_type(m2);
+	m1.set_layouts(m2.layouts());
+	m1.set_storage_type(m2.get_storage_mask());
 #endif
 
 	con.reserve(50);
@@ -38,7 +35,7 @@ void ReduceToStrongConnections(TMatrix &m1, const TMatrix &const_m2, double thet
 		double barrier = theta*std::max(maxConnValue, dabs(minConnValue));
 		typename TMatrix::value_type offLumpedSum=0;
 		int iDiag=-1;
-		for(typename TMatrix::row_iterator conn = m2.begin_row(i); conn != m2.end_row(i); ++conn)
+		for(typename TMatrix::const_row_iterator conn = m2.begin_row(i); conn != m2.end_row(i); ++conn)
 		{
 			if(conn.index() != i)
 			{

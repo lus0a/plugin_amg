@@ -104,13 +104,13 @@ public:
 
 	char send(int pid, int index) const
 	{
-		UG_LOG("node " << index << " sending rating " << m_nodes[index].rating << " to " << pid << "\n");
+		//UG_LOG("node " << index << " sending rating " << m_nodes[index].rating << " to " << pid << "\n");
 		return (char) m_nodes[index].rating;
 	}
 
 	void receive(int pid, int index, char b)
 	{
-		UG_LOG("node " << index << " received rating " << (int)b << " from " << pid << "\n");
+		//UG_LOG("node " << index << " received rating " << (int)b << " from " << pid << "\n");
 		if(b == AMG_COARSE_RATING || b == AMG_FINE_RATING
 				|| b == AMG_DIRICHLET_RATING)
 		{

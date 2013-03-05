@@ -14,6 +14,8 @@
 #include "lib_algebra/parallelization/communication_scheme.h"
 #endif
 
+// note: documentation is in amg_base.h
+
 namespace ug
 {
 
@@ -21,6 +23,7 @@ namespace ug
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // create_fine_marks
 //------------------------------
+// docu see amg_base.h
 template<typename TAlgebra>
 template<typename TAMGNodes>
 void AMGBase<TAlgebra>::create_fine_marks(int level, TAMGNodes &amgnodes, size_t N)
@@ -36,6 +39,7 @@ void AMGBase<TAlgebra>::create_fine_marks(int level, TAMGNodes &amgnodes, size_t
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // create_parent_index
 //------------------------------
+// docu see amg_base.h
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::create_parent_index(int level, stdvector<int> newIndex, size_t nrOfCoarse)
 
@@ -53,6 +57,7 @@ void AMGBase<TAlgebra>::create_parent_index(int level, stdvector<int> newIndex, 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // create_new_index
 //------------------------------
+// docu see amg_base.h
 template<typename TAlgebra>
 template<typename TAMGNodes>
 void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices, prolongation_matrix_type &PnewIndices,
@@ -119,10 +124,11 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // serial_process_prolongation:
 //--------------------------------
+// docu see amg_base.h
 template<typename TAlgebra>
 template<typename TAMGNodes>
-void AMGBase<TAlgebra>::serial_process_prolongation(prolongation_matrix_type &PoldIndices, prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level,
-		TAMGNodes &amgnodes)
+void AMGBase<TAlgebra>::serial_process_prolongation(prolongation_matrix_type &PoldIndices,
+		prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level, TAMGNodes &amgnodes)
 {
 	AMG_PROFILE_FUNC();
 	stdvector<int> newIndex;
@@ -138,20 +144,19 @@ void AMGBase<TAlgebra>::serial_process_prolongation(prolongation_matrix_type &Po
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// CheckMatrixLayout
+// CheckMatrixLayouts
 //------------------------------
 /**
  * this function checks:
- * - if ( P(i,j) != 0.0) and is_slave(j)), that slaveLayout[masterProc(j)].contains(j)
+ * - if ( P(i,j) != 0.0) and is_slave(j)), that layouts.slave().interface(masterProc(j)).contains(j)
  * - tests that master/slave layouts are double-ended and matching.
  *
- * @param PN			ParallelNodes used for local->global indexing
- * @param mat			checked matrix. note that we check column entries only (the 'Preimage' of mat).
- * @param masterLayout	used master layout
- * @param slaveLayout	used slave layout
+ * @param PN		ParallelNodes used for local->global indexing
+ * @param mat		checked matrix. note that we check column entries only (the 'Preimage' of mat).
+ * @param layouts	used layouts
  */
 template<typename TMatrix>
-void CheckMatrixLayout(ParallelNodes &PN, const TMatrix &mat, IndexLayout &masterLayout, IndexLayout &slaveLayout)
+void CheckMatrixLayouts(ParallelNodes &PN, const TMatrix &mat, HorizontalAlgebraLayouts &layouts)
 {
 #ifndef NDEBUG
 	AMG_PROFILE_FUNC();
@@ -166,14 +171,16 @@ void CheckMatrixLayout(ParallelNodes &PN, const TMatrix &mat, IndexLayout &maste
 			const AlgebraID &globalID = PN.local_to_global(c);
 			int mPID = globalID.master_proc();
 			if(mPID == pcl::GetProcRank()) continue;
-			if(slaveLayout.interface_exists(mPID) == false)
+			if(layouts.slave().interface_exists(mPID) == false)
 			{
-				UG_LOG("Node " << c << "(gid " << globalID << ") has no connection to master (interface to master proc " << mPID << " nonexistent)\n");
+				UG_LOG("Node " << c << "(gid " << globalID << ") has no connection to master (interface to master proc "
+						<< mPID << " nonexistent)\n");
 				bEverySlaveIsInLayout = false;
 			}
-			else if(!IsInInterface(slaveLayout.interface(mPID), c))
+			else if(!IsInInterface(layouts.slave().interface(mPID), c))
 			{
-				UG_LOG("Node " << c << "(gid " << globalID << ") has no connection to master (not in interface to master proc " << mPID << ")\n");
+				UG_LOG("Node " << c << "(gid " << globalID << ") has no connection to master (not in interface to master proc "
+						<< mPID << ")\n");
 				bEverySlaveIsInLayout = false;
 			}
 		}
@@ -181,58 +188,57 @@ void CheckMatrixLayout(ParallelNodes &PN, const TMatrix &mat, IndexLayout &maste
 
 	if(!bEverySlaveIsInLayout)
 	{
-		PRINTPC(mat.process_communicator());
-		PrintLayout(mat.process_communicator(), PN.communicator(), masterLayout, slaveLayout);
+		PRINTPC(layouts.proc_comm());
+		PrintLayouts(layouts);
 		mat.print();
 	}
 	UG_ASSERT(bEverySlaveIsInLayout, "Error in Interfaces.");
 
-
-	//UG_LOG("masterLayout\n");
-	//PrintLayout(masterLayout);
-	//UG_LOG("slaveLayout\n");
-	//PrintLayout(slaveLayout);
-
 	// check if slave interfaces match the master interfaces.
-	TESTLAYOUT(mat.process_communicator(), PN.communicator(), masterLayout, slaveLayout);
+	TESTLAYOUTS(layouts);
 #endif
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // parallel_process_prolongation:
 //--------------------------------
+// docu see amg_base.h
 template<typename TAlgebra>
 template<typename TAMGNodes>
-void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &PoldIndices, prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level,
-		TAMGNodes &amgnodes, ParallelNodes &PN, bool bCreateNewNodes, IndexLayout &nextLevelMasterLayout, IndexLayout &nextLevelSlaveLayout)
+void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &PoldIndices,
+		prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level,
+		TAMGNodes &amgnodes, ParallelNodes &PN, bool bCreateNewNodes,
+		HorizontalAlgebraLayouts &nextLevelLayouts)
 {
 
 	AMG_PROFILE_FUNC();
-	//PRINTPC(PoldIndices.process_communicator());
-	//PRINTPC(PnewIndices.process_communicator());
+	//PRINTPC(PoldIndices.layouts()->proc_comm());
+	//PRINTPC(PnewIndices.layouts()->proc_comm());
+
+	// send rows of PoldIndices from master to slave, update P, PN and layouts
 	communicate_prolongation(PN, PoldIndices, bCreateNewNodes);
-	PoldIndices.set_storage_type(PST_CONSISTENT);
-	amgnodes.resize(PoldIndices.num_cols());
+
 
 	postset_coarse(PN, PoldIndices, amgnodes);
-	create_minimal_layout_for_prolongation(PN, PoldIndices, nextLevelMasterLayout, nextLevelSlaveLayout);
+	create_minimal_layout_for_prolongation(PN, PoldIndices, nextLevelLayouts);
 
-	CheckMatrixLayout(PN, PoldIndices, nextLevelMasterLayout, nextLevelSlaveLayout);
+	CheckMatrixLayouts(PN, PoldIndices, nextLevelLayouts);
 
 	stdvector<int> newIndex;
 	create_new_indices(PoldIndices, PnewIndices, PN.get_original_size(), amgnodes, newIndex,
 			dEpsilonTruncation);
 	PnewIndices.set_storage_type(PST_CONSISTENT);
 
-	ReplaceIndicesInLayout(nextLevelMasterLayout, newIndex);
-	ReplaceIndicesInLayout(nextLevelSlaveLayout, newIndex);
+	ReplaceIndicesInLayout(nextLevelLayouts.master(), newIndex);
+	ReplaceIndicesInLayout(nextLevelLayouts.slave(), newIndex);
 
-	TESTLAYOUT(PoldIndices.process_communicator(), PN.communicator(), nextLevelMasterLayout, nextLevelSlaveLayout);
+	TESTLAYOUTS(nextLevelLayouts);
 
 	create_parent_index(level, newIndex, PnewIndices.num_cols());
 
 	if(m_writeMatrices)
 	{
-		m_amghelper.update_overlap_positions(level, PN.communicator(), PN.get_total_master_layout(), PN.get_total_slave_layout(), PN.local_size());
+		m_amghelper.update_overlap_positions(level, PN.communicator(), PN.get_total_master_layout(),
+				PN.get_total_slave_layout(), PN.local_size());
 		m_amghelper.make_coarse_level(level+1, m_parentIndex[level+1]);
 	}
 	create_fine_marks(level, amgnodes, PN.get_original_size());
@@ -241,6 +247,7 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // communicate_prolongation:
 //------------------------------
+// docu see amg_base.h
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::communicate_prolongation(ParallelNodes &PN, prolongation_matrix_type &PoldIndices, bool bCreateNewNodes)
 {
@@ -255,23 +262,30 @@ void AMGBase<TAlgebra>::communicate_prolongation(ParallelNodes &PN, prolongation
 	rowSendingScheme.process(PN.slave_layout());
 	rowSendingScheme.set_rows_in_matrix(PoldIndices);
 
+	// we then have a consistent PoldIndices
+	PoldIndices.set_storage_type(PST_CONSISTENT);
+
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // postset_coarse:
 //------------------------------
+// docu see amg_base.h
 template<typename TAlgebra>
 template<typename TAMGNodes>
 void AMGBase<TAlgebra>::postset_coarse(ParallelNodes &PN, prolongation_matrix_type &PoldIndices, TAMGNodes &amgnodes)
 {
 	AMG_PROFILE_FUNC();
+
+	amgnodes.resize(PoldIndices.num_cols());
+
 	// set coarse flags of new rows
-	for(IndexLayout::iterator iter = PN.slave_layout().begin();
+	for(IndexLayout::const_iterator iter = PN.slave_layout().begin();
 			iter != PN.slave_layout().end(); ++iter)
 	{
-		IndexLayout::Interface &interface = PN.slave_layout().interface(iter);
-		for(IndexLayout::Interface::iterator iter = interface.begin(); iter != interface.end(); ++iter)
+		const IndexLayout::Interface &interface = PN.slave_layout().interface(iter);
+		for(IndexLayout::Interface::const_iterator iter = interface.begin(); iter != interface.end(); ++iter)
 		{
 			size_t i = interface.get_element(iter);
 			UG_ASSERT(PN.is_slave(i), i);
@@ -282,9 +296,11 @@ void AMGBase<TAlgebra>::postset_coarse(ParallelNodes &PN, prolongation_matrix_ty
 				UG_DLOG(LIB_ALG_AMG, 0, "post-setted " << i << " fine.\n");
 			}
 
+			// this is a prolongation
 			for(typename prolongation_matrix_type::row_iterator it = PoldIndices.begin_row(i);
 				it != PoldIndices.end_row(i); ++it)
 			{
+				// so all connections must be coarse
 				size_t j = it.index();
 				if(amgnodes[j].is_coarse() == false)
 				{
@@ -349,11 +365,14 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // create_minimal_layout_for_prolongation
 //------------------------------------------
+// docu see amg_base.h
 template<typename TAlgebra>
-void AMGBase<TAlgebra>::create_minimal_layout_for_prolongation(ParallelNodes &PN, prolongation_matrix_type &P, IndexLayout &newMasterLayout, IndexLayout &newSlaveLayout)
+void AMGBase<TAlgebra>::create_minimal_layout_for_prolongation(ParallelNodes &PN, prolongation_matrix_type &P,
+		HorizontalAlgebraLayouts &newLayouts)
 {
 	AMG_PROFILE_FUNC();
 	stdvector<bool> bUsedSlave(P.num_cols(), false);
+
 	for(size_t r=0; r<PN.get_original_size(); r++)
 	{
 		for(typename prolongation_matrix_type::row_iterator it = P.begin_row(r);
@@ -371,9 +390,8 @@ void AMGBase<TAlgebra>::create_minimal_layout_for_prolongation(ParallelNodes &PN
 	}*/
 
 	CreateMinimalLayoutCommunicationScheme cmlcs(bUsedSlave);
-	CommunicateOnInterfaces(PN.communicator(),
-			PN.get_total_slave_layout(), PN.get_total_master_layout(), cmlcs);
-	cmlcs.get_new_layouts(newMasterLayout, newSlaveLayout);
+	CommunicateOnInterfaces(PN.communicator(), PN.get_total_slave_layout(), PN.get_total_master_layout(), cmlcs);
+	cmlcs.get_new_layouts(newLayouts.master(), newLayouts.slave());
 
 }
 

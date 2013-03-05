@@ -217,7 +217,7 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
  */
 template<typename TAlgebra>
 void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
-		prolongation_matrix_type &P, size_t level)
+		prolongation_matrix_type &P, size_t level, AMGLayouts &nextLevelLayouts)
 {
 	AMG_PROFILE_FUNC();
 
@@ -249,12 +249,12 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 		ReduceToStrongConnections(Aeps, A, m_dPrereduceAToStrongParameter);
 
 		FAMGLevelCalculator<algebra_type>
-			dummy(*this, AH, R, Aeps, A, P, level, testvectors, omega);
+			dummy(*this, AH, R, Aeps, A, P, level, testvectors, omega, nextLevelLayouts);
 		dummy.do_calculation();
 	}
 	else
 	{
-		FAMGLevelCalculator<algebra_type> dummy(*this, AH, R, A, A, P, level, testvectors, omega);
+		FAMGLevelCalculator<algebra_type> dummy(*this, AH, R, A, A, P, level, testvectors, omega, nextLevelLayouts);
 		dummy.do_calculation();
 	}
 
@@ -354,12 +354,13 @@ bool FAMG<TAlgebra>::check_testvector(size_t fromlevel, size_t tolevel)
 		if(level >=fromlevel)
 			super::check_level(c, d, A, level, res, &tv);
 
+		AMGLayouts nextLevelLayouts;
 		if(level+1 < super::m_usedLevels-1)
 		{
 			matrix_type Aeps;
 			ReduceToStrongConnections(Aeps, A, m_dPrereduceAToStrongParameter);
 			FAMGLevelCalculator<algebra_type>
-				dummy(*this, AH, R, Aeps, A, P, level, testvectors, omega);
+				dummy(*this, AH, R, Aeps, A, P, level, testvectors, omega, nextLevelLayouts);
 			dummy.onlyTV();
 		}
 		else break;

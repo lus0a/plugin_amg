@@ -119,7 +119,7 @@ public:
 protected:
 //  functions
 	virtual void create_AMG_level(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
-					prolongation_matrix_type &P, size_t level);
+					prolongation_matrix_type &P, size_t level, AMGLayouts &nextLevelLayouts);
 
 #ifdef UG_PARALLEL
 public:

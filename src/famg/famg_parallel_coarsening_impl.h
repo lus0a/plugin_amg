@@ -170,7 +170,7 @@ FAMGLevelCalculator<TAlgebra>::receive_coarsening_from_processes_with_lower_colo
 	// issue receive of coarsening data from processes with lower color
 	/*IF_DEBUG(LIB_ALG_AMG, 11)
 	{
-		pcl::ProcessCommunicator lowerPC = A_OL2.process_communicator().create_sub_communicator(processesWithLowerColor);
+		pcl::ProcessCommunicator lowerPC = A_OL2.layouts()->proc_comm().create_sub_communicator(processesWithLowerColor);
 		communicator.enable_communication_debugging(lowerPC);
 	}*/
 
@@ -207,7 +207,7 @@ FAMGLevelCalculator<TAlgebra>::
 
 	/*IF_DEBUG(LIB_ALG_AMG, 11)
 	{
-		pcl::ProcessCommunicator higherPC = A_OL2.process_communicator().create_sub_communicator(processesWithHigherColor);
+		pcl::ProcessCommunicator higherPC = A_OL2.layouts()->proc_comm().create_sub_communicator(processesWithHigherColor);
 		communicator.enable_communication_debugging(higherPC);
 	}*/
 }
@@ -263,8 +263,8 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 
 	//GenerateOverlap(A_OL1, A_OL2, OL2MasterLayout, OL2SlaveLayout, 1, 0, true, true);
 
-	AddLayout(OL2MasterLayout, A.master_layout());
-	AddLayout(OL2SlaveLayout, A.slave_layout());
+	AddLayout(OL2MasterLayout, A.layouts()->master());
+	AddLayout(OL2SlaveLayout, A.layouts()->slave());
 
 	GenerateOverlap2(A, A_OL2, OL2MasterLayout, OL2SlaveLayout, masterLayouts, slaveLayouts,
 			2, 1, overlapSize, false, false, PN);
@@ -276,7 +276,7 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 
 
 	/*
-	PRINTLAYOUT(PN.communicator(), A.master_layout(), A.slave_layout());
+	PRINTLAYOUT(PN.communicator(), A.layouts()->master(), A.layouts()->slave());
 	PRINTLAYOUT(PN.communicator(), OL1MasterLayout, OL1SlaveLayout);
 	PRINTLAYOUT(PN.communicator(), OL2MasterLayout, OL2SlaveLayout);
 */
@@ -287,9 +287,9 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 	}*/
 
 #ifdef UG_DEBUG
-	UG_ASSERT(TestLayout(A.process_communicator(), PN.communicator(), A.master_layout(), A.slave_layout()) == true, "A layout wrong, level " << level);
-	UG_ASSERT(TestLayout(A.process_communicator(), PN.communicator(), OL1MasterLayout, OL1SlaveLayout) == true, "A layout wrong, level " << level);
-	UG_ASSERT(TestLayout(A.process_communicator(), PN.communicator(), OL1MasterLayout, OL1SlaveLayout) == true, "A layout wrong, level " << level);
+	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.communicator(), A.layouts()->master(), A.layouts()->slave()) == true, "A layout wrong, level " << level);
+	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.communicator(), OL1MasterLayout, OL1SlaveLayout) == true, "A layout wrong, level " << level);
+	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.communicator(), OL1MasterLayout, OL1SlaveLayout) == true, "A layout wrong, level " << level);
 #endif
 
 	// create OLCoarseningSendLayout, OLCoarseningReceiveLayout
@@ -323,7 +323,7 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 	/*UG_LOG("\n======================================\n");
 	UG_LOG("         LEVEL " << level << " \n");
 	UG_LOG("\n======================================\n");
-	PRINTPC(A.process_communicator());
+	PRINTPC(A.layouts()->proc_comm());
 	UG_LOG("\n======================================\n");*/
 
 	//UG_DLOG(LIB_ALG_AMG, 1, "OLCoarseningLayout :\n")

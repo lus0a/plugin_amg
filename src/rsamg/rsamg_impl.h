@@ -151,8 +151,8 @@ bool _MakeFullRowsMatrix(const ParallelMatrix<matrix_type> &_mat, ParallelMatrix
 	c.m_slaveDirichletLast = false;
 	bool b = c.calculate();
 
-	//PRINTLAYOUT(mat.process_communicator(), mat.communicator(), mat.master_layout(), mat.slave_layout());
-	//PRINTLAYOUT(mat.process_communicator(), mat.communicator(), vMasterLayouts[0], vSlaveLayouts[0]);
+	//PRINTLAYOUT(mat.layouts()->proc_comm(), mat.communicator(), mat.master_layout(), mat.slave_layout());
+	//PRINTLAYOUT(mat.layouts()->proc_comm(), mat.communicator(), vMasterLayouts[0], vSlaveLayouts[0]);
 
 	//overlapSize = c.m_overlapSize;
 	return b;
@@ -173,7 +173,7 @@ bool _MakeFullRowsMatrix(const ParallelMatrix<matrix_type> &_mat, ParallelMatrix
  */
 template<typename TAlgebra>
 void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
-		prolongation_matrix_type &PnewIndices, size_t level)
+		prolongation_matrix_type &PnewIndices, size_t level, AMGLayouts &nextLevelLayouts)
 {
 	AMG_PROFILE_FUNC();
 
@@ -183,7 +183,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 
 	matrix_type AOL1;
 	matrix_type &A_ = const_cast<matrix_type&> (A);
-	ParallelNodes PN(A_.communicator(), A_.master_layout(), A_.slave_layout(), A_.num_rows());
+	ParallelNodes PN(A_.layouts(), A_.num_rows());
 	UG_ASSERT(m_pParallelCoarsening!=NULL, "please set the Parallel Coarsening type");
 
 	stdvector<IndexLayout> vMasterLayouts, vSlaveLayouts;
@@ -237,6 +237,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	// graph is afterwards made up of connections from a node i to j if
 	// j has a strong connection to i
 	graphST.set_as_transpose_of(graphS);
+
 
 #ifdef AMG_WRITE_GRAPH
 	WriteAMGGraphToFile(graphS, (std::string(AMG_WRITE_MATRICES_PATH) + "G" + ToString(level) + ".mat").c_str(), m_amghelper, level);
@@ -339,9 +340,8 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	/// create layouts
 
 #ifdef UG_PARALLEL
-	PoldIndices.set_process_communicator(A.process_communicator());
 	this->parallel_process_prolongation(PoldIndices, PnewIndices, m_dProlongationTr, level, nodes,
-			PN, true, AH.master_layout(), AH.slave_layout());
+			PN, true, nextLevelLayouts);
 #else
 	this->serial_process_prolongation(PoldIndices, PnewIndices, m_dProlongationTr, level, nodes);
 #endif

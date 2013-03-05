@@ -83,7 +83,10 @@ void print_vector(const vector_type &vec, const char *p)
 namespace ug{
 
 #ifdef UG_PARALLEL
-	void MyPrintLayout(pcl::ProcessCommunicator &pc, pcl::InterfaceCommunicator<IndexLayout> &communicator, IndexLayout &layout1, IndexLayout &layout2, const char *name1, const char *name2)
+	void MyPrintLayout(const pcl::ProcessCommunicator &pc,
+	                   pcl::InterfaceCommunicator<IndexLayout> &communicator,
+	                   const IndexLayout &layout1, const IndexLayout &layout2,
+	                   const char *name1, const char *name2)
 {
 	UG_LOG("\n========================================\n");
 	UG_LOG(name1<<"\n");
@@ -188,8 +191,6 @@ private:
 
 	// overlap 2 matrix in parallel case
 	matrix_type A_OL2;
-	IndexLayout &nextLevelMasterLayout;
-	IndexLayout &nextLevelSlaveLayout;
 	IndexLayout OL1MasterLayout, OL1SlaveLayout;
 	IndexLayout OL2MasterLayout, OL2SlaveLayout;
 	std::vector<size_t> overlapSize;
@@ -199,6 +200,7 @@ private:
 	const matrix_type &A_OL2;
 #endif
 	FAMGNodes<prolongation_matrix_type> rating;
+	AMGLayouts &nextLevelLayouts;
 	stdvector< vector_type > &m_testvectors;
 
 	// the calculator which calculates our interpolation weighs
@@ -277,15 +279,6 @@ private:
 		if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, " took " << SW.ms() << " ms\n");
 
 
-
-	#ifdef UG_PARALLEL
-		AH.set_storage_type(PST_ADDITIVE);
-		AH.set_communicator(A_OL2.communicator());
-		AH.set_process_communicator(A_OL2.process_communicator());
-		// AH.set_layouts(nextLevelMasterLayout, nextLevelSlaveLayout); // is already set
-	#endif
-
-
 		PROFILE_END();
 
 	#ifdef FAMG_PRINT_AH
@@ -303,18 +296,16 @@ public:
 			matrix_type &_AH, prolongation_matrix_type &_R,
 			const matrix_type &_A, const matrix_type &_Aorig,
 			prolongation_matrix_type &_P, size_t _level,
-			stdvector< vector_type > &testvectors, stdvector<double> &omega)
+			stdvector< vector_type > &testvectors, stdvector<double> &omega, AMGLayouts &_nextLevelLayouts)
 	: m_famg(f), AH(_AH), A(_A), Aorig(_Aorig), R(_R), PnewIndices(_P), level(_level),
 #ifdef UG_PARALLEL
-
-			PN(const_cast<matrix_type&>(A).communicator(), const_cast<matrix_type&>(A).master_layout(),
-						const_cast<matrix_type&>(A).slave_layout(), A.num_rows()),
-			nextLevelMasterLayout(AH.master_layout()), nextLevelSlaveLayout(AH.slave_layout()),
+			PN(A.layouts(), A.num_rows()),
 			rating(PoldIndices, _level, m_famg.m_amghelper, PN),
 #else
 			A_OL2(A),
 			rating(PoldIndices, _level, m_famg.m_amghelper),
 #endif
+			nextLevelLayouts(_nextLevelLayouts),
 			m_testvectors(testvectors),
 			calculator(A, A_OL2, m_famg, testvectors, omega, fvalues)
 	{
@@ -446,8 +437,8 @@ public:
 
 				ParallelNodes PN(OL2MasterLayout, OL2SlaveLayout, A_OL2.num_rows());
 
-				communicate_prolongation(communicator, A.master_layout(), A.slave_layout(),
-						nextLevelMasterLayout, nextLevelSlaveLayout, PN, rating);
+				communicate_prolongation(communicator, A.layouts()->master(), A.layouts()->slave(),
+						-> fix nextLevelMasterLayout, nextLevelSlaveLayout, PN, rating);
 			}*/
 			#endif
 		}
@@ -507,7 +498,7 @@ public:
 #ifdef UG_PARALLEL
 		IF_DEBUG(LIB_ALG_AMG, 3)
 		{
-			PRINTLAYOUT(A_OL2.process_communicator(), A_OL2.communicator(), AH.master_layout(), AH.slave_layout());
+			PRINTLAYOUT(A_OL2.layouts()->proc_comm(), A_OL2.layouts()->comm(), AH.layouts()->master(), AH.layouts()->slave());
 		}
 #endif
 
@@ -529,10 +520,10 @@ private:
 		UG_SET_DEBUG_LEVEL(LIB_ALG_MATRIX, m_famg.iDebugLevelCommunicateProlongation);
 
 #ifdef UG_PARALLEL
-		PoldIndices.set_process_communicator(A.process_communicator());
-		m_famg.parallel_process_prolongation(PoldIndices, PnewIndices, m_famg.m_dProlongationTruncation, level, rating,
-				PN, false, nextLevelMasterLayout, nextLevelSlaveLayout);
-		TESTLAYOUT(A_OL2.process_communicator(), A_OL2.communicator(), nextLevelMasterLayout, nextLevelSlaveLayout);
+		PoldIndices.set_layouts(A.layouts());
+		m_famg.parallel_process_prolongation(PoldIndices, PnewIndices,
+				m_famg.m_dProlongationTruncation, level, rating, PN, false, nextLevelLayouts);
+		TESTLAYOUTS(nextLevelLayouts);
 #else
 		m_famg.serial_process_prolongation(PoldIndices, PnewIndices, m_famg.m_dProlongationTruncation, level, rating);
 #endif
@@ -587,9 +578,7 @@ private:
 	void receive_coarsening_from_processes_with_lower_color();
 	void send_coarsening_data_to_processes_with_higher_color();
 	void create_OL2_matrix();
-	void add_connections_between_slave_nodes(IndexLayout &masterLayout, IndexLayout slaveLayout);
 	void calculate_uncalculated_fine_nodes();
-	void update_interface_with_newIndex(IndexLayout &layout, IndexLayout &nextLevelLayout, stdvector<int> &newIndex);
 #endif
 	void external_coarsening_calculate_prolongation();
 	void rs_amg_external_coarsening();
