@@ -174,7 +174,6 @@ void CreateMeasureOfImportanceAggressiveCoarseningPQ(const cgraph &graphAC, node
 //-------------------------
 void RemoveUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i)
 {
-	AMG_PROFILE_FUNC();
 	for(cgraph::const_row_iterator conn = graph.begin_row(i); conn != graph.end_row(i); ++conn)
 	{
 		size_t indexN = (*conn);
@@ -183,9 +182,8 @@ void RemoveUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNod
 	}
 }
 
-void ChangeRatingOfUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, int change)
+inline void ChangeRatingOfUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, int change)
 {
-	AMG_PROFILE_FUNC();
 	for(cgraph::const_row_iterator conn = graph.begin_row(i); conn != graph.end_row(i); ++conn)
 	{
 		int indexN = (*conn);
@@ -203,9 +201,8 @@ void ChangeRatingOfUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MarkUnassignedNeighborsFine:
 //-------------------------
-void MarkUnassignedNeighborsFine(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, bool bMarkAsFineIndirect)
+inline void MarkUnassignedNeighborsFine(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, bool bMarkAsFineIndirect)
 {
-	AMG_PROFILE_FUNC();
 	for(cgraph::const_row_iterator conn = graph.begin_row(i); conn != graph.end_row(i); ++conn)
 	{
 		int indexN = (*conn);
