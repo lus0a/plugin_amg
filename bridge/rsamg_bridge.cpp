@@ -46,26 +46,13 @@ struct Functionality
 template <typename TAlgebra>
 static void Algebra(Registry& reg, string grp)
 {
-	string suffix = GetAlgebraSuffix<CPUAlgebra>();
-	string tag = GetAlgebraTag<CPUAlgebra>();
+	string suffix = GetAlgebraSuffix<TAlgebra>();
+	string tag = GetAlgebraTag<TAlgebra>();
 
 //	typedefs for this algebra
 	typedef TAlgebra algebra_type;
 	typedef typename algebra_type::vector_type vector_type;
 	typedef typename algebra_type::matrix_type matrix_type;
-
-#ifdef UG_PARALLEL
-	reg.add_class_<	IParallelCoarsening > ("IParallelCoarsening", grp, "Parallel Coarsening Interface (RSAMG)");
-	reg.add_function("GetFullSubdomainBlockingCoarsening", GetFullSubdomainBlockingCoarsening, grp);
-	reg.add_function("GetColorCoarsening", GetColorCoarsening, grp);
-	reg.add_function("GetRS3Coarsening", GetRS3Coarsening, grp);
-	reg.add_function("GetCLJPCoarsening", GetCLJPCoarsening, grp);
-	reg.add_function("GetFalgoutCoarsening", GetFalgoutCoarsening, grp);
-	reg.add_function("GetMinimumSubdomainBlockingCoarsening", GetMinimumSubdomainBlockingCoarsening, grp);
-	reg.add_function("GetCoarseGridClassificationCoarsening", GetCoarseGridClassificationCoarsening, grp);
-	reg.add_function("GetSimpleParallelCoarsening", GetSimpleParallelCoarsening, grp);
-#endif
-
 
 	reg.add_class_<	RSAMG<algebra_type>, AMGBase<algebra_type> > (string("RSAMGPreconditioner").append(suffix), grp, "Ruge-Stueben Algebraic Multigrid Preconditioner")
 		.add_constructor()
@@ -95,6 +82,19 @@ void RegisterBridge_RSAMG(Registry& reg, string grp)
 {
 	
 	grp.append("/Algebra/Preconditioner");
+
+#ifdef UG_PARALLEL
+	reg.add_class_<	IParallelCoarsening > ("IParallelCoarsening", grp, "Parallel Coarsening Interface (RSAMG)");
+	reg.add_function("GetFullSubdomainBlockingCoarsening", GetFullSubdomainBlockingCoarsening, grp);
+	reg.add_function("GetColorCoarsening", GetColorCoarsening, grp);
+	reg.add_function("GetRS3Coarsening", GetRS3Coarsening, grp);
+	reg.add_function("GetCLJPCoarsening", GetCLJPCoarsening, grp);
+	reg.add_function("GetFalgoutCoarsening", GetFalgoutCoarsening, grp);
+	reg.add_function("GetMinimumSubdomainBlockingCoarsening", GetMinimumSubdomainBlockingCoarsening, grp);
+	reg.add_function("GetCoarseGridClassificationCoarsening", GetCoarseGridClassificationCoarsening, grp);
+	reg.add_function("GetSimpleParallelCoarsening", GetSimpleParallelCoarsening, grp);
+#endif
+
 	typedef registerRSAMG::Functionality Functionality;
 #ifdef UG_CPU_1
 	typedef boost::mpl::list<CPUAlgebra> AlgList;
