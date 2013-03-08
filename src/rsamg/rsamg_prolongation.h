@@ -20,12 +20,56 @@
 #define SKIPDIRICHLET
 namespace ug {
 
-inline void SetRSInterpolation(SparseMatrix<double> &P, size_t i,
+template<typename TProlongationMatrix>
+inline void SetRSInterpolation(TProlongationMatrix &P, size_t i,
+		std::vector<typename TProlongationMatrix::connection > &con,
+		double sumPosNeighbors, double sumNegNeighbors,
+		double sumPosInterpolatory, double sumNegInterpolatory,
+		double diag)
+{
+	// calculate alpha_i
+	double alphaPos = - (sumPosNeighbors / sumPosInterpolatory) / diag;
+	double alphaNeg = - (sumNegNeighbors / sumNegInterpolatory) / diag;
+	// set w_ij = alpha * w'_ij = alpha * a_ij/a_jj.
+
+	
+	for(size_t j=0; j<con.size(); j++)
+	{
+		if(con[j].dValue < 0)
+			con[j].dValue *= alphaNeg;
+		else
+			con[j].dValue *= alphaPos;
+	}
+
+	// set w_ij in matrix row P[i] forall j.
+	P.set_matrix_row(i, &con[0], con.size());
+}
+
+template<typename TConnection>
+bool CompareIndicesByConnectionValue(const TConnection &i, const TConnection &j)
+{
+	return dabs(i.dValue) > dabs(j.dValue);
+}
+
+inline void SetRSInterpolation_Sparsify(SparseMatrix<double> &P, size_t i,
 		std::vector<SparseMatrix<double>::connection > &con,
 		double sumPosNeighbors, double sumNegNeighbors,
 		double sumPosInterpolatory, double sumNegInterpolatory,
 		double diag)
 {
+	if(con.size()>=1000)
+	{
+		sort(con.begin(), con.end(), CompareIndicesByConnectionValue<SparseMatrix<double>::connection>);
+		con.resize(6);
+		for(size_t j=6; j<con.size(); j++)
+		{
+			if( con[i].dValue > 0)
+				sumPosInterpolatory-=con[i].dValue;
+			else
+				sumNegInterpolatory-=con[i].dValue;
+		}
+	}
+
 	// calculate alpha_i
 	double alphaPos = - (sumPosNeighbors / sumPosInterpolatory) / diag;
 	double alphaNeg = - (sumNegNeighbors / sumNegInterpolatory) / diag;
@@ -109,8 +153,8 @@ void GetNeighborValues(const TMatrix &A, TNodes &nodes, size_t i, double &minCon
  * \param   epsilonTruncation if != 0.0, truncates all entries from interpolation with p_ij < epsilonTruncation*max_j p_ij
  */
 
-template<typename Matrix_type>
-void CreateRugeStuebenProlongation(SparseMatrix<double> &P, const Matrix_type &A, AMGNodes &nodes,
+template<typename TProlongationMatrix, typename Matrix_type>
+void CreateRugeStuebenProlongation(TProlongationMatrix &P, const Matrix_type &A, AMGNodes &nodes,
 		//stdvector<int> &newIndex,
 		double theta, double epsilonTruncation=0.0)
 {
@@ -118,8 +162,8 @@ void CreateRugeStuebenProlongation(SparseMatrix<double> &P, const Matrix_type &A
 	//UG_ASSERT(newIndex.size() == nodes.size(), "");
 	P.resize(A.num_rows(), A.num_rows());
 
-	std::vector<SparseMatrix<double>::connection> con(255);
-	SparseMatrix<double>::connection c;
+	std::vector<typename TProlongationMatrix::connection> con(255);
+	typename TProlongationMatrix::connection c;
 
 	// DIRECT INTERPOLATION
 
@@ -249,15 +293,15 @@ void CreateRugeStuebenProlongation(SparseMatrix<double> &P, const Matrix_type &A
  * \param 	posInConnections	array of size A.num_rows() for speedup of neighbor-neighbor-calculation inited with -1.
  * \param	theta
  */
-template<typename Matrix_type>
-void CreateIndirectProlongation(SparseMatrix<double> &P, const Matrix_type &A,
+template<typename TProlongationMatrix, typename Matrix_type>
+void CreateIndirectProlongation(TProlongationMatrix &P, const Matrix_type &A,
 		AMGNodes &nodes, int *posInConnections, double theta)
 {
 	AMG_PROFILE_FUNC();
-	std::vector<SparseMatrix<double>::connection > con, con2;
+	std::vector<typename TProlongationMatrix::connection > con, con2;
 	std::vector<int> nrOfPaths;
 	con.reserve(255); con2.reserve(255); nrOfPaths.reserve(255);
-	SparseMatrix<double>::connection c;
+	typename TProlongationMatrix::connection c;
 	//P.print();
 	// INDIRECT INTERPOLATION
 
@@ -309,7 +353,7 @@ void CreateIndirectProlongation(SparseMatrix<double> &P, const Matrix_type &A,
 
 				// now we look at the interpolation values of this neighbor (in P !!!)
 				// and set w'(i,indexNN) += A(i,indexN) * P(indexN,indexNN)
-				for(typename SparseMatrix<double>::row_iterator conn2 = P.begin_row(indexN); conn2 != P.end_row(indexN); ++conn2)
+				for(typename TProlongationMatrix::row_iterator conn2 = P.begin_row(indexN); conn2 != P.end_row(indexN); ++conn2)
 				{
 					size_t indexNN = conn2.index();
 					int pos = posInConnections[indexNN];

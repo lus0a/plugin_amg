@@ -14,6 +14,7 @@
 #include "famg.h"
 #include "famg_nodeinfo.h"
 #include "../rsamg/rsamg.h"
+#include "lib_algebra/algebra_common/local_helper.h"
 
 #define FAMG_SCALING
 

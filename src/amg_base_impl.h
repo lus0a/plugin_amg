@@ -524,6 +524,7 @@ AMGBase<TAlgebra>::AMGBase() :
 	m_iYCycle = 0;
 	m_bOneInit = false;
 	m_bVerbose = false;
+	m_dGalerkinTruncation = 1e-12;
 }
 
 
@@ -914,6 +915,7 @@ void AMGBase<TAlgebra>::tostring() const
 	if(m_basesolver.valid())	{UG_LOG(" basesolver set\n");}
 	else				{UG_LOG(" no basesolver set!\n");}
 	UG_LOG("Using base solver for max. " << m_maxNodesForBase << " nodes or " << m_dMaxFillBeforeBase*100 << "% fill in.\n")
+	UG_LOG("Galerkin Truncation: " << m_dGalerkinTruncation << "\n");
 
 	if(m_writeMatrices)
 		UG_LOG("Writing Matrices to \"" << m_writeMatrixPath << "\"\n");

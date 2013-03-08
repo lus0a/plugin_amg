@@ -625,6 +625,10 @@ public:
 		m_iYCycle = maxIterations;
 	}
 
+	void	set_galerkin_truncation(double d)	{ m_dGalerkinTruncation = d; }
+	double	get_galerkin_truncation() const		{ return m_dGalerkinTruncation; }
+
+
 	/// @return c_A = total nnz of all matrices divided by nnz of matrix A
 	double get_operator_complexity() const {
 		return m_dOperatorComplexity;
@@ -787,6 +791,8 @@ protected:
 	size_t m_iYCycle;
 	double m_dYreduce;
 	double m_dYabs;
+
+	double m_dGalerkinTruncation;
 
 	IPositionProvider<2> *m_pPositionProvider2d;
 	IPositionProvider<3> *m_pPositionProvider3d;

@@ -160,6 +160,8 @@ bool _MakeFullRowsMatrix(const ParallelMatrix<matrix_type> &_mat, ParallelMatrix
 #endif
 
 
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // createAMGLevel:
 //-------------------------
@@ -188,13 +190,42 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 
 	stdvector<IndexLayout> vMasterLayouts, vSlaveLayouts;
 	_MakeFullRowsMatrix(A, AOL1, PN, m_pParallelCoarsening, vMasterLayouts, vSlaveLayouts);
+	
+	
+	/* vereinfachung der matrix
+	 * AOL1.resize(A.num_rows(), A.num_rows());
+	
+	std::vector<typename matrix_type::connection> ind; ind.reserve(10);
+	
+	for(size_t i=0; i<A.num_rows(); i++)
+	{
+		double d = AOL1(i,i);
+		AOL1(i, i) = d;
+		double dmax = d;
+		
+		if(A.num_connections(i) < 6)
+		{
+			for(typename matrix_type::const_row_iterator it = A.begin_row(i); it != A.end_row(i); ++it)
+				AOL1(i, it.index()) = it.value();
+		}
+		else
+		{
+			ind.clear();
+			for(typename matrix_type::const_row_iterator it = A.begin_row(i); it != A.end_row(i); ++it)
+				ind.push_back(typename matrix_type::connection(it.index(), it.value()));
+			sort(ind.begin(), ind.end(),CompareIndicesByConnectionValue<typename matrix_type::connection>);
+
+			for(size_t j=0; j<6; j++)
+				AOL1(i, ind[j].iIndex) = ind[j].dValue;
+			
+		}
+	}*/
 
 
 #else
 	const matrix_type &AOL1 = A;
 #endif
 	prolongation_matrix_type PoldIndices;
-
 
 
 	size_t NOL1 = AOL1.num_rows();
@@ -230,6 +261,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	UG_DLOG(LIB_ALG_AMG, 1, "building graph... ");
 	if(bTiming) SW.start();
 
+	// todo: A or AOL1?
 	CreateStrongConnectionGraph(AOL1, graphS, m_dTheta, nodes);
 
 	// we need the transpose, since when we set a node coarse, we want
@@ -373,7 +405,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 
 	// AH = R A P
 	PROFILE_BEGIN(AMGCreateAsMultiplyOf)
-		CreateAsMultiplyOf(AH, R, A, PnewIndices);
+		CreateAsMultiplyOf(AH, R, A, PnewIndices, m_dGalerkinTruncation);
 	PROFILE_END();
 
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");

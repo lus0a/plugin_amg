@@ -59,7 +59,7 @@ public:
 	using super::m_writeMatrixPath;
 	using super::levels;
 	using super::m_dbgDimension;
-
+	using super::m_dGalerkinTruncation;
 
 public:
 //	Algebra type
@@ -216,9 +216,6 @@ public:
 	void 	set_H_reduce_interpolation_nodes_parameter(double d)	{	m_dHReduceInterpolationNodesParameter = d; 	}
 	double	get_H_reduce_interpolation_nodes_parameter() const		{	return m_dHReduceInterpolationNodesParameter; }
 
-	void	set_galerkin_truncation(double d)	{ m_dGalerkinTruncation = d; }
-	double	get_galerkin_truncation() const		{ return m_dGalerkinTruncation; }
-
 	void	set_strong_connection_external(double d) 	{ m_dStrongConnectionExternal = d; }
 	double	get_strong_connection_external() 			{ return m_dStrongConnectionExternal; }
 
@@ -258,7 +255,7 @@ private:
 	double m_dHReduceInterpolationNodesParameter; ///< parameter used to reduce the number of interpolation nodes by looking at the H(i,j) value.
 
 	double m_dPrereduceAToStrongParameter;	///< parameter used to reduce the matrix A to
-	double m_dGalerkinTruncation;
+
 
 	double m_dStrongConnectionExternal;
 

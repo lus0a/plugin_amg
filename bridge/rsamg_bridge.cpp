@@ -96,12 +96,21 @@ void RegisterBridge_RSAMG(Registry& reg, string grp)
 	
 	grp.append("/Algebra/Preconditioner");
 	typedef registerRSAMG::Functionality Functionality;
+#ifdef UG_CPU_1
 	typedef boost::mpl::list<CPUAlgebra> AlgList;
-
 	try{
 		RegisterAlgebraDependent<Functionality, AlgList>(reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
+#endif
+#ifdef UG_CRS_1
+    typedef boost::mpl::list<CRSAlgebra> AlgList2;
+	try{
+		RegisterAlgebraDependent<Functionality, AlgList2>(reg,grp);
+	}
+	UG_REGISTRY_CATCH_THROW(grp);
+#endif
+
 }
 
 } // namespace bridge
