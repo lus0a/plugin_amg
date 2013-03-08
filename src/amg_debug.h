@@ -56,6 +56,29 @@ void AMGWriteToFile(const T &A, int fromlevel, int tolevel, const char *filename
 	}
 }
 
+// WriteToFile
+//--------------------------------------------------
+//! writes to a file in somewhat SparseMatrix-market format (for connection viewer)
+template<typename T>
+void AMGWriteVecToFile(const T &v, int level, const char *filename, const cAMG_helper &h)
+{
+	PROFILE_FUNC_GROUP("debug");
+	if(h.has_positions() == false)
+	{
+		UG_LOG("AWriteVecToFile not possible: no positions available.")
+		return;
+	}
+
+	std::fstream file(filename, std::ios::out);
+	file << 1 << std::endl; // connection viewer version
+	WritePositionsToStream(file, h.positions[level], h.dimension);
+
+	file << 1 << std::endl;
+	for(int i=0; i<v.size(); i++)
+		file << i << " " << i << " " << v[i] << "\n";
+}
+
+
 // writeToFile
 //--------------------------------------------------
 //! writes to a file in somewhat SparseMatrix-market format (for connection viewer)
