@@ -142,7 +142,6 @@ void RegisterBridge_FAMG(Registry& reg, string grp)
 	typedef registerFAMG::Functionality Functionality;
 	typedef boost::mpl::list<CPUAlgebra> AlgList;
 
-	UG_LOG("register FAMG\n");
 	try{
 		RegisterAlgebraDependent<Functionality>(reg,grp);
 	}
