@@ -422,6 +422,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 {
 	UG_ASSERT(block_traits< typename vector_type::value_type >::is_static, "dynamic not yet implemented");
 
+	matrix_operator_type &A = *L.pA;
 	AMGLevel &L = *levels[level];
 	size_t static_nrUnknowns = block_traits< typename vector_type::value_type >::static_size;
 	UG_DLOG(LIB_ALG_AMG, 1, "Creating level " << level << " (" << A.num_rows() << " nodes, total "
@@ -433,7 +434,6 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 	AMG_LOG(1, "creating direct solver on level " << level << "\n");
 
 #ifdef UG_PARALLEL
-	matrix_operator_type &A = *L.pA;
 	const pcl::ProcessCommunicator &pc = A.layouts()->proc_comm(); //!
 	if(pc.size()>1)
 	{
