@@ -129,8 +129,9 @@ void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createA
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<typename TAlgebra>
-bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
+bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_type> > pOp)
 {
+	matrix_operator_type& mat = *pOp;
 	AMG_PROFILE_FUNC();
 	if(m_bOneInit && m_bInited)
 		return true;
@@ -201,7 +202,7 @@ bool AMGBase<TAlgebra>::preprocess(matrix_operator_type& mat)
 
 	levels.clear();
 	AMGLevel *pL = new AMGLevel(0);
-	pL->pA = &mat;
+	pL->pA = pOp;
 #ifdef UG_PARALLEL
 //	pL->com = mat.layouts()->comm();
 	pL->spLayouts->comm() = mat.layouts()->comm();
@@ -422,7 +423,6 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 	UG_ASSERT(block_traits< typename vector_type::value_type >::is_static, "dynamic not yet implemented");
 
 	AMGLevel &L = *levels[level];
-	matrix_operator_type &A = *L.pA;
 	size_t static_nrUnknowns = block_traits< typename vector_type::value_type >::static_size;
 	UG_DLOG(LIB_ALG_AMG, 1, "Creating level " << level << " (" << A.num_rows() << " nodes, total "
 			<< A.num_rows()*static_nrUnknowns << " unknowns)" << std::endl << "Using Direct Solver on Matrix "
@@ -433,6 +433,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 	AMG_LOG(1, "creating direct solver on level " << level << "\n");
 
 #ifdef UG_PARALLEL
+	matrix_operator_type &A = *L.pA;
 	const pcl::ProcessCommunicator &pc = A.layouts()->proc_comm(); //!
 	if(pc.size()>1)
 	{
@@ -480,7 +481,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 		m_basesolver->init(L.pA);
 	}
 #else
-	m_basesolver->init(&A);
+	m_basesolver->init(L.pA);
 #endif
 
 	m_dTimingCoarseSolverSetupMS = SW.ms();
@@ -536,8 +537,6 @@ void AMGBase<TAlgebra>::cleanup()
 
 	if(m_vec4 != NULL) delete m_vec4; m_vec4 = NULL;
 
-	for(size_t k=0; k<levels.size(); k++)
-		delete levels[k];
 }
 //!
 //! amg destructor

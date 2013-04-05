@@ -227,7 +227,7 @@ protected:
 	 * @param A matrix A.
 	 * @return true
 	 */
-	virtual bool preprocess(matrix_operator_type& A);
+	virtual bool preprocess(SmartPtr<MatrixOperator<matrix_type, vector_type> > pOp);
 
 	///	nothing to do here
 	virtual bool postprocess() {
@@ -235,8 +235,9 @@ protected:
 	}
 
 //	Stepping routine
-	virtual bool step(matrix_operator_type& mat, vector_type& c,
-			const vector_type& d) {
+	virtual bool step(SmartPtr<MatrixOperator<matrix_type, vector_type> > pOp,
+			vector_type& c, const vector_type& d)
+	{
 		UG_ASSERT(m_bInited, "not inited?");
 		return get_correction(c, d);
 	}
@@ -799,7 +800,12 @@ protected:
 
 	stdvector<stdvector<int> > m_parentIndex;///< parentIndex[i] is the index of i on the finer level
 	stdvector<LevelInformation> m_levelInformation;
-	struct AMGLevel {
+	class AMGLevel
+	{
+	public:
+		~AMGLevel()
+		{
+		}
 		AMGLevel(int level) :
 				pA(NULL), presmoother(NULL), postsmoother(NULL)
 #ifdef UG_PARALLEL
@@ -860,7 +866,7 @@ protected:
 		SmartPtr<matrix_operator_type> pAgglomeratedA;
 	};
 
-	stdvector<AMGLevel*> levels;
+	stdvector<SmartPtr<AMGLevel> > levels;
 
 #ifdef UG_PARALLEL
 	// on level m_agglomerateLevel
