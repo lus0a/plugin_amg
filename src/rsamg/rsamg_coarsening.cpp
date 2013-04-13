@@ -1,5 +1,5 @@
 /**
- * \file amg_coarsening.cpp
+ * \file plugins/experimental/amg/src/rsamg/rsamg_coarsening.cpp
  *
  * \author Martin Rupp
  *

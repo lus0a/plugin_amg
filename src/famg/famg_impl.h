@@ -1,5 +1,5 @@
 /**
- * \file amg_impl.h
+ * \file plugins/experimental/amg/src/famg/famg_impl.h
  *
  * \author Martin Rupp
  *

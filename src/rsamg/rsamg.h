@@ -1,5 +1,5 @@
 /**
- * \file amg.h
+ * \file plugins/experimental/amg/src/rsamg/rsamg.h
  *
  * \author Martin Rupp
  *

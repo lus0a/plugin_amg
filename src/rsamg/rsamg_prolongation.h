@@ -1,5 +1,5 @@
 /**
- * \file amg_rs_prolongation.h
+ * \file plugins/experimental/amg/src/rsamg/rsamg_prolongation.h
  *
  * \author Martin Rupp
  *
