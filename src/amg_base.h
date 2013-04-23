@@ -16,7 +16,9 @@
 //#include "lib_algebra/lib_algebra.h"
 #include <sys/stat.h>
 #include "lib_algebra/operator/interface/operator_inverse.h"
-#include "lib_algebra/operator/interface/operator_iterator.h"
+#include "lib_algebra/operator/interface/preconditioner.h"
+#include "lib_algebra/operator/interface/matrix_operator.h"
+#include "lib_algebra/operator/interface/linear_operator_inverse.h"
 #include "lib_algebra/operator/vector_writer.h"
 #include <vector>
 #include <iostream>
