@@ -160,7 +160,7 @@ void CreateRugeStuebenProlongation(TProlongationMatrix &P, const Matrix_type &A,
 {
 	AMG_PROFILE_FUNC();
 	//UG_ASSERT(newIndex.size() == nodes.size(), "");
-	P.resize(A.num_rows(), A.num_rows());
+	P.resize_and_clear(A.num_rows(), A.num_rows());
 
 	std::vector<typename TProlongationMatrix::connection> con(255);
 	typename TProlongationMatrix::connection c;

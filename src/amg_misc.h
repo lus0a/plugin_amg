@@ -1,6 +1,6 @@
-/*
- * amg_misc.h
- *
+/**
+ * \file amg_misc.h
+ * \addtogroup AMG
  *  Created on: 19.12.2011
  *      Author: mrupp
  */
@@ -18,7 +18,7 @@ void ReduceToStrongConnections(TMatrix &m1, const TMatrix &m2, double theta)
 	PROFILE_FUNC();
 	UG_LOG("Reducing matrix...");
 	std::vector<typename TMatrix::connection> con;
-	m1.resize(m2.num_rows(), m2.num_cols());
+	m1.resize_and_clear(m2.num_rows(), m2.num_cols());
 
 #ifdef UG_PARALLEL
 	m1.set_layouts(m2.layouts());

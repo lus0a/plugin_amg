@@ -103,13 +103,13 @@ void RegisterBridge_RSAMG(Registry& reg, string grp)
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
 #endif
-#ifdef UG_CRS_1
+/*#ifdef UG_CRS_1
     typedef boost::mpl::list<CRSAlgebra> AlgList2;
 	try{
 		RegisterAlgebraDependent<Functionality, AlgList2>(reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
-#endif
+#endif*/
 
 }
 

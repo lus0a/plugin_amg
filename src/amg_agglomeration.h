@@ -1,6 +1,6 @@
 /**
  * \file amg_agglomeration.h
- *
+ * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 03.08.2011

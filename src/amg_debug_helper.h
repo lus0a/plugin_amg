@@ -1,6 +1,6 @@
 /**
  * \file amg_debug_helper.h
- *
+ * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 10.08.2010

@@ -1,6 +1,6 @@
-/*
- * amg_communicate_prolongation.h
- *
+/**
+ * \file amg_communicate_prolongation.h
+ * \addtogroup AMG
  *  Created on: 27.04.2011
  *      Author: mrupp
  */
@@ -80,7 +80,7 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 				newIndex[c] = nrOfCoarse++;
 		}
 	}
-	PnewIndices.resize(N, nrOfCoarse);
+	PnewIndices.resize_and_clear(N, nrOfCoarse);
 	for(size_t r=0; r<N; r++)
 	{
 		double maxCon=0;

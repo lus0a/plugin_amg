@@ -1,6 +1,6 @@
 /*
- * collected_solver.h
- *
+ * \file collected_solver.h
+ * \addtogroup AMG
  *  Created on: 04.05.2011
  *      Author: mrupp
  */

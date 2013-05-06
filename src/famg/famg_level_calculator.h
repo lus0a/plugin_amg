@@ -359,7 +359,7 @@ public:
 			}
 
 			UG_DLOG(LIB_ALG_AMG, 0, "\nCreate P, SymmNeighGraph... "); if(bTiming) SW.start();
-			PoldIndices.resize(N, N);
+			PoldIndices.resize_and_clear(N, N);
 			// get neighboring information
 			SymmNeighGraph.resize(N);
 			CreateSymmConnectivityGraph(A_OL2, SymmNeighGraph);
@@ -445,7 +445,7 @@ public:
 		else // = !(bExternalCoarsening == false && m_famg.m_fileCoarsening != m_famg.READ_COARSENING)
 		{
 			if(m_famg.m_writeMatrices) m_famg.write_debug_matrix_markers(level, rating);
-			PoldIndices.resize(N, N);
+			PoldIndices.resize_and_clear(N, N);
 			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
 			if(m_famg.m_fileCoarsening == m_famg.READ_COARSENING)
 				read_coarsening();

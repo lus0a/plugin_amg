@@ -1,6 +1,6 @@
-/*
- * amg_profiling.h
- *
+/**
+ * \file amg_profiling.h
+ * \addtogroup AMG
  *  Created on: 11.04.2011
  *      Author: mrupp
  */

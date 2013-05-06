@@ -1,6 +1,6 @@
 /**
  * \file amg_base.h
- *
+ * \defgroup AMG Algebraic Multigrid
  * \author Martin Rupp
  *
  * \date 01.12.2010

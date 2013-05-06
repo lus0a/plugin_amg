@@ -1,6 +1,6 @@
 /**
  * \file postscript.h
- *
+ * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 01.08.2010

@@ -1,6 +1,6 @@
 /**
  * \file amg_base_impl.h
- *
+ * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 01.12.2010
@@ -661,6 +661,9 @@ bool AMGBase<TAlgebra>::solve_on_base(vector_type &c, vector_type &d, size_t lev
 			m_basesolver->apply_return_defect(collC, collD);
 
 		// send c -> collC
+		UG_ASSERT(0, "something is wrong here: should be");
+		// com.receive_data(agglomerateSlaveLayout, compolPoly);
+		// com.send_data(L.agglomerateMasterLayout, compolPoly);
 		ComPol_VecCopy<vector_type> compolCopy(&c, &collC);
 		com.receive_data(L.agglomerateMasterLayout, compolPoly);
 		com.send_data(agglomerateSlaveLayout, compolPoly);
