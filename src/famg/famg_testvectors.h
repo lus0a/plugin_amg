@@ -18,6 +18,9 @@
 
 namespace ug {
 
+/// \addtogroup plugins_amg_famg
+/// \{
+
 #if 0
 static void get_testvector_constant(stdvector<double> &testvector, stdvector<size_t> &N, double &i_value, size_t i)
 {
@@ -188,6 +191,9 @@ void FAMGLevelCalculator<algebra_type>::calculate_next_testvectors()
 		m_testvectors[i] = t;
 	}
 }
+
+// end group plugins_amg_famg
+/// \}
 
 }
 #endif // __H__LIB_ALGEBRA__FAMG_SOLVER__FAMG_TESTVECTORS_H__

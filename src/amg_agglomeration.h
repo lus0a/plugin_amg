@@ -1,6 +1,5 @@
 /**
  * \file amg_agglomeration.h
- * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 03.08.2011
@@ -18,6 +17,9 @@
 
 namespace ug
 {
+
+/// \addtogroup plugins_amg
+/// \{
 
 #ifdef UG_PARALLEL
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -545,5 +547,8 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 	return true;
 }
 #endif
+
+// end group plugins_amg
+/// \}
 
 }

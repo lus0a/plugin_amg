@@ -1,6 +1,5 @@
 /**
  * \file amg_debug.h
- * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 16.06.10
@@ -23,6 +22,9 @@
 #include "lib_algebra/common/connection_viewer_output.h"
 
 namespace ug {
+
+/// \addtogroup plugins_amg
+/// \{
 
 extern DebugID RSAMGCoarseningDebug;
 extern DebugID RSAMGProlongationDebug;
@@ -140,6 +142,9 @@ inline void WriteAMGGraphToFile(cgraph &G, const char *filename, const cAMG_help
 			file << i << " " << (*it) << "  " << std::endl;
 	}
 }
+
+// end group plugins_amg
+/// \}
 
 }
 

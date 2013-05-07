@@ -3,6 +3,9 @@
 #include "famg_nodeinfo.h"
 namespace ug{
 
+/// \addtogroup plugins_amg_famg
+/// \{
+
 template<typename value_type, typename TIndex>
 struct s_interpolation
 {
@@ -43,6 +46,8 @@ struct neighborstruct_var
 //typedef neighborstruct2_t<double, size_t> neighborstruct2;
 //typedef neighborstruct_var_t<double, size_t> neighborstruct_var;
 
+// end group plugins_amg_famg
+/// \}
 
 }
 

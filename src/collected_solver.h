@@ -1,12 +1,14 @@
-/*
+/**
  * \file collected_solver.h
- * \addtogroup AMG
  *  Created on: 04.05.2011
  *      Author: mrupp
  */
 
 #ifndef COLLECTED_SOLVER_H_
 #define COLLECTED_SOLVER_H_
+
+/// \addtogroup plugins_amg
+/// \{
 
 #ifndef UG_PARALLEL
 #error "This only works with a UG_PARALLEL define."
@@ -139,5 +141,8 @@ class CollectSolver: public IMatrixOperatorInverse<	typename TAlgebra::matrix_ty
 		std::string sName;
 		moi_type *m_pInverse;
 };
+
+// end group plugins_amg
+/// \}
 
 #endif /* COLLECTED_SOLVER_H_ */

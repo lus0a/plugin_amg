@@ -22,6 +22,9 @@
 namespace ug
 {
 
+/// \addtogroup plugins_amg_famg
+/// \{
+
 #define SYS_AS_SYS 0
 //#define SYS_AS_SYS 1
 
@@ -1468,6 +1471,9 @@ private:
 
 	bool testvectorsExtern;
 };
+
+// end group plugins_amg_famg
+/// \}
 
 } // namespace ug
 #endif // __H__LIB_ALGEBRA__FAMG_SOLVER__FAMG_INTERPOLATION_CALCULATOR_H__

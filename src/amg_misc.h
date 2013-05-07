@@ -1,6 +1,5 @@
 /**
  * \file amg_misc.h
- * \addtogroup AMG
  *  Created on: 19.12.2011
  *      Author: mrupp
  */
@@ -11,6 +10,9 @@
 #include "rsamg/rsamg_impl.h"
 namespace ug
 {
+
+/// \addtogroup plugins_amg
+/// \{
 
 template<typename TMatrix>
 void ReduceToStrongConnections(TMatrix &m1, const TMatrix &m2, double theta)
@@ -57,6 +59,9 @@ void ReduceToStrongConnections(TMatrix &m1, const TMatrix &m2, double theta)
 	}
 	UG_LOG("done.\n");
 }
+
+// end group plugins_amg
+/// \}
 
 }
 

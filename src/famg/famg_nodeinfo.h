@@ -13,6 +13,9 @@
 
 namespace ug {
 
+/// \addtogroup plugins_amg_famg
+/// \{
+
 //  structs
 // fine is the smallest (see is_fine)
 #define FAMG_SMALLEST_FINE_RATING		(-30)
@@ -522,6 +525,8 @@ void GetRatings(stdvector<stdvector<neighborstruct> > &possible_neighbors,
 	}
 }
 
+// end group plugins_amg_famg
+/// \}
 
 }
 

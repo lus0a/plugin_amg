@@ -44,6 +44,7 @@
 #include "lib_algebra/common/connection_viewer_output.h"
 #include "common/util/file_util.h"
 
+/// \addtogroup plugins_amg_famg
 template<typename vector_type>
 void print_vector(const vector_type &vec, const char *p)
 {
@@ -81,6 +82,9 @@ void print_vector(const vector_type &vec, const char *p)
 #include "famg_nodeinfo.h"
 
 namespace ug{
+
+/// \addtogroup plugins_amg_famg
+/// \{
 
 #ifdef UG_PARALLEL
 	void MyPrintLayout(const pcl::ProcessCommunicator &pc,
@@ -600,7 +604,8 @@ public:
 	}
 };
 
-
+// end group plugins_amg_famg
+/// \}
 
 } // namespace ug
 

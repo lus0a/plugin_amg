@@ -22,20 +22,17 @@
 #ifdef UG_PARALLEL
 #include "../rsamg/rsamg_parallel_coarsening.h"
 #endif
-/**
- * \brief Filtering Algebraic Multigrid Functions.
- *
- *
- * \defgroup lib_algebra_FAMG FAMG
- * \ingroup lib_algebra
- */
 
 
 
 namespace ug{
 
-/// \addtogroup lib_algebra_FAMG
-///	@{
+/**
+ * \defgroup plugins_amg_famg FAMG
+ * \brief Filtering Algebraic Multigrid Functions.
+ * \ingroup plugins_amg
+ * \{
+ */
 
 #define FAMG_MAX_LEVELS 32
 
@@ -289,8 +286,8 @@ private:
 #endif
 };
 
-
-///	@}
+// end group plugins_amg_famg
+/// \}
 
 } // namespace ug
 

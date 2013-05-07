@@ -20,6 +20,9 @@
 #define SKIPDIRICHLET
 namespace ug {
 
+/// \addtogroup plugins_amg_rsamg
+/// \{
+
 template<typename TProlongationMatrix>
 inline void SetRSInterpolation(TProlongationMatrix &P, size_t i,
 		std::vector<typename TProlongationMatrix::connection > &con,
@@ -425,6 +428,9 @@ void CreateIndirectProlongation(TProlongationMatrix &P, const Matrix_type &A,
 	P.defragment();
 	//P.print();
 }
+
+// end group plugins_amg_rsamg
+/// \}
 
 } // namespace ug
 

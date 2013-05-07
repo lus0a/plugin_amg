@@ -23,6 +23,8 @@
 namespace ug
 {
 
+/// \addtogroup plugins_amg_rsamg
+/// \{
 
 class IParallelCoarsening
 {
@@ -44,5 +46,9 @@ IParallelCoarsening *GetFalgoutCoarsening();
 IParallelCoarsening *GetMinimumSubdomainBlockingCoarsening();
 IParallelCoarsening *GetCoarseGridClassificationCoarsening();
 IParallelCoarsening *GetSimpleParallelCoarsening();
+
+// end group plugins_amg_rsamg
+/// \}
+
 }
 #endif /* RSAMG_PARALLEL_COARSENING_H_ */

@@ -18,6 +18,9 @@
 
 namespace ug{
 
+/// \addtogroup plugins_amg_famg
+/// \{
+
 template<typename TNeighborstruct, typename TMatrix, typename TPMatrix, typename TVector>
 bool OnDemand_UpdateRating(size_t node, stdvector<TNeighborstruct> &PN, FAMGNodes<TPMatrix> &nodes,
 		stdvector<bool> &prolongation_calculated, cgraph &SymmNeighGraph,
@@ -302,6 +305,9 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms.");
 }
+
+// end group plugins_amg_famg
+/// \}
 
 }
 

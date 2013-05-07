@@ -37,6 +37,8 @@
 
 namespace ug{
 
+/// \addtogroup plugins_amg_rsamg
+/// \{
 
 //#define GRAPH_WITH_LOCAL_INVERSE
 
@@ -473,6 +475,9 @@ void RSAMG<TAlgebra>::tostring() const
 #endif
 
 }
+
+// end group plugins_amg_rsamg
+/// \}
 
 } // namespace ug
 

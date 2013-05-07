@@ -1,6 +1,5 @@
 /**
  * \file amg_checks.h
- * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 03.08.11
@@ -17,6 +16,9 @@
 
 namespace ug
 {
+
+/// \addtogroup plugins_amg
+/// \{
 
 #ifdef UG_PARALLEL
 template<typename TAlgebra>
@@ -821,5 +823,8 @@ bool AMGBase<TAlgebra>::check_fsmoothing()
 
 	return true;
 }
+
+// end group plugins_amg
+/// \}
 
 }

@@ -22,6 +22,8 @@
 
 namespace ug{
 
+/// \addtogroup plugins_amg_famg
+/// \{
 
 template<typename TAlgebra>
 FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
@@ -379,6 +381,8 @@ void FAMG<TAlgebra>::init_for_EVP(const vector_type &u, const vector_type &b)
 	m_bProjectedEVP=true;
 }
 
+// end group plugins_amg_famg
+/// \}
 
 } // namespace ug
 

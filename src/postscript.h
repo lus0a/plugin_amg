@@ -1,6 +1,5 @@
 /**
  * \file postscript.h
- * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 01.08.2010
@@ -16,6 +15,9 @@
 #include <string>
 
 namespace ug{
+
+/// \addtogroup plugins_amg
+/// \{
 
 class postscript
 {
@@ -136,6 +138,9 @@ private:
 
 	std::fstream file;
 };
+
+// end group plugins_amg
+/// \}
 
 }
 #endif // __H__UG__LIB_ALGEBRA__POSTSCRIPT_H__

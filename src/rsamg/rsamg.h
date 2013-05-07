@@ -26,18 +26,15 @@
 #include "rsamg_parallel_coarsening.h"
 #endif
 
-/**
- * \brief Algebraic Multigrid Functions.
- *
- *
- * \defgroup lib_algebra_AMG AMG
- * \ingroup lib_algebra
- */
 
 namespace ug{
 
-/// \addtogroup lib_algebra_AMG
-///	@{
+/**
+ * \defgroup plugins_amg_rsamg RSAMG
+ * \brief Algebraic Multigrid Functions.
+ * \ingroup plugins_amg
+ * \{
+ */
 
 // AMG
 //---------------------------------
@@ -45,7 +42,7 @@ namespace ug{
  * algebraic multigrid (AMG) class.
  *
  * scientific references:
- * [AMGKS99]: Algebraic Multigrid (AMG): An Introduction with Applications, K StŸben. GMD Report 70, November 1999
+ * [AMGKS99]: Algebraic Multigrid (AMG): An Introduction with Applications, K Stï¿½ben. GMD Report 70, November 1999
  *
  */
 template <typename TAlgebra>
@@ -141,8 +138,9 @@ public:
 #endif
 };
 	
-	
-///	@}
+
+// end group plugins_amg_rsamg
+/// \}
 
 } // namespace ug
 

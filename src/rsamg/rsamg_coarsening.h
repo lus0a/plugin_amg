@@ -7,6 +7,9 @@
 namespace ug
 {
 
+/// \addtogroup plugins_amg_rsamg
+/// \{
+
 template<typename Matrix_type>
 void
 CreateStrongConnectionGraph(const Matrix_type &A, cgraph &graph, double theta, AMGNodes &nodes);
@@ -29,6 +32,9 @@ void MarkUnassignedNeighborsFine(const cgraph &graph, nodeinfo_pq_type &PQ, AMGN
 void ChangeRatingOfUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, int change);
 
 void PreventFFConnection(const cgraph &graphS, const cgraph &graphST, AMGNodes &nodes, size_t i, std::vector<bool> &marks, int &nrOfFFCoarseNodes);
+
+// end group plugins_amg_rsamg
+/// \}
 
 } // namespace ug
 

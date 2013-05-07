@@ -2,7 +2,6 @@
  * \file agglomeration.h
  *
  * \author Martin Rupp
- * \addtogroup AMG
  * \date 03.08.2011
  *
  * Goethe-Center for Scientific Computing 2011.
@@ -13,7 +12,8 @@
 
 namespace ug
 {
-/// \addtogroup AMG
+
+/// \addtogroup plugins_amg
 ///\{
 
 // Agglomeration
@@ -50,6 +50,7 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 		std::vector<std::vector<int> > &mergeWith,
 		size_t minimalSize, size_t preferredSize);
 
+// end group plugins_amg
 /// \}
 
 }

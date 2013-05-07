@@ -29,6 +29,9 @@ using namespace std;
 
 namespace ug{
 
+/// \addtogroup plugins_amg_rsamg
+/// \{
+
 void CreateAllToAllFromMasterSlave(pcl::InterfaceCommunicator<IndexLayout> &communicator,
 		IndexLayout &OLCoarseningSendLayout, IndexLayout &OLCoarseningReceiveLayout,
 		IndexLayout &OL1MasterLayout, IndexLayout &OL1SlaveLayout);
@@ -494,6 +497,9 @@ IParallelCoarsening *GetColorCoarsening()
 {
 	return new ColorCoarsening;
 }
+
+// end group plugins_amg_rsamg
+/// \}
 
 }
 

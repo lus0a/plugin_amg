@@ -1,6 +1,5 @@
 /**
  * \file amg_debug_helper.h
- * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 10.08.2010
@@ -26,6 +25,9 @@
 #include "amg_profiling.h"
 
 namespace ug{
+
+/// \addtogroup plugins_amg
+/// \{
 
 inline void WritePositionsToStream(std::ostream &out, const std::vector<MathVector<3> > &positions, int dimension)
 {
@@ -131,6 +133,8 @@ struct cAMG_helper
 	stdvector< stdvector<int> > *parentIndex;				///< (*parentIndex)[L][i] is the index of i on level L-1
 };
 
+// end group plugins_amg
+/// \}
 
 } // namespace ug
 #endif // __H__UG__LIB_DISC__AMG_SOLVER__AMG_DEBUG_HELPER_H__

@@ -16,6 +16,9 @@
 namespace ug
 {
 
+/// \addtogroup plugins_amg
+/// \{
+
 struct supernode
 {
 	std::vector<int> components; // [0] is master
@@ -196,5 +199,8 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 		}
 	}
 }
+
+// end group plugins_amg
+/// \}
 
 }

@@ -30,6 +30,10 @@
 
 namespace ug
 {
+
+/// \addtogroup plugins_amg_famg
+/// \{
+
 void AddConnectionsBetweenSlaves(pcl::InterfaceCommunicator<IndexLayout> &communicator,
 		IndexLayout &masterLayout, IndexLayout &slaveLayout, IndexLayout &allToAllSend,
 		IndexLayout &allToAllReceive);
@@ -437,6 +441,8 @@ FAMGLevelCalculator<TAlgebra>::
 	UG_LOG("calculated " << iNrOfUncalculated << " of uncalculated nodes.\n");
 }
 
+// end group plugins_amg_famg
+/// \}
 
 }
 

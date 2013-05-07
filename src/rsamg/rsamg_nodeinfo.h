@@ -22,6 +22,10 @@
 
 
 namespace ug {
+
+/// \addtogroup plugins_amg_rsamg
+/// \{
+
 extern time_t global_t;
 
 //  structs
@@ -342,6 +346,9 @@ private:
 
 typedef maxheap<AMGNode> nodeinfo_pq_type;
 //typedef BoxPriorityQueue<AMGNode> nodeinfo_pq_type;
+
+// end group plugins_amg_rsamg
+/// \}
 
 }
 

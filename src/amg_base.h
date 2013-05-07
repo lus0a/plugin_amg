@@ -1,6 +1,5 @@
 /**
  * \file amg_base.h
- * \defgroup AMG Algebraic Multigrid
  * \author Martin Rupp
  *
  * \date 01.12.2010
@@ -41,6 +40,13 @@ std::string ToString(const T &t) {
 #define PRINTLAYOUT(pc, com, Layout1, Layout2) MyPrintLayout(pc, com, (Layout1), (Layout2), #Layout1, #Layout2)
 
 namespace ug {
+
+/**
+ * \defgroup plugins_amg Algebraic Multigrid
+ * \ingroup plugins_experimental
+ * \{
+ */
+
 #ifdef UG_PARALLEL
 void MyPrintLayout(const pcl::ProcessCommunicator &pc,
 		pcl::InterfaceCommunicator<IndexLayout> &communicator,
@@ -893,7 +899,8 @@ protected:
 	void calculate_level_information(size_t level, double createAMGlevelTiming);
 };
 
-///	@}
+// end group plugins_amg
+/// \}
 
 }// namespace ug
 

@@ -18,6 +18,9 @@
 namespace ug
 {
 
+/// \addtogroup plugins_amg_famg
+/// \{
+
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 {
@@ -218,6 +221,10 @@ void FAMGLevelCalculator<algebra_type>::seqpar_precalculate_coarsening()
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms.");
 }
 */
+
+// end group plugins_amg_famg
+/// \}
+
 }
 
 #endif

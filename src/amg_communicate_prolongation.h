@@ -1,6 +1,5 @@
 /**
  * \file amg_communicate_prolongation.h
- * \addtogroup AMG
  *  Created on: 27.04.2011
  *      Author: mrupp
  */
@@ -19,6 +18,8 @@
 namespace ug
 {
 
+/// \addtogroup plugins_amg
+/// \{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // create_fine_marks
@@ -396,6 +397,9 @@ void AMGBase<TAlgebra>::create_minimal_layout_for_prolongation(ParallelNodes &PN
 }
 
 #endif
+
+// end group plugins_amg
+/// \}
 
 }
 #endif /* FAMG_COMMUNICATE_PROLONGATION_H_ */

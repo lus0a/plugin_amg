@@ -27,6 +27,10 @@ using namespace std;
 
 namespace ug
 {
+
+/// \addtogroup plugins_amg_rsamg
+/// \{
+
 //DebugID DebugRSAMGCoarsening("DebugRSAMGCoarsening");
 #define DebugRSAMGCoarsening LIB_ALG_AMG
 
@@ -524,7 +528,8 @@ void PreventFFConnectionsMinimal(const cgraph &graphS, const cgraph &graphST, AM
 }
 
 
-
+// end group plugins_amg_rsamg
+/// \}
 
 } // namespace ug
 

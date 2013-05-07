@@ -16,6 +16,9 @@
 
 namespace ug{
 
+/// \addtogroup plugins_amg_famg
+/// \{
+
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::external_coarsening_calculate_prolongation()
 {
@@ -188,6 +191,10 @@ void FAMGLevelCalculator<algebra_type>::read_coarsening()
 		}
 	}
 }
+
+// end group plugins_amg_famg
+/// \}
+
 }
 
 #endif /* FAMG_EXTERNAL_COARSENING_H_ */

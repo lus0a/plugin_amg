@@ -1,6 +1,5 @@
 /**
  * \file amg_base_impl.h
- * \addtogroup AMG
  * \author Martin Rupp
  *
  * \date 01.12.2010
@@ -29,12 +28,15 @@
 
 #include "lib_algebra/common/connection_viewer_output.h"
 
+
 std::string GetProcFilename(std::string path, std::string name, std::string extension);
 
 #define WRITEVEC_IN_SOLVER 0
 
 namespace ug{
 
+/// \addtogroup plugins_amg
+/// \{
 
 #ifdef UG_PARALLEL
 template<typename TMatrix, typename TVector>
@@ -1108,6 +1110,8 @@ bool AMGBase<TAlgebra>::injection(vector_type &vH, const vector_type &v, size_t 
 	return true;
 }
 
+// end group plugins_amg
+/// \}
 
 } // namespace ug
 

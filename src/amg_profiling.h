@@ -1,6 +1,5 @@
 /**
  * \file amg_profiling.h
- * \addtogroup AMG
  *  Created on: 11.04.2011
  *      Author: mrupp
  */
@@ -8,6 +7,8 @@
 #ifndef __H__LIB_ALGEBRA__AMG_PROFILING_H_
 #define __H__LIB_ALGEBRA__AMG_PROFILING_H_
 
+/// \addtogroup plugins_amg
+/// \{
 
 #define PROFILE_AMG
 #ifdef PROFILE_AMG
@@ -32,5 +33,8 @@
 
 
 #define AMG_LOG(lvl, msg) { if(m_verbose >= lvl) UG_LOG(msg); }
+
+// end group plugins_amg
+/// \}
 
 #endif /* __H__LIB_ALGEBRA__AMG_PROFILING_H_ */
