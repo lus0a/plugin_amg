@@ -15,6 +15,7 @@
 #include <fstream>
 #include "common/stopwatch.h"
 #include "amg_debug.h"
+
 #ifdef UG_PARALLEL
 #include "lib_algebra/parallelization/collect_matrix.h"
 #include "lib_algebra/parallelization/parallel_vector.h"
@@ -49,36 +50,6 @@ void SetParallelVectorAsMatrix(TVector &v, TMatrix &m, ParallelStorageType t)
 	v.set_storage_type(t);
 }
 #endif
-
-template<typename TMatrix>
-size_t GetMaxConnections(const TMatrix &A)
-{
-	size_t m=0;
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		//if(m < A.num_connections(i)) m = A.num_connections(i);
-
-		size_t n=0;
-		for(typename TMatrix::const_row_iterator it = A.begin_row(i); it != A.end_row(i); ++it)
-			if(it.value() != 0.0) n++;
-		if(m < n) m = n;
-	}
-
-	return m;
-}
-
-/// returns the number of non-zeroes (!= number of connections)
-template<typename TMatrix>
-size_t GetNNZs(const TMatrix &A)
-{
-	size_t m=0;
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		for(typename TMatrix::const_row_iterator it = A.begin_row(i); it != A.end_row(i); ++it)
-			if(it.value() != 0.0) m++;
-	}
-	return m;
-}
 
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createAMGlevelTiming)
@@ -142,6 +113,8 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 //	SetMPIErrHandler();
 #endif
 
+
+	// WARNING: this may corrupt mat
 //	UG_LOG("matrix " << mat.num_rows() << "\n");
 	cleanup();
 //	UG_LOG("matrix after: " << mat.num_rows() << "\n");
