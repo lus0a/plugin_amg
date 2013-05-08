@@ -122,7 +122,7 @@ void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, const char *filena
 }
 
 // could be in cpp
-inline void WriteAMGGraphToFile(cgraph &G, const char *filename, const cAMG_helper &h, int level)
+inline void WriteAMGGraphToFile(const cgraph &G, const char *filename, const cAMG_helper &h, int level)
 {
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
@@ -139,7 +139,7 @@ inline void WriteAMGGraphToFile(cgraph &G, const char *filename, const cAMG_help
 	for(size_t i=0; i < G.size(); i++)
 	{
 		for(cgraph::const_row_iterator it = G.begin_row(i); it != G.end_row(i); ++it)
-			file << i << " " << (*it) << "  " << std::endl;
+			file << i << " " << (*it) << " 1" << std::endl;
 	}
 }
 
