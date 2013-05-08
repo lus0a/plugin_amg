@@ -306,20 +306,20 @@ void PreventFFConnection(const cgraph &graphS, const cgraph &graphST, AMGNodes &
 	if(nodes[i].is_coarse() || graphS.num_connections(i)==0) return;
 
 	// mark coarse nodes interpolating this fine node
-	for(cgraph::const_row_iterator it = graphST.begin_row(i); it != graphST.end_row(i); ++it)
+	for(cgraph::const_row_iterator it = graphS.begin_row(i); it != graphS.end_row(i); ++it)
 	{
 		if(nodes[(*it)].is_coarse())
 			marks[(*it)] = true;
 	}
 
 	// prevent strong F-F connections without common Interpolation node
-	for(cgraph::const_row_iterator it = graphST.begin_row(i); it != graphST.end_row(i); ++it)
+	for(cgraph::const_row_iterator it = graphS.begin_row(i); it != graphS.end_row(i); ++it)
 	{
 		if(nodes[*it].is_coarse() || graphS.is_isolated(*it))
 			continue;
 
-		cgraph::const_row_iterator it2 = graphST.begin_row(*it);
-		cgraph::const_row_iterator it2end = graphST.end_row(*it);
+		cgraph::const_row_iterator it2 = graphS.begin_row(*it);
+		cgraph::const_row_iterator it2end = graphS.end_row(*it);
 		for(; it2 != it2end; ++it2)
 		{
 			if(nodes[*it2].is_coarse() && marks[*it2])
@@ -334,7 +334,7 @@ void PreventFFConnection(const cgraph &graphS, const cgraph &graphST, AMGNodes &
 	}
 
 	// remove marks
-	for(cgraph::const_row_iterator conn = graphST.begin_row(i); conn != graphST.end_row(i); ++conn)
+	for(cgraph::const_row_iterator conn = graphS.begin_row(i); conn != graphS.end_row(i); ++conn)
 	{
 		size_t index = (*conn);
 		if(nodes[index].is_coarse())
