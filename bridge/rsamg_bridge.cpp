@@ -58,6 +58,8 @@ static void Algebra(Registry& reg, string grp)
 		.add_constructor()
 		.add_method("set_epsilon_strong", &RSAMG<algebra_type>::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong connectivity")
 		.add_method("get_epsilon_strong", &RSAMG<algebra_type>::get_epsilon_strong, "epsilon_strong", "")
+		.add_method("set_epsilon_strong_positive", &RSAMG<algebra_type>::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong connectivity")
+		.add_method("get_epsilon_strong_positive", &RSAMG<algebra_type>::get_epsilon_strong, "epsilon_strong", "")
 		.add_method("set_prolongation_truncation", &RSAMG<algebra_type>::set_prolongation_truncation, "", "prolongation_tr", "sets the truncation of interpolation")
 		.add_method("get_prolongation_truncation", &RSAMG<algebra_type>::get_prolongation_truncation, "prolongation_tr")
 
