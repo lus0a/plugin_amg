@@ -595,7 +595,7 @@ public:
 						{
 							UG_LOG("Problem at node " << i << ": ");
 							for(size_t l=0; l<indices.size(); l++)
-							{	UG_LOG("p" << l << " = " << onlyN1[l] << " "); }
+							{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " "); }
 							UG_LOG(" solve_KKT: lq[" << k << "] = " << lq[k] << "\n");
 						}
 						return false;
