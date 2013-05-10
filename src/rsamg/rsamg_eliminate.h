@@ -1,0 +1,101 @@
+/*
+ * rsamg_eliminate.h
+ *
+ *  Created on: May 8, 2013
+ *      Author: anaegel
+ */
+
+#ifndef RSAMG_ELIMINATE_H_
+#define RSAMG_ELIMINATE_H_
+namespace ug
+{
+
+
+
+template <class T> struct PositiveOffDiagCheck
+{
+	//! returns true for any positive off-diag connection
+	 static bool eval(size_t i, size_t j, T Aij) {
+		return ((amg_offdiag_value(Aij) > 0.0) && (i!=j));
+	}
+};
+
+
+template <class T> class StrongOffDiagCheck
+{
+public:
+	StrongOffDiagCheck(const cgraph &s) : strong(s) {};
+
+	//! returns true for any strong connection
+	 bool eval(size_t i, size_t j, T Aij) const {
+		return ((strong.has_connection(i,j)) && (i!=j));
+	}
+private:
+	 const cgraph &strong;
+};
+
+
+
+template<typename TMatrixType, typename TElimRule>
+void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TMatrixType &B, bool enforceNew=false)
+{
+	// copy 'non-negative' matrix entries that we wish to keep
+	for(typename TMatrixType::const_row_iterator connij = A.begin_row(i); connij != A.end_row(i); ++connij)
+	{
+		size_t j=connij.index();
+		typename TMatrixType::value_type Aij=connij.value();
+		B(i,connij.index()) = (rule.eval(i, j, Aij)) ? 0.0 : connij.value();
+	}
+
+	/*
+	std::cout << "EliminateEntries (BEGIN) "<< i << "\n";
+	A.pr(i);
+	B.pr(i);
+*/
+
+	// distribute 'positive' rows
+	for(typename TMatrixType::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+	{
+
+		const size_t j=conn.index();
+		typename TMatrixType::value_type Aij=conn.value();
+
+		if (rule.eval(i,j,Aij))
+		{
+			//std::cout << "Eliminating A (" << i << "," << j<< ")=" << Aij <<std::endl;
+			typename TMatrixType::const_row_iterator connjj = A.get_connection(j,j);
+			for(typename TMatrixType::const_row_iterator connjk = A.begin_row(j); connjk != A.end_row(j); ++connjk)
+			{
+				size_t k=connjk.index();
+				if (k==j) continue;
+
+				typename TMatrixType::value_type Aijjk = Aij*(1.0 /BlockRef(connjj.value(), 0, 0)) * connjk.value();
+
+				if (enforceNew) {
+					// create new links
+					typename TMatrixType::row_iterator connBik = B.get_connection(i,k);
+					connBik.value() -= Aijjk;
+				} else {
+					// only for existing links
+					bool foundBik;
+					typename TMatrixType::row_iterator connBik = B.get_connection(i,k,foundBik);
+					if (foundBik) {
+						//std::cout << "MOD "<< i << ","<<j<< "," << k << ":" << Aij<< " "<<connBik.value() <<"=>" << Aijjk << "\n";
+						connBik.value() -= Aijjk;
+
+					}
+				}
+			}
+		}
+
+	}
+
+/*
+	std::cout << "EliminateEntries (POST) "<< i << "\n";
+	A.pr(i);
+	B.pr(i);
+	std::cout << "EliminateEntries (END) "<< i << "\n";
+	*/
+}
+}
+#endif /* RSAMG_ELIMINATE_H_ */
