@@ -20,12 +20,14 @@
 
 #include "rsamg_prolongation.h"
 #include "rsamg_debug.h"
-#include "../amg_debug_helper.h"
 #include "rsamg_nodeinfo.h"
-
 #include "rsamg_coarsening.h"
+#include "rsamg_eliminate.h"
 
 #include "common/stopwatch.h"
+
+#include "../amg_debug_helper.h"
+#include "../amg_misc.h"
 #include "../amg_profiling.h"
 
 #ifdef UG_PARALLEL
@@ -71,8 +73,54 @@ namespace ug{
 #endif
 
 
+
+//! $$-a_{ij} \ge \epsilon \max_{a_{ik}<0} |a_{ik}|$$
+template<typename matrix_type>
+void FindStrongNegativeConnections(const matrix_type &Ci, size_t i, double theta, cgraph &graph) {
+
+	double dmax = 0.0;
+
+	for(typename matrix_type::const_row_iterator conn = Ci.begin_row(i); conn != Ci.end_row(i); ++conn)
+	{
+		if(conn.index() == i) continue; // skip diag
+		if(conn.value() != 0.0 && amg_offdiag_value(conn.value()) < dmax)
+			dmax = amg_offdiag_value(conn.value());
+	}
+
+	for(typename matrix_type::const_row_iterator conn = Ci.begin_row(i); conn != Ci.end_row(i); ++conn)
+	{
+		if(conn.index() == i) continue; // skip diag
+		if( amg_offdiag_value(conn.value()) <= theta * dmax)
+			graph.set_connection(i, conn.index());
+	}
+}
+
+
+//! $$a_{ij} \ge \epsilon^+ \max_{k\neq i} |a_{ik}|$$
+template<typename matrix_type>
+void FindStrongPositiveConnections(const matrix_type &Ci, size_t i, double theta, cgraph &graph) {
+
+	double dmax = 0.0;
+
+	for(typename matrix_type::const_row_iterator conn = Ci.begin_row(i); conn != Ci.end_row(i); ++conn)
+	{
+		if(conn.index() == i) continue; // skip diag
+		const double dval =  fabs(amg_offdiag_value(conn.value()));
+		if(dval > dmax) dmax = dval;
+	}
+
+	for(typename matrix_type::const_row_iterator conn = Ci.begin_row(i); conn != Ci.end_row(i); ++conn)
+	{
+		const size_t j =conn.index();
+		if(j == i) continue; // skip diag
+		const double dval =  amg_offdiag_value(conn.value());
+		if( dval >= theta * dmax)
+			graph.set_connection(i, j);
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// CreateStrongConnectionGraph:
+// CreateConnectionGraph:
 //------------------------------
 /**
  * Create graph of strong connections from a matrix A
@@ -86,34 +134,27 @@ namespace ug{
  * \note	you can also pre-calculate some connectivity-measurement matrix C, and call this function with C.
  */
 template<typename matrix_type>
-void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double m_dTheta, AMGNodes &nodes)
+void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double theta, AMGNodes &nodes)
 {
 	AMG_PROFILE_FUNC();
 	graph.resize(A.num_rows());
 
 	for(size_t i=0; i< A.num_rows(); i++)
 	{
+		// Skip isolated node
 		if(A.is_isolated(i))
 		{
-			nodes.set_dirichlet(i);
 			continue;
 		}
 
-		double dmax = 0;
+		// Eliminate positive row entries
+		matrix_type Bi;
+		Bi.resize_and_clear(A.num_rows(),A.num_cols());
+		PositiveOffDiagCheck<typename matrix_type::value_type> positiveEntries;
+		EliminateEntries(positiveEntries, A, i, Bi);
 
-		for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
-		{
-			if(conn.index() == i) continue; // skip diag
-			if(conn.value() != 0.0 && amg_offdiag_value(conn.value()) < dmax)
-				dmax = amg_offdiag_value(conn.value());
-		}
-
-		for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
-		{
-			if(conn.index() == i) continue; // skip diag
-			if( amg_offdiag_value(conn.value()) < m_dTheta * dmax)
-				graph.set_connection(i, conn.index());
-		}
+		// Find strong connections
+		FindStrongNegativeConnections(Bi, i, theta, graph);
 
 		if(graph.num_connections(i) == 0)
 			nodes.set_coarse(i);
@@ -124,6 +165,26 @@ void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double m_d
 #endif
 }
 
+// Updates graph by including large positive connections
+template<typename matrix_type>
+void UpdateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double theta_pos)
+{
+	AMG_PROFILE_FUNC();
+
+	for(size_t i=0; i< A.num_rows(); i++)
+	{
+		// Skip isolated node
+		if(A.is_isolated(i))
+			continue;
+
+		// Find strong connections
+		FindStrongPositiveConnections(A, i, theta_pos, graph);
+
+	}
+#ifdef AMG_PRINT_GRAPH
+	graph.print();
+#endif
+}
 
 /*template<typename TAlgebra>
 void rsamg<TAlgebra>::FullSubdomainBlocking(matrix_type &AH, IndexLayout &nextMasterLevelLayout, IndexLayout &nextSlaveMasterLayout)
@@ -272,10 +333,11 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	// j has a strong connection to i
 	graphST.set_as_transpose_of(graphS);
 
-
 #ifdef AMG_WRITE_GRAPH
-	WriteAMGGraphToFile(graphS, (std::string(AMG_WRITE_MATRICES_PATH) + "G" + ToString(level) + ".mat").c_str(), m_amghelper, level);
-	WriteAMGGraphToFile(graphST, (std::string(AMG_WRITE_MATRICES_PATH) + "GT" + ToString(level) + ".mat").c_str(), m_amghelper, level);
+	std::string path=std::string("/level") + ToString(level) + "/";
+	CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
+	WriteAMGGraphToFile(graphS, (m_writeMatrixPath + path + "G" + ToString(level) + ".mat").c_str(), m_amghelper, level);
+	WriteAMGGraphToFile(graphST, (m_writeMatrixPath + path + "GT" + ToString(level) + ".mat").c_str(), m_amghelper, level);
 #endif
 
 	CreateMeasureOfImportancePQ(graphS, graphST, PQ, nodes);
@@ -285,6 +347,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	IF_DEBUG(LIB_ALG_AMG, 4)
 		nodes.print_ratings(m_amghelper, level);
 
+	/////////////////////////////////////////
 	// Coarsen
 	/////////////////////////////////////////
 	UG_DLOG(LIB_ALG_AMG, 1, std::endl << "coarsening... ");
@@ -302,7 +365,8 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	//PreventFFConnections(graphS, graphST, nodes);
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
 
-	// agressive Coarsening
+	/////////////////////////////////////////
+	// Agressive Coarsening
 	/////////////////////////////////////////
 
 	if(m_bAggressiveCoarsening && level == 0)
@@ -349,7 +413,18 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 #ifdef AMG_PRINT_COARSENING
 	printCoarsening(level);
 #endif
+	/////////////////////////////////////////
+	// include positive entries into 'strength of connection'
+	/////////////////////////////////////////
+	if (m_dTheta2<=1)
+	{
+		UpdateStrongConnectionGraph(AOL1, graphS, m_dTheta2);
+#ifdef AMG_WRITE_GRAPH
+		WriteAMGGraphToFile(graphS, (m_writeMatrixPath + path + "UG" + ToString(level) + ".mat").c_str(), m_amghelper, level);
+#endif
+	}
 
+	/////////////////////////////////////////
 	// construct prolongation P = I_{2h->h}
 	/////////////////////////////////////////
 
@@ -358,8 +433,10 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 
 
 	if(bTiming) SW.start();
-	CreateRugeStuebenProlongation(PoldIndices, AOL1, nodes, //newIndex,
+	CreateRugeStuebenProlongation(PoldIndices, AOL1, nodes, graphS, //newIndex,
 			m_dTheta, m_dProlongationTr);
+	/*CreateHensonProlongation(PoldIndices, AOL1, nodes, graphS, //newIndex,
+			m_dTheta, m_dProlongationTr);*/
 	if(!(nodes.get_unassigned() == 0 || (m_bAggressiveCoarsening && level == 0)))
 	{
 		nodes.print_ratings(m_amghelper, level);
@@ -367,12 +444,12 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	}
 
 	if(nodes.get_unassigned_indirect_fine() > 0)
-		CreateIndirectProlongation(PoldIndices, AOL1, nodes, &posInConnections[0], m_dTheta);
+		CreateIndirectProlongation(PoldIndices, AOL1, nodes, &posInConnections[0], graphS);
 
-	//----------
 
+	/////////////////////////////////////////
 	/// create layouts
-
+	/////////////////////////////////////////
 #ifdef UG_PARALLEL
 	this->parallel_process_prolongation(PoldIndices, PnewIndices, m_dProlongationTr, level, nodes,
 			PN, true, nextLevelLayouts);
@@ -380,6 +457,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	this->serial_process_prolongation(PoldIndices, PnewIndices, m_dProlongationTr, level, nodes);
 #endif
 
+	/////////////////////////////////////////
 	// construct restriction R = I_{h->2h}
 	/////////////////////////////////////////
 
@@ -398,7 +476,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
 
-
+	/////////////////////////////////////////
 	// create Galerkin product
 	/////////////////////////////////////////
 
@@ -443,6 +521,7 @@ RSAMG<TAlgebra>::RSAMG() :
 	AMGBase<TAlgebra>(),
 	m_dProlongationTr(0.3),
 	m_dTheta(0.3),
+	m_dTheta2(2.0),
 	//m_dSigma(0.3),
 	m_bAggressiveCoarsening(0),
 	m_iAggressiveCoarseningNrOfPaths(2)
