@@ -39,10 +39,6 @@ private:
 template<typename TMatrixType, typename TRowType, typename TElimRule>
 void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TRowType &row, bool enforceNew=false)
 {
-	AMG_PROFILE_FUNC();
-
-//	UG_LOG("=============\n");
-	PROFILE_BEGIN(a)
 	// copy 'non-negative' matrix entries that we wish to keep
 	for(typename TMatrixType::const_row_iterator connij = A.begin_row(i); connij != A.end_row(i); ++connij)
 	{
@@ -58,9 +54,6 @@ void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TRo
 	A.pr(i);
 	B.pr(i);
 */
-	PROFILE_END();
-
-	PROFILE_BEGIN();
 
 	// distribute 'positive' rows
 	for(typename TMatrixType::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)

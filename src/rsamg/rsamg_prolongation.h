@@ -177,6 +177,7 @@ template<typename TMatrix, typename TNodes>
 void GetNeighborValues(const TMatrix &A, TNodes &nodes, size_t i, double &minConnValue, double &maxConnValue,
 		double &minCoarseConnValue, double &maxCoarseConnValue, double &sumNegNeighbors, double &sumPosNeighbors, double &diag)
 {
+	PROFILE_FUNC();
 	maxConnValue = 0; minConnValue=1e12;
 	maxCoarseConnValue = 0; minCoarseConnValue = 1e12;
 	sumNegNeighbors = 0; sumPosNeighbors=0;

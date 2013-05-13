@@ -15,7 +15,6 @@ namespace ug{
 template<typename TRowType>
 void FindStrongNegativeConnections(const TRowType &Ci, size_t i, double theta, cgraph &graph)
 {
-	PROFILE_FUNC();
 	double dmax = 0.0;
 	typedef typename TRowType::const_iterator const_iterator;
 
