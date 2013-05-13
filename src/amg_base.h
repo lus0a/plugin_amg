@@ -24,7 +24,7 @@
 #include <sstream>
 #include <string>
 #include "amg_debug_helper.h"
-
+#include "amg_level_information.h"
 #include "lib_algebra/common/stl_debug.h" // stdvector
 #ifdef UG_PARALLEL
 #include "pcl/pcl.h"
@@ -84,128 +84,6 @@ public:
 
 	typedef typename matrix_type::value_type value_type;
 
-	class LevelInformation {
-	public:
-		LevelInformation(int _level = 0) {
-			level = _level;
-			m_dCoarseningRate = 0.0;
-			m_dCreationTimeMS = 0.0;
-			m_iNrOfNodesMin = 0;
-			m_iNrOfNodesMax = 0;
-			m_iNrOfNodesSum = 0;
-			m_iNNZsMin = 0;
-			m_iNNZsMax = 0;
-			m_iNNZsSum = 0;
-			m_iInterfaceElements = 0;
-			m_connectionsMax = 0;
-			m_iParticipating = 0;
-		}
-		double get_creation_time_ms() const {
-			return m_dCreationTimeMS;
-		}
-
-		size_t get_nr_of_nodes_min() const {
-			return m_iNrOfNodesMin;
-		}
-		size_t get_nr_of_nodes_max() const {
-			return m_iNrOfNodesMax;
-		}
-		size_t get_nr_of_nodes() const {
-			return m_iNrOfNodesSum;
-		}
-		size_t get_nnz() const {
-			return m_iNNZsSum;
-		}
-		size_t get_nnz_min() const {
-			return m_iNNZsMin;
-		}
-		size_t get_nnz_max() const {
-			return m_iNNZsMax;
-		}
-
-		// nr of elements in master/slave interfaces (including multiplicities)
-		size_t get_nr_of_interface_elements() const {
-			return m_iInterfaceElements;
-		}
-
-		double get_fill_in() const {
-			return ((double) m_iNNZsSum)
-					/ (((double) m_iNrOfNodesSum) * ((double) m_iNrOfNodesSum));
-		}
-		double get_avg_nnz_per_row() const {
-			return m_iNNZsSum / (double) m_iNrOfNodesSum;
-		}
-		size_t get_max_connections() const {
-			return m_connectionsMax;
-		}
-		bool is_valid() const {
-			return this != NULL;
-		}
-
-	public:
-		void set_nr_of_nodes(size_t nrOfNodesMin, size_t nrOfNodesMax,
-				size_t nrOfNodesSum) {
-			m_iNrOfNodesMin = nrOfNodesMin;
-			m_iNrOfNodesMax = nrOfNodesMax;
-			m_iNrOfNodesSum = nrOfNodesSum;
-		}
-		void set_nnz(size_t nnzMin, size_t nnzMax, size_t nnzSum) {
-			m_iNNZsMin = nnzMin;
-			m_iNNZsMax = nnzMax;
-			m_iNNZsSum = nnzSum;
-		}
-		void set_max_connections(size_t connectionsMax) {
-			m_connectionsMax = connectionsMax;
-		}
-
-		void set_coarsening_rate(double rate) {
-			m_dCoarseningRate = rate;
-		}
-
-		double get_coarsening_rate() const {
-			return m_dCoarseningRate;
-		}
-
-		int get_participating() {
-			return m_iParticipating;
-		}
-
-		std::string tostring() const {
-			std::stringstream ss;
-			ss << "Level " << level << ": creation time: "
-					<< get_creation_time_ms() << " ms. number of nodes: "
-					<< get_nr_of_nodes() << ". fill in " << get_fill_in() * 100
-					<< "%. ";
-			if (level != 0)
-				ss << "coarsening rate: " << get_coarsening_rate() * 100
-						<< "%. ";
-			ss << "nr of interface elements: " << get_nr_of_interface_elements()
-					<< " ("
-					<< (double) get_nr_of_interface_elements()
-							/ (double) get_nr_of_nodes() * 100.0 << "%) "
-					<< "nnzs: " << get_nnz() << " avgNNZs/row: "
-					<< get_avg_nnz_per_row() << " maxCon: "
-					<< get_max_connections();
-#ifdef UG_PARALLEL
-			ss << " participating: " << m_iParticipating;
-#endif
-			return ss.str();
-		}
-
-	public:
-		int level;
-		double m_dCoarseningRate;
-		double m_dCreationTimeMS;
-		size_t m_iNrOfNodesMin;
-		size_t m_iNrOfNodesMax;
-		size_t m_iNrOfNodesSum;
-		size_t m_iNNZsMin;
-		size_t m_iNNZsMax;
-		size_t m_iNNZsSum;
-		size_t m_iInterfaceElements;
-		size_t m_connectionsMax;
-		size_t m_iParticipating;
-	};
 
 	struct checkResult {
 		double preSmoothing;
@@ -470,9 +348,6 @@ public:
 
 	bool get_correction(vector_type &c, const vector_type &d);
 
-	void set_verbose(bool bVerbose) {
-		m_bVerbose = bVerbose;
-	}
 
 	/// calculates vH[j] = v[m_parentIndex[level+1][j]];
 	bool injection(vector_type &vH, const vector_type &v, size_t level);
@@ -817,9 +692,7 @@ protected:
 		AMGLevel(int level) :
 				pA(NULL), presmoother(NULL), postsmoother(NULL)
 #ifdef UG_PARALLEL
-						, spLayouts(new HorizontalAlgebraLayouts), spAgglomeratedLayouts(
-						new HorizontalAlgebraLayouts)
-						// todo: remove this
+						, spLayouts(new HorizontalAlgebraLayouts), spAgglomeratedLayouts(new HorizontalAlgebraLayouts)
 						, collectedA(new matrix_operator_type)
 #endif
 		{
@@ -893,8 +766,6 @@ protected:
 	bool isNotMerging(size_t level);
 
 #endif
-
-	bool m_bVerbose;
 
 	void calculate_level_information(size_t level, double createAMGlevelTiming);
 };

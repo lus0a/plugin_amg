@@ -15,7 +15,6 @@
 #include <fstream>
 #include "common/stopwatch.h"
 #include "amg_debug.h"
-
 #ifdef UG_PARALLEL
 #include "lib_algebra/parallelization/collect_matrix.h"
 #include "lib_algebra/parallelization/parallel_vector.h"
@@ -26,6 +25,7 @@
 #include "pcl/pcl_tostring.h"
 #endif
 #include "common/util/file_util.h"
+#include "common/progress.h"
 
 #include "lib_algebra/common/connection_viewer_output.h"
 
@@ -51,6 +51,9 @@ void SetParallelVectorAsMatrix(TVector &v, TMatrix &m, ParallelStorageType t)
 }
 #endif
 
+
+
+
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createAMGlevelTiming)
 {
@@ -61,40 +64,15 @@ void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createA
 	if(m_levelInformation.size() < level+1)
 		m_levelInformation.resize(level+1);
 	LevelInformation &li = m_levelInformation[level];
-	li.level = level;
 
-	size_t nnz = GetNNZs(A); // A.total_num_connections();
-	size_t maxConnections = GetMaxConnections(A);
-	li.m_dCreationTimeMS = createAMGlevelTiming;
-#ifdef UG_PARALLEL
-	const pcl::ProcessCommunicator &pc = A.layouts()->proc_comm(); //!
-	size_t N = A.num_rows() - A.layouts()->slave().num_interface_elements();
-	li.set_nr_of_nodes(pc.allreduce(N, PCL_RO_MIN),	pc.allreduce(N, PCL_RO_MAX), pc.allreduce(N, PCL_RO_SUM));
-	li.set_nnz(	pc.allreduce(nnz, PCL_RO_MIN), pc.allreduce(nnz, PCL_RO_MAX), pc.allreduce(nnz, PCL_RO_SUM));
-	li.set_max_connections(pc.allreduce(maxConnections, PCL_RO_MAX));
-	size_t localInterfaceElements = A.layouts()->master().num_interface_elements();
-	li.m_iInterfaceElements = pc.allreduce(localInterfaceElements, PCL_RO_SUM);
-	li.m_iParticipating=pc.size();
-#else
-	size_t N = A.num_rows();
-	li.set_nr_of_nodes(N, N, N);
-	li.set_nnz(nnz, nnz, nnz);
-	li.set_max_connections(maxConnections);
-	li.m_iInterfaceElements = 0;
-	li.m_iParticipating=1;
-#endif
-	if(level>0)
-		li.set_coarsening_rate((double)li.get_nr_of_nodes()/
-				(double)m_levelInformation[level-1].get_nr_of_nodes());
-	else
-		li.set_coarsening_rate(0.0);
+	if(level > 0)
+		li.calculate(A, level, createAMGlevelTiming, li.get_nr_of_nodes()/(double)m_levelInformation[level-1].get_nr_of_nodes());
+	else li.calculate(A, 0, 0.0, 0.0);
 
-	UG_LOG(li.tostring() << "\n");
-	UG_LOG(" level took " << li.m_dCreationTimeMS << " ms" <<
+
+	AMG_LOG(1, li.tostring() << "\n");
+	AMG_LOG(1, " level took " << li.m_dCreationTimeMS << " ms" <<
 			std::endl << std::endl);
-
-	//UG_DLOG(LIB_ALG_AMG, 1, li.tostring() << "\n");
-	//UG_DLOG(LIB_ALG_AMG, 1, " level took " << createAMGlevelTiming << " ms" << std::endl << std::endl);
 }
 
 
@@ -113,8 +91,6 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 //	SetMPIErrHandler();
 #endif
 
-
-	// WARNING: this may corrupt mat
 //	UG_LOG("matrix " << mat.num_rows() << "\n");
 	cleanup();
 //	UG_LOG("matrix after: " << mat.num_rows() << "\n");
@@ -185,9 +161,12 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 #endif
 	levels.push_back(pL);
 
+	PROGRESS_START(prog, pOp->num_rows(), "Creating AMG");
 	for(; ; level++)
 	{
 		AMGLevel &L = *levels[level];
+
+		PROGRESS_UPDATE(prog, pOp->num_rows()-L.pA->num_rows());
 
 		L.pAgglomeratedA = L.pA;
 		calculate_level_information(level, createAMGlevelTiming);
@@ -327,62 +306,39 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	const pcl::ProcessCommunicator &pc = mat.layouts()->proc_comm(); //!
 	m_totalUsedLevels = pc.allreduce(m_usedLevels, PCL_RO_MAX);
 	AMG_LOG(1, "total used levels: " << m_totalUsedLevels << "\n");
-
-	for(level=0;level<m_totalUsedLevels; level++)
+	LevelInformation::parallel_update(pc, m_levelInformation, m_totalUsedLevels);
+	for(level=m_usedLevels;level<m_totalUsedLevels; level++)
 	{
-		if(m_levelInformation.size() < level+1)
-			m_levelInformation.resize(level+1);
-			LevelInformation &li = m_levelInformation[level];
-		li.level = level;
-
-		li.m_dCreationTimeMS = pc.allreduce(li.m_dCreationTimeMS, PCL_RO_MAX);
-		li.m_iNrOfNodesMin = pc.allreduce(li.m_iNrOfNodesMin, PCL_RO_MAX);
-		li.m_iNrOfNodesMax = pc.allreduce(li.m_iNrOfNodesMax, PCL_RO_MAX);
-		li.m_iNrOfNodesSum = pc.allreduce(li.m_iNrOfNodesSum, PCL_RO_MAX);
-
-		li.m_iNNZsMin = pc.allreduce(li.m_iNNZsMin, PCL_RO_MAX);
-		li.m_iNNZsMax = pc.allreduce(li.m_iNNZsSum, PCL_RO_MAX);
-		li.m_iNNZsSum = pc.allreduce(li.m_iNNZsMax, PCL_RO_MAX);
-
-		li.m_iInterfaceElements = pc.allreduce(li.m_iInterfaceElements, PCL_RO_MAX);
-		li.m_connectionsMax = pc.allreduce(li.m_connectionsMax, PCL_RO_MAX);
-
-		li.m_iParticipating=pc.allreduce(li.m_iParticipating, PCL_RO_MAX);
-
-		if(level>0)
-			li.set_coarsening_rate((double)li.get_nr_of_nodes()/
-					(double)m_levelInformation[level-1].get_nr_of_nodes());
-		else
-			li.set_coarsening_rate(0.0);
-
-		if(level >= m_usedLevels){
+		LevelInformation &li = m_levelInformation[level];
 		AMG_LOG(1, li.tostring() << "\n");
-		AMG_LOG(1, " level took " << li.m_dCreationTimeMS << " ms" << std::endl << std::endl);}
+		AMG_LOG(1, " level took " << li.m_dCreationTimeMS << " ms" << std::endl << std::endl);
 	}
-
+#else
+	m_totalUsedLevels = m_usedLevels;
 #endif
 
 	AMG_LOG(1, "finished. now init fsmoothing.\n");
 	init_fsmoothing();
 
 
-	AMG_LOG(1, "AMG Setup finished. Used Levels: " << m_usedLevels << ". ");
+	AMG_LOG(1, "AMG Setup finished. Total used Levels: " << m_totalUsedLevels << ". ");
 	m_dTimingWholeSetupMS = SWwhole.ms();
 	UG_DLOG(LIB_ALG_AMG, 1, "AMG Setup took " << m_dTimingWholeSetupMS << " ms." << std::endl);
 
 	// calc complexities
 	double totalNNZs=0;
 	double totalNrOfNodes=0;
-	for(size_t i=0; i<m_usedLevels; i++)
+	for(size_t i=0; i<m_totalUsedLevels; i++)
 	{
-		totalNNZs += levels[i]->pA->total_num_connections();
-		totalNrOfNodes += levels[i]->pA->num_rows();
+		LevelInformation &li = m_levelInformation[i];
+		totalNNZs += li.get_nnz();
+		totalNrOfNodes += li.get_nr_of_nodes();
 	}
 
 	m_dOperatorComplexity = totalNNZs / levels[0]->pA->total_num_connections();
 	m_dGridComplexity = totalNrOfNodes / levels[0]->pA->num_rows();
 
-	UG_DLOG(LIB_ALG_AMG, 1, "Operator Complexity: " << m_dOperatorComplexity << " grid complexity: "
+	AMG_LOG(1, "Operator Complexity: " << m_dOperatorComplexity << " grid complexity: "
 			<< m_dGridComplexity << std::endl << std::endl);
 
 	m_bInited = true;
@@ -400,13 +356,11 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 	AMGLevel &L = *levels[level];
 	matrix_operator_type &A = *L.pA; (void) A;
 	size_t static_nrUnknowns = block_traits< typename vector_type::value_type >::static_size;
-	UG_DLOG(LIB_ALG_AMG, 1, "Creating level " << level << " (" << A.num_rows() << " nodes, total "
+	AMG_LOG(2, "Creating direct solver on level " << level << " (" << A.num_rows() << " nodes, total "
 			<< A.num_rows()*static_nrUnknowns << " unknowns)" << std::endl << "Using Direct Solver on Matrix "
 			<< A.num_rows()*static_nrUnknowns << "x" << A.num_rows()*static_nrUnknowns << ". ");
 	(void) static_nrUnknowns;
 	Stopwatch SW; SW.start();
-
-	AMG_LOG(1, "creating direct solver on level " << level << "\n");
 
 #ifdef UG_PARALLEL
 	const pcl::ProcessCommunicator &pc = A.layouts()->proc_comm(); //!
@@ -499,7 +453,7 @@ AMGBase<TAlgebra>::AMGBase() :
 	m_dPreiterationsMimumDefect = 1e-8;
 	m_iYCycle = 0;
 	m_bOneInit = false;
-	m_bVerbose = false;
+	m_verbose = 0;
 	m_dGalerkinTruncation = 1e-12;
 }
 
@@ -511,7 +465,6 @@ void AMGBase<TAlgebra>::cleanup()
 	m_bInited=false;
 
 	if(m_vec4 != NULL) delete m_vec4; m_vec4 = NULL;
-
 }
 //!
 //! amg destructor

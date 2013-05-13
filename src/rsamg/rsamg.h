@@ -57,6 +57,7 @@ public:
 	using super::m_writeMatrixPath;
 	using super::levels;
 	using super::m_dGalerkinTruncation;
+	using super::m_verbose;
 
 public:
 //	Algebra type

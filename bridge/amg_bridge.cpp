@@ -57,19 +57,6 @@ static void Algebra(Registry& reg, string grp)
 
 //	AMG
 
-	reg.add_class_< typename AMGBase<algebra_type>::LevelInformation > (string("AMGLevelInformation").append(suffix), grp)
-		.add_method("get_creation_time_ms", &AMGBase<algebra_type>::LevelInformation::get_creation_time_ms, "creation time of this level (in ms)")
-		.add_method("get_nr_of_nodes", &AMGBase<algebra_type>::LevelInformation::get_nr_of_nodes, "nr of nodes of this level, sum over all processors")
-		.add_method("get_nr_of_nodes_min", &AMGBase<algebra_type>::LevelInformation::get_nr_of_nodes_min, "nr of nodes of this level, minimum over all processors")
-		.add_method("get_nr_of_nodes_max", &AMGBase<algebra_type>::LevelInformation::get_nr_of_nodes_max, "nr of nodes of this level, maximum over all processors")
-		.add_method("get_nnz", &AMGBase<algebra_type>::LevelInformation::get_nnz, "nr of non-zeros, sum over all processors")
-		.add_method("get_nnz_min", &AMGBase<algebra_type>::LevelInformation::get_nnz_min, "nr of non-zeros, minimum over all processors")
-		.add_method("get_nnz_max", &AMGBase<algebra_type>::LevelInformation::get_nnz_max, "nr of non-zeros, maximum over all processors")
-		.add_method("get_fill_in", &AMGBase<algebra_type>::LevelInformation::get_fill_in, "nr of non-zeros / (nr of nodes)^2")
-		.add_method("is_valid", &AMGBase<algebra_type>::LevelInformation::is_valid, "true if this is a valid level information")
-		.add_method("get_nr_of_interface_elements", &AMGBase<algebra_type>::LevelInformation::get_nr_of_interface_elements, "nr of interface elements (including multiplicites)");
-
-	reg.add_class_to_group(string("AMGLevelInformation").append(suffix), "AMGLevelInformation", tag);
 
 
 //todo: existance of AMGPreconditioner class should not depend on defines.
@@ -105,6 +92,7 @@ static void Algebra(Registry& reg, string grp)
 		.add_method("get_timing_coarse_solver_setup_ms", &AMGBase<algebra_type>::get_timing_coarse_solver_setup_ms, "the time spent in the coarse solver setup in ms")
 
 		.add_method("get_level_information", &AMGBase<algebra_type>::get_level_information, "information about the level L", "L")
+		.add_method("set_verbose", &AMGBase<algebra_type>::set_verbose)
 
 		.add_method("set_presmoother", &AMGBase<algebra_type>::set_presmoother, "", "presmoother")
 		.add_method("set_postsmoother", &AMGBase<algebra_type>::set_postsmoother, "", "postsmoother")
@@ -140,6 +128,18 @@ void RegisterBridge_RSAMG(Registry& reg, string grp);
 
 void RegisterBridge_AMG(Registry& reg, string grp)
 {
+	reg.add_class_<LevelInformation > ("AMGLevelInformation", grp)
+		.add_method("get_creation_time_ms", &LevelInformation::get_creation_time_ms, "creation time of this level (in ms)")
+		.add_method("get_nr_of_nodes", &LevelInformation::get_nr_of_nodes, "nr of nodes of this level, sum over all processors")
+		.add_method("get_nr_of_nodes_min", &LevelInformation::get_nr_of_nodes_min, "nr of nodes of this level, minimum over all processors")
+		.add_method("get_nr_of_nodes_max", &LevelInformation::get_nr_of_nodes_max, "nr of nodes of this level, maximum over all processors")
+		.add_method("get_nnz", &LevelInformation::get_nnz, "nr of non-zeros, sum over all processors")
+		.add_method("get_nnz_min", &LevelInformation::get_nnz_min, "nr of non-zeros, minimum over all processors")
+		.add_method("get_nnz_max", &LevelInformation::get_nnz_max, "nr of non-zeros, maximum over all processors")
+		.add_method("get_fill_in", &LevelInformation::get_fill_in, "nr of non-zeros / (nr of nodes)^2")
+		.add_method("is_valid", &LevelInformation::is_valid, "true if this is a valid level information")
+		.add_method("get_nr_of_interface_elements", &LevelInformation::get_nr_of_interface_elements, "nr of interface elements (including multiplicites)");
+
 	RegisterBridge_RSAMG(reg, grp);
 	RegisterBridge_FAMG(reg, grp);
 

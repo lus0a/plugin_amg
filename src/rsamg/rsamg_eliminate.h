@@ -36,27 +36,35 @@ private:
 
 
 
-template<typename TMatrixType, typename TElimRule>
-void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TMatrixType &B, bool enforceNew=false)
+template<typename TMatrixType, typename TRowType, typename TElimRule>
+void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TRowType &row, bool enforceNew=false)
 {
+	AMG_PROFILE_FUNC();
+
+//	UG_LOG("=============\n");
+	PROFILE_BEGIN(a)
 	// copy 'non-negative' matrix entries that we wish to keep
 	for(typename TMatrixType::const_row_iterator connij = A.begin_row(i); connij != A.end_row(i); ++connij)
 	{
 		size_t j=connij.index();
 		typename TMatrixType::value_type Aij=connij.value();
-		B(i,connij.index()) = (rule.eval(i, j, Aij)) ? 0.0 : connij.value();
+//		UG_LOG( i << " " << connij.index() << "\n");
+		row(connij.index()) = (rule.eval(i, j, Aij)) ? 0.0 : connij.value();
 	}
 
+//	UG_LOG("=============\n");
 	/*
 	std::cout << "EliminateEntries (BEGIN) "<< i << "\n";
 	A.pr(i);
 	B.pr(i);
 */
+	PROFILE_END();
+
+	PROFILE_BEGIN();
 
 	// distribute 'positive' rows
 	for(typename TMatrixType::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
 	{
-
 		const size_t j=conn.index();
 		typename TMatrixType::value_type Aij=conn.value();
 
@@ -71,20 +79,8 @@ void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TMa
 
 				typename TMatrixType::value_type Aijjk = Aij*(1.0 /BlockRef(connjj.value(), 0, 0)) * connjk.value();
 
-				if (enforceNew) {
-					// create new links
-					typename TMatrixType::row_iterator connBik = B.get_connection(i,k);
-					connBik.value() -= Aijjk;
-				} else {
-					// only for existing links
-					bool foundBik;
-					typename TMatrixType::row_iterator connBik = B.get_connection(i,k,foundBik);
-					if (foundBik) {
-						//std::cout << "MOD "<< i << ","<<j<< "," << k << ":" << Aij<< " "<<connBik.value() <<"=>" << Aijjk << "\n";
-						connBik.value() -= Aijjk;
-
-					}
-				}
+				if(enforceNew || row.has_connection(k))
+					row(k) -= Aijjk;
 			}
 		}
 

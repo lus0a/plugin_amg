@@ -34,6 +34,29 @@ void FAMGLevelCalculator<algebra_type>::external_coarsening_calculate_prolongati
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
 }
 
+template<typename T>
+inline void AMGnodeinfoToFAMGnodeinfo(AMGNodes &amgNodes, FAMGNodes<T> &famgNodes, cgraph &graphS)
+{
+	size_t N = amgNodes.size();
+	for(size_t i=0; i<N; i++)
+	{
+		if(graphS.is_isolated(i))
+			famgNodes.set_fine(i);
+		else if(amgNodes[i].is_coarse())
+			famgNodes.external_set_coarse(i);
+		else if(amgNodes[i].is_fine_direct() || amgNodes[i].is_fine())
+			famgNodes.set_fine(i);
+		else if(amgNodes[i].is_dirichlet())
+			famgNodes.set_dirichlet(i);
+		else
+		{
+			//UG_LOG("nodes " << i << " = " << nodes[i] << "\n");
+			famgNodes.set_fine(i);
+			//UG_LOG("rating " << i << " = " << rating[i] << "\n");
+		}
+	}
+}
+
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 {
@@ -71,8 +94,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 		//unassigned = 0; ??
 		cgraph graphAC(N);
 		size_t m_iAggressiveCoarseningNrOfPaths = 2;
-		stdvector<int> posInConnections; posInConnections.resize(N, -1);
-		CreateAggressiveCoarseningGraph(graphST, graphAC, nodes, m_iAggressiveCoarseningNrOfPaths, &posInConnections[0]);
+		CreateAggressiveCoarseningGraph(graphST, graphAC, nodes, m_iAggressiveCoarseningNrOfPaths);
 		CreateMeasureOfImportanceAggressiveCoarseningPQ(graphAC, PQ, nodes);
 		if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
 		// coarsen 2
@@ -91,23 +113,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	}
 
 	// coarsening done. transfer AMG nodeinfo -> FAMG nodeinfo
-	for(size_t i=0; i<N; i++)
-	{
-		if(graphS.is_isolated(i))
-			rating.set_fine(i);
-		else if(nodes[i].is_coarse())
-			rating.external_set_coarse(i);
-		else if(nodes[i].is_fine_direct() || nodes[i].is_fine())
-			rating.set_fine(i);
-		else if(nodes[i].is_dirichlet())
-			rating.set_dirichlet(i);
-		else
-		{
-			//UG_LOG("nodes " << i << " = " << nodes[i] << "\n");
-			rating.set_fine(i);
-			//UG_LOG("rating " << i << " = " << rating[i] << "\n");
-		}
-	}
+	AMGnodeinfoToFAMGnodeinfo(nodes, rating, graphS);
 
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
 	//if(nodes[i].is_unassigned_fine_indirect())

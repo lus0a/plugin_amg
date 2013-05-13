@@ -16,7 +16,7 @@ void CreateStrongConnectionGraph(const Matrix_type &A, cgraph &graph, double the
 void CreateMeasureOfImportancePQ(const cgraph &strong, const cgraph &strongT, nodeinfo_pq_type &PQ, AMGNodes &nodes);
 
 void CreateAggressiveCoarseningGraph(const cgraph &graph, cgraph &graph2, const AMGNodes &nodes,
-		int nrOfPaths, int *posInConnections);
+		int nrOfPaths);
 
 
 void CreateMeasureOfImportanceAggressiveCoarseningPQ(const cgraph &graphAC, nodeinfo_pq_type &PQ, AMGNodes &nodes);

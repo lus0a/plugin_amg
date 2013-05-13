@@ -12,6 +12,7 @@
 
 #include "common/assert.h"
 #include "common/log.h"
+#include "common/progress.h"
 
 using namespace std;
 
@@ -23,6 +24,7 @@ using namespace std;
 //#define AMG_PRINT_COARSEN
 
 #include "lib_algebra/common/heap/boxsort.h"
+#include "lib_algebra/algebra_common/unsorted_sparse_vector.h"
 
 
 namespace ug
@@ -87,15 +89,14 @@ void CreateMeasureOfImportancePQ(const cgraph &strong, const cgraph &strongT, no
  * \param 	graph2				new graph of "distance-2-strong-connectivity"
  * \param	nodes				info about nodes if nodes are fine or coarse
  * \param	minNrOfPaths		2 or 1, depending on A2- or A1-Coarsening.
- * \param 	posInConnections	array of size graph.size for speedup of neighbor-neighbor-calculation inited with -1.
  */
 void CreateAggressiveCoarseningGraph(const cgraph &graph, cgraph &graph2, const AMGNodes &nodes,
-		int minNrOfPaths, int *posInConnections)
+		int minNrOfPaths)
 {
 	AMG_PROFILE_FUNC();
 	UG_ASSERT(nodes.size() == graph.size(), "");
 	vector<int> connection(255);
-	vector<int> nrOfPaths(255);
+	UnsortedSparseVector<int> nrOfPaths(graph.size());
 
 	//graph.print();
 	for(size_t i=0; i < graph.size(); i++)
@@ -103,7 +104,6 @@ void CreateAggressiveCoarseningGraph(const cgraph &graph, cgraph &graph2, const 
 		if(nodes[i].is_fine_direct())
 			continue;
 
-		connection.clear();
 		nrOfPaths.clear();
 		// first calculate all nodes reachable with paths of length 2
 
@@ -117,30 +117,19 @@ void CreateAggressiveCoarseningGraph(const cgraph &graph, cgraph &graph2, const 
 
 				if(indexNN == i || nodes[indexNN].is_fine_direct())
 					continue;
-				int pos = posInConnections[indexNN];
-				if(pos == -1)
-				{
-					// never reached node indexNN from i, init.
-					pos = posInConnections[indexNN]= connection.size();
-					connection.push_back(indexNN);
-					nrOfPaths.push_back(1);
-				}
-				else
-					nrOfPaths[pos]++;
+				nrOfPaths(indexNN)++;
 			}
 		}
 
 		// then sort out those which were reached #aggressiveCoarseningNrOfPaths (2 or 1) times
-		for(size_t j=0; j<connection.size(); j++)
+		for(UnsortedSparseVector<int>::iterator it = nrOfPaths.begin(); it != nrOfPaths.end(); ++it)
 		{
-			if(nrOfPaths[j] >= minNrOfPaths)
+			if(it->value() >= minNrOfPaths)
 			{
 				// add connection i -> node
-				graph2.set_connection(i, connection[j]);
+				graph2.set_connection(i, it->index());
 				// increase rating of i
 			}
-			// reset posInConnections for further use
-			posInConnections[connection[j]] = -1;
 		}
 	}
 }
@@ -248,6 +237,7 @@ inline void MarkUnassignedNeighborsFine(const cgraph &graph, nodeinfo_pq_type &P
 int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bAggressiveCoarsening)
 {
 	AMG_PROFILE_FUNC();
+	PROGRESS_START(prog, nodes.size(), "Coarsening graph size " << nodes.size());
 	UG_ASSERT(S.size() == nodes.size() && S.size() == PQ.arr_size() && S.size() == ST.size(), "");
 
 	//UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, 3);
@@ -268,6 +258,7 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 
 	while(PQ.height() > 0)
 	{
+		PROGRESS_UPDATE(prog, PQ.height());
 		UG_ASSERT(PQ.height() == nodes.get_unassigned(), PQ.height() << " != " << nodes.get_unassigned())
 		// get Node with best rating
 		int best = PQ.remove_max();
