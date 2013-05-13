@@ -82,7 +82,11 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	m_famg.m_pParallelCoarsening->coarsen(PN, masterLayouts, slaveLayouts, graphS, graphST, PQ, nodes, true);
 #else
 	Coarsen(graphS, graphST, PQ, nodes, true, false);
-	PreventFFConnections(graphS, graphST, nodes);
+
+	if (m_famg.get_prevent_ff_connection_external())
+	{
+		PreventFFConnections(graphS, graphST, nodes);
+	}
 #endif
 
 	// aggressive coarsening

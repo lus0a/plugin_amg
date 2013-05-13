@@ -101,6 +101,10 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_write_coarsening", &T::set_write_coarsening)
 			.add_method("set_read_coarsening", &T::set_read_coarsening)
 
+			.add_method("set_prevent_ff_connection_external", &T::set_prevent_ff_connection_external)
+			.add_method("get_prevent_ff_connection_external", &T::get_prevent_ff_connection_external)
+
+
 
 	#ifdef UG_PARALLEL
 			.add_method("set_parallel_coarsening", &T::set_parallel_coarsening, "", "parallelCoarsening", "e.g. GetColorCoarsening()")

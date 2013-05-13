@@ -216,6 +216,9 @@ public:
 	void	set_strong_connection_external(double d) 	{ m_dStrongConnectionExternal = d; }
 	double	get_strong_connection_external() 			{ return m_dStrongConnectionExternal; }
 
+	void	set_prevent_ff_connection_external(int i) 	{ m_iPreventFFConnection = i; }
+	double	get_prevent_ff_connection_external() 		{ return m_iPreventFFConnection; }
+
 	void	set_write_f_values(bool b)	{ m_bWriteFValues = b; }
 
 	bool check_testvector(size_t fromlevel, size_t tolevel);
@@ -255,6 +258,8 @@ private:
 
 
 	double m_dStrongConnectionExternal;
+
+	int m_iPreventFFConnection;  ///<
 
 
 	size_t m_iTestvectorDamps;
