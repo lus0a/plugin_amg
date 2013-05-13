@@ -593,12 +593,12 @@ public:
 					{
 						IF_DEBUG(LIB_ALG_AMG, 2)
 						{
-							UG_LOG("Problem at node " << i << ": ");
+							UG_LOG("WARNING: Problem at node " << i << ": ");
 							for(size_t l=0; l<indices.size(); l++)
 							{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " "); }
 							UG_LOG(" solve_KKT: lq[" << k << "] = " << lq[k] << "\n");
 						}
-						return false;
+						//return false;
 					}
 					BlockRef(q[k], b, b) = lq[k] / BlockRef(aiiSqrt, b);
 				}
@@ -618,8 +618,9 @@ public:
 				return false;
 			}
 		}
-
+		// TODO: Sinvoll?
 		F /= blockSize;
+
 		return true;
 	}
 #endif
@@ -667,17 +668,45 @@ public:
 		return true;
 	}
 
+	// select only coarse neighbors w/ sufficiently large couplings
 	void reduceToStrong(const std::vector<size_t> &coarseNeighbors,
 			std::vector<size_t> &strongNeighbors, double eps)
 	{
-		size_t i_index = onlyN1.size();
-		double maxVal = BlockNorm(H(i_index, coarseNeighbors[0]));
-		for (size_t j = 1; j < coarseNeighbors.size(); j++)
-			maxVal = std::max(BlockNorm(H(i_index, coarseNeighbors[j])), maxVal);
+		const size_t i_index = onlyN1.size();
+
+		// determine maximum of offdiag/diag in i-th row
+		double maxVal = 0.0;
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
-			if (BlockNorm(H(i_index, coarseNeighbors[j])) > eps * maxVal)
-				strongNeighbors.push_back(coarseNeighbors[j]);
+		{
+			const double val = BlockRef(H(i_index, coarseNeighbors[j]), 0,0) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), 0,0);
+			maxVal = std::max(maxVal, val);
+		}
+
+		// eliminate strong connections with small contributions
+		maxVal *=eps;
+		for (size_t j = 0; j < coarseNeighbors.size(); j++)
+					if (BlockRef(H(i_index, coarseNeighbors[j]), 0,0)
+							>= maxVal * BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), 0,0))
+
+						strongNeighbors.push_back(coarseNeighbors[j]);
+
 	}
+
+	// select only coarse neighbors w/ sufficiently large couplings
+		void reduceToStrongNew(const std::vector<size_t> &coarseNeighbors,
+				std::vector<size_t> &strongNeighbors, double eps)
+		{
+			// determine maximum among coarse neighbors
+			double maxVal = BlockNorm(H(coarseNeighbors[0],coarseNeighbors[0]));
+			for (size_t j = 1; j < coarseNeighbors.size(); j++)
+				maxVal = std::max(BlockNorm(H(coarseNeighbors[j], coarseNeighbors[j])), maxVal);
+
+			// select strongly coupled coarse neighbors
+			for (size_t j = 0; j < coarseNeighbors.size(); j++)
+				if (BlockNorm(H(coarseNeighbors[j], coarseNeighbors[j])) >= eps * maxVal)
+					strongNeighbors.push_back(coarseNeighbors[j]);
+		}
+
 
 	bool direct_interpolation(size_t i, TPMatrix &P,
 			FAMGNodes<TPMatrix> &rating, std::vector<size_t> &coarseNeighbors)
@@ -702,7 +731,7 @@ public:
 
 		std::vector<size_t> strongNeighbors;
 		//reduceToStrong(coarseNeighbors, strongNeighbors, 0.5);
-		reduceToStrong(coarseNeighbors, strongNeighbors, 0.1);
+		reduceToStrong(coarseNeighbors, strongNeighbors, m_dHReduceInterpolationNodesParameter);
 
 		set_sizes(strongNeighbors.size());
 		if(solve_KKT(i, subindices(strongNeighbors)))
@@ -751,7 +780,7 @@ public:
 		else
 		{
 			rating.external_set_coarse(i);
-			UG_DLOG(LIB_ALG_AMG, 3, "indirect_interpolation of node " << i << ": could not invert KKT system (coarse neighbors).\n");
+			UG_DLOG(LIB_ALG_AMG, 3, "direct_interpolation of node " << i << ": could not invert KKT system (coarse neighbors).\n");
 		}
 		return true;
 	}
@@ -893,7 +922,7 @@ public:
 	{
 		AMG_PROFILE_FUNC();
 		UG_DLOG(LIB_ALG_AMG, 3,
-				"aggressive coarsening on node " << rating.get_original_index(i) << "\n")
+				"get_all_neighbors_interpolation on node " << rating.get_original_index(i) << "\n")
 
 		stdvector<size_t> coarseNeighbors;
 
@@ -901,7 +930,7 @@ public:
 				coarseNeighbors, bvisited);
 		if (onlyN1.size() == 0)
 		{
-			UG_DLOG(LIB_ALG_AMG, 3, "no neighbors -> gets fine");
+			UG_DLOG(LIB_ALG_AMG, 3, "no neighbors -> F");
 			rating.set_fine(i);
 			return true;
 		}
@@ -1025,17 +1054,18 @@ private:
 	 * calculates locally
 	 * - F-Smoothing SF = 1-w DF^{-1} A  (on only1, i, only2)
 	 * - S = SF (1-w D^{-1} A)			 (on only1, i, only2)
-	 * - H = H = S Y S^T				 (on only1)
+	 * - H = S Y S^T				 (on only1)
 	 * - Hi[.] = H(., i)				 (on only1)
 	 */
 	void calculate_H_from_local_A(size_t i)
 	{
 		// before this function, S = local A (on only1, i, only2)
 		AMG_PROFILE_FUNC();
-		size_t i_index = onlyN1.size();
+		const size_t i_index = onlyN1.size();
 		UG_ASSERT(S.num_cols() == S.num_rows(), "");
 		UG_ASSERT(S.num_cols() == onlyN1.size()+1+onlyN2.size(), "");
-		size_t N = S.num_rows(); // = N2
+		const size_t N = S.num_rows(); // = N2
+		//const size_t N1 = onlyN1.size()+1;
 
 		if (Dinv.size() != N)
 			Dinv.resize(N);
@@ -1076,12 +1106,14 @@ private:
 			for (size_t k1 = 0; k1 < GetRows(SF[j]); k1++)
 				for (size_t k2 = 0; k2 < GetCols(SF[j]); k2++)
 					BlockRef(SF[j], k1, k2) = 0.0;
-		IF_DEBUG(LIB_ALG_AMG, 5)
-			print_vector(SF, "SF");
 
 		for (size_t j = 0; j < N; j++)
 			SF[j] = -Dinv[i_index] * S(i_index, j);
 		SF[i_index] += 1.0;
+
+		IF_DEBUG(LIB_ALG_AMG, 5)
+				print_vector(SF, "SF");
+
 
 		// get S = 1-w D^{-1} A
 		for (size_t r = 0; r < N; r++)
@@ -1106,16 +1138,14 @@ private:
 
 		// S'(i_index, i) = sum_t SF(i_index,t) * S(t, i)
 		for (size_t j = 0; j < N; j++)
-			S(i_index, j) *= SF[i_index];
-		for (size_t t = 0; t < N; t++)
 		{
-			if (t == i_index)
-				continue;
-			for (size_t i = 0; i < N; i++)
-				S(i_index, i) += SF[t] * S(t, i);
+			//S(i_index, j) = SF[i_index]*S(i_index,j);
+			S(i_index, j) *= SF[i_index];
+			for (size_t t = 0;  t<i_index; t++){
+				S(i_index, j) += SF[t] * S(t, j);
+			}
+
 		}
-
-
 
 		/* ?? for(size_t r=0; r<N; r++)
 		 for(size_t c=0; c < N; c++)
