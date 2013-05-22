@@ -186,7 +186,7 @@ void CreateRugeStuebenProlongation(TProlongationMatrix &P, const TMatrixType &A,
 		{
 			// a non-interpolated fine node. calculate interpolation weights
 
-			double diag = A(i,i);
+			double diag = amg_diag_value(A(i,i));
 
 			double sumPosNeighbors=0.0, sumNegNeighbors=0.0;
 
