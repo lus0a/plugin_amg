@@ -57,65 +57,68 @@ static void Algebra(Registry& reg, string grp)
 
 //	AMG
 
-
+	typedef AMGBase<algebra_type> T;
 
 //todo: existance of AMGPreconditioner class should not depend on defines.
-	reg.add_class_<	AMGBase<algebra_type>, IPreconditioner<algebra_type> > (string("AMGBase").append(suffix), grp)
-		.add_method("set_num_presmooth", &AMGBase<algebra_type>::set_num_presmooth, "", "nu1", "sets nr. of presmoothing steps (nu1)")
-		.add_method("get_num_presmooth", &AMGBase<algebra_type>::get_num_presmooth, "nr. of presmoothing steps (nu1)")
+	reg.add_class_<	T, IPreconditioner<algebra_type> > (string("AMGBase").append(suffix), grp)
+		.add_method("set_num_presmooth", &T::set_num_presmooth, "", "nu1", "sets nr. of presmoothing steps (nu1)")
+		.add_method("get_num_presmooth", &T::get_num_presmooth, "nr. of presmoothing steps (nu1)")
 
-		.add_method("set_num_postsmooth", &AMGBase<algebra_type>::set_num_postsmooth, "", "nu2", "sets nr. of postsmoothing steps (nu2)")
-		.add_method("get_num_postsmooth", &AMGBase<algebra_type>::get_num_postsmooth, "nr. of postsmoothing steps (nu2)")
+		.add_method("set_num_postsmooth", &T::set_num_postsmooth, "", "nu2", "sets nr. of postsmoothing steps (nu2)")
+		.add_method("get_num_postsmooth", &T::get_num_postsmooth, "nr. of postsmoothing steps (nu2)")
 
-		.add_method("set_cycle_type", &AMGBase<algebra_type>::set_cycle_type, "", "gamma", "sets cycle type in multigrid cycle (gamma)")
-		.add_method("get_cycle_type", &AMGBase<algebra_type>::get_cycle_type, "cycle type in multigrid cycle (gamma)")
+		.add_method("set_cycle_type", &T::set_cycle_type, "", "gamma", "sets cycle type in multigrid cycle (gamma)")
+		.add_method("get_cycle_type", &T::get_cycle_type, "cycle type in multigrid cycle (gamma)")
 
-		.add_method("set_max_levels", &AMGBase<algebra_type>::set_max_levels, "", "max_levels", "sets max nr of AMG levels")
-		.add_method("get_max_levels", &AMGBase<algebra_type>::get_max_levels,  "max nr of AMG levels")
-		.add_method("get_used_levels", &AMGBase<algebra_type>::get_used_levels, "used nr of AMG levels")
+		.add_method("set_max_levels", &T::set_max_levels, "", "max_levels", "sets max nr of AMG levels")
+		.add_method("get_max_levels", &T::get_max_levels,  "max nr of AMG levels")
+		.add_method("get_used_levels", &T::get_used_levels, "used nr of AMG levels")
 
-		.add_method("set_max_nodes_for_base", &AMGBase<algebra_type>::set_max_nodes_for_base, "", "maxNrOfNodes", "sets the maximal nr of nodes for base solver")
-		.add_method("get_max_nodes_for_base", &AMGBase<algebra_type>::get_max_nodes_for_base, "maximal nr of nodes for base solver")
+		.add_method("set_max_nodes_for_base", &T::set_max_nodes_for_base, "", "maxNrOfNodes", "sets the maximal nr of nodes for base solver")
+		.add_method("get_max_nodes_for_base", &T::get_max_nodes_for_base, "maximal nr of nodes for base solver")
 
-		.add_method("set_min_nodes_on_one_processor", &AMGBase<algebra_type>::set_min_nodes_on_one_processor, "", "minNrOfNodes", "if the node number on one processor falls below this, agglomerate")
-		.add_method("get_min_nodes_on_one_processor", &AMGBase<algebra_type>::get_min_nodes_on_one_processor, "minNrOfNodes", "", "if the node number on one processor falls below this, agglomerate")
+		.add_method("set_min_nodes_on_one_processor", &T::set_min_nodes_on_one_processor, "", "minNrOfNodes", "if the node number on one processor falls below this, agglomerate")
+		.add_method("get_min_nodes_on_one_processor", &T::get_min_nodes_on_one_processor, "minNrOfNodes", "", "if the node number on one processor falls below this, agglomerate")
 
-		.add_method("set_preferred_nodes_on_one_processor", &AMGBase<algebra_type>::set_preferred_nodes_on_one_processor, "", "preferredNrOfNodes", "if we need to agglomerate, ensure all nodes have more than this number of unknowns")
-		.add_method("get_preferred_nodes_on_one_processor", &AMGBase<algebra_type>::get_preferred_nodes_on_one_processor, "preferredNrOfNodes", "", "if we need to agglomerate, ensure all nodes have more than this number of unknowns")
+		.add_method("set_preferred_nodes_on_one_processor", &T::set_preferred_nodes_on_one_processor, "", "preferredNrOfNodes", "if we need to agglomerate, ensure all nodes have more than this number of unknowns")
+		.add_method("get_preferred_nodes_on_one_processor", &T::get_preferred_nodes_on_one_processor, "preferredNrOfNodes", "", "if we need to agglomerate, ensure all nodes have more than this number of unknowns")
 
-		.add_method("set_max_fill_before_base", &AMGBase<algebra_type>::set_max_fill_before_base, "", "fillrate", "sets maximal fill rate before base solver is used")
-		.add_method("get_max_fill_before_base", &AMGBase<algebra_type>::get_max_fill_before_base, "maximal fill rate before base solver is used", "")
+		.add_method("set_max_fill_before_base", &T::set_max_fill_before_base, "", "fillrate", "sets maximal fill rate before base solver is used")
+		.add_method("get_max_fill_before_base", &T::get_max_fill_before_base, "maximal fill rate before base solver is used", "")
 
-		.add_method("get_operator_complexity", &AMGBase<algebra_type>::get_operator_complexity, "operator complexity c_A", "", "c_A = total nnz of all matrices divided by nnz of matrix A")
-		.add_method("get_grid_complexity", &AMGBase<algebra_type>::get_grid_complexity, "grid complexity c_G", "", "c_G = total number of nodes of all levels divided by number of nodes on level 0")
-		.add_method("get_timing_whole_setup_ms", &AMGBase<algebra_type>::get_timing_whole_setup_ms, "the time spent on the whole setup in ms")
-		.add_method("get_timing_coarse_solver_setup_ms", &AMGBase<algebra_type>::get_timing_coarse_solver_setup_ms, "the time spent in the coarse solver setup in ms")
+		.add_method("get_operator_complexity", &T::get_operator_complexity, "operator complexity c_A", "", "c_A = total nnz of all matrices divided by nnz of matrix A")
+		.add_method("get_grid_complexity", &T::get_grid_complexity, "grid complexity c_G", "", "c_G = total number of nodes of all levels divided by number of nodes on level 0")
+		.add_method("get_timing_whole_setup_ms", &T::get_timing_whole_setup_ms, "the time spent on the whole setup in ms")
+		.add_method("get_timing_coarse_solver_setup_ms", &T::get_timing_coarse_solver_setup_ms, "the time spent in the coarse solver setup in ms")
 
-		.add_method("get_level_information", &AMGBase<algebra_type>::get_level_information, "information about the level L", "L")
-		.add_method("set_verbose", &AMGBase<algebra_type>::set_verbose)
+		.add_method("get_level_information", &T::get_level_information, "information about the level L", "L")
+		.add_method("set_verbose", &T::set_verbose)
 
-		.add_method("set_presmoother", &AMGBase<algebra_type>::set_presmoother, "", "presmoother")
-		.add_method("set_postsmoother", &AMGBase<algebra_type>::set_postsmoother, "", "postsmoother")
-		.add_method("set_base_solver", &AMGBase<algebra_type>::set_base_solver, "", "basesmoother")
-		.add_method("check", &AMGBase<algebra_type>::check, "", "x#b", "performs a check of convergence on all levels")
-		.add_method("check2", &AMGBase<algebra_type>::check2, "", "x#b", "performs a check of convergence on all levels")
-		.add_method("check_fsmoothing", &AMGBase<algebra_type>::check_fsmoothing, "", "", "")
-		.add_method("set_nr_of_preiterations_at_check", &AMGBase<algebra_type>::set_nr_of_preiterations_at_check,
+		.add_method("set_presmoother", &T::set_presmoother, "", "presmoother")
+		.add_method("set_postsmoother", &T::set_postsmoother, "", "postsmoother")
+		.add_method("set_base_solver", &T::set_base_solver, "", "basesmoother")
+		.add_method("check", &T::check, "", "x#b", "performs a check of convergence on all levels")
+		.add_method("check2", &T::check2, "", "x#b", "performs a check of convergence on all levels")
+		.add_method("check_fsmoothing", &T::check_fsmoothing, "", "", "")
+		.add_method("set_nr_of_preiterations_at_check", &T::set_nr_of_preiterations_at_check,
 							"", "i", "nr of mg cycles performed before checking")
-		.add_method("set_preiterations_mimum_defect_at_check", &AMGBase<algebra_type>::set_preiterations_mimum_defect_at_check, "",
+		.add_method("set_preiterations_mimum_defect_at_check", &T::set_preiterations_mimum_defect_at_check, "",
 						"d", "minimum defect for preiterations before checking")
-		.add_method("set_matrix_write_path", &AMGBase<algebra_type>::set_matrix_write_path, "", "matrixWritePath", "set the path where connectionviewer matrices of the levels are written")
-		.add_method("set_fsmoothing", &AMGBase<algebra_type>::set_fsmoothing, "", "enable", "")
-		.add_method("get_fsmoothing", &AMGBase<algebra_type>::get_fsmoothing, "f smoothing enabled", "")
-		.add_method("set_one_init", &AMGBase<algebra_type>::set_one_init, "", "b")
+
+		.add_method("set_fsmoothing", &T::set_fsmoothing, "", "enable", "")
+		.add_method("get_fsmoothing", &T::get_fsmoothing, "f smoothing enabled", "")
+		.add_method("set_one_init", &T::set_one_init, "", "b")
 
 		.add_method("set_position_provider",
-				(void(AMGBase<algebra_type>::*)(IPositionProvider<2> *))&AMGBase<algebra_type>::set_position_provider, "", "prov", "needed for connectionviewer output")
+				(void(T::*)(IPositionProvider<2> *))&T::set_position_provider, "", "prov", "needed for connectionviewer output")
 		.add_method("set_position_provider",
-				(void(AMGBase<algebra_type>::*)(IPositionProvider<3> *))&AMGBase<algebra_type>::set_position_provider, "", "prov", "needed for connectionviewer output")
-		.add_method("write_interfaces", &AMGBase<algebra_type>::write_interfaces)
-		.add_method("set_checkLevel_post_iterations", &AMGBase<algebra_type>::set_checkLevel_post_iterations)
-		.add_method("set_Y_cycle", &AMGBase<algebra_type>::set_Y_cycle)
+				(void(T::*)(IPositionProvider<3> *))&T::set_position_provider, "", "prov", "needed for connectionviewer output")
+		.add_method("write_interfaces", &T::write_interfaces)
+		.add_method("set_debug_write_all_vectors", &T::set_debug_write_all_vectors, "", "bEnable", "if true, write defect/correct at all points in the mg cycle (a lot of files!)")
+		.add_method("set_matrix_write_path", &T::set_matrix_write_path, "", "matrixWritePath", "set the path where connectionviewer matrices/vectors of the levels are written")
+
+		.add_method("set_checkLevel_post_iterations", &T::set_checkLevel_post_iterations)
+		.add_method("set_Y_cycle", &T::set_Y_cycle)
 		;
 	reg.add_class_to_group(string("AMGBase").append(suffix), "AMGBase", tag);
 }

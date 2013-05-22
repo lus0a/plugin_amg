@@ -19,7 +19,9 @@
 #include "amg_profiling.h"
 #include "postscript.h"
 
+#include "pcl/pcl_layout_tests.h"
 #include "lib_algebra/common/connection_viewer_output.h"
+#include "common/util/file_util.h"
 
 namespace ug {
 
@@ -34,7 +36,7 @@ extern DebugID AMGAgglomerationDebug;
 //--------------------------------------------------
 //! writes to a file in somewhat SparseMatrix-market format (for connection viewer)
 template<typename T>
-void AMGWriteToFile(const T &A, int fromlevel, int tolevel, const char *filename, const cAMG_helper &h)
+void AMGWriteToFile(const T &A, int fromlevel, int tolevel, std::string filename, const cAMG_helper &h)
 {
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
@@ -43,7 +45,7 @@ void AMGWriteToFile(const T &A, int fromlevel, int tolevel, const char *filename
 		return;
 	}
 
-	std::fstream file(filename, std::ios::out);
+	std::fstream file(filename.c_str(), std::ios::out);
 	file << 1 << std::endl; // connection viewer version
 
 	int minlevel = std::min(fromlevel, tolevel);
@@ -62,7 +64,7 @@ void AMGWriteToFile(const T &A, int fromlevel, int tolevel, const char *filename
 //--------------------------------------------------
 //! writes to a file in somewhat SparseMatrix-market format (for connection viewer)
 template<typename T>
-void AMGWriteVecToFile(const T &v, int level, const char *filename, const cAMG_helper &h)
+void AMGWriteVecToFile(const T &v, int level, std::string filename, const cAMG_helper &h)
 {
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
@@ -71,12 +73,12 @@ void AMGWriteVecToFile(const T &v, int level, const char *filename, const cAMG_h
 		return;
 	}
 
-	std::fstream file(filename, std::ios::out);
+	std::fstream file(filename.c_str(), std::ios::out);
 	file << 1 << std::endl; // connection viewer version
 	WritePositionsToStream(file, h.positions[level], h.dimension);
 
 	file << 1 << std::endl;
-	for(int i=0; i<v.size(); i++)
+	for(size_t i=0; i<v.size(); i++)
 		file << i << " " << i << " " << v[i] << "\n";
 }
 
@@ -85,7 +87,7 @@ void AMGWriteVecToFile(const T &v, int level, const char *filename, const cAMG_h
 //--------------------------------------------------
 //! writes to a file in somewhat SparseMatrix-market format (for connection viewer)
 template<typename T>
-void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, const char *filename, const cAMG_helper &h)
+void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, std::string filename, const cAMG_helper &h)
 {
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
@@ -95,7 +97,7 @@ void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, const char *filena
 	}
 
 	postscript ps;
-	ps.create(filename);
+	ps.create(filename.c_str());
 	int minlevel = std::min(fromlevel, tolevel);
 	for(size_t i=0; i < A.num_rows(); i++)
 	{
@@ -122,7 +124,7 @@ void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, const char *filena
 }
 
 // could be in cpp
-inline void WriteAMGGraphToFile(const cgraph &G, const char *filename, const cAMG_helper &h, int level)
+inline void WriteAMGGraphToFile(const cgraph &G, std::string filename, const cAMG_helper &h, int level)
 {
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
@@ -131,7 +133,7 @@ inline void WriteAMGGraphToFile(const cgraph &G, const char *filename, const cAM
 		return;
 	}
 
-	std::fstream file(filename, std::ios::out);
+	std::fstream file(filename.c_str(), std::ios::out);
 	file << /*CONNECTION_VIEWER_VERSION*/ 1 << std::endl;
 
 	WritePositionsToStream(file, h.positions[level], h.dimension);
@@ -156,6 +158,136 @@ void PrintVector(const T &v, std::string desc="")
 }
 
 #define PRINT_VECTOR(v, msg) {std::stringstream ss; ss << msg; PrintVector(v, ss.str()); }
+#define PRINT_VECTOR_AMGDEBUG(dbgLevel, v, msg) {IF_DEBUG(LIB_ALG_AMG, 5){std::stringstream ss; ss << msg; PrintVector(v, ss.str());} }
+
+#ifdef UG_PARALLEL
+void MyPrintLayout(const pcl::ProcessCommunicator &pc,
+				   pcl::InterfaceCommunicator<IndexLayout> &communicator,
+				   const IndexLayout &layout1, const IndexLayout &layout2,
+				   const char *name1, const char *name2);
+#endif
+
+
+/**
+ * write the error made in prolongating the Linear elasticity testvectors
+ */
+template<typename TProlongationMatrix, typename vector_type>
+void Write_LE_Error(const TProlongationMatrix &PoldIndices, const stdvector<MathVector<3> > &v, std::string writeMatrixPath, std::string name, int level)
+{
+	size_t N = PoldIndices.num_rows();
+	vector_type tvLin(N);
+	vector_type tvCon(N);
+
+	vector_type Rres(N);
+	vector_type Cres(N);
+	int dim=2;
+	for(size_t i=0; i<N; i++)
+	{
+		Rres[i] = 0.0;
+		Cres[i] = 0.0;
+		if(PoldIndices.num_connections(i) <= 1)
+			continue;
+		const MathVector<3> &p0 = v[i];
+		for(typename TProlongationMatrix::const_row_iterator it = PoldIndices.begin_row(i); it != PoldIndices.end_row(i); ++it)
+		{
+			size_t j = it.index();
+			BlockRef(tvLin[j], 0) = p0.x - v[j].x;
+			BlockRef(tvLin[j], 1) = p0.y - v[j].y;
+			if(GetSize(tvLin[j]) == 3)
+			{
+				dim = 3;
+				BlockRef(tvLin[j], 2) = p0.z - v[j].z;
+			}
+
+			tvCon[j] = 1;
+		}
+
+		typename vector_type::value_type sumC = -1.0;
+		typename vector_type::value_type sumR = 0.0;
+		for(typename TProlongationMatrix::const_row_iterator it = PoldIndices.begin_row(i); it != PoldIndices.end_row(i); ++it)
+		{
+			sumC += it.value() * tvCon[it.index()];
+			sumR += it.value() * tvLin[it.index()];
+		}
+		Rres[i] = sumR;
+		Cres[i] = sumC;
+	}
+	std::string path=std::string("/level") + ToString(level) + "/";
+	CreateDirectory(writeMatrixPath + path);
+	WriteVectorToConnectionViewer(writeMatrixPath + path + name + std::string("_Lin_err.vec"), Rres, &v[0], dim);
+	WriteVectorToConnectionViewer(writeMatrixPath + path + name + std::string("_Con_err.vec"), Cres, &v[0], dim);
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// writevec
+//--------------------------------
+template<typename TAlgebra>
+bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_d, size_t level, const vector_type *solution)
+{
+	AMG_PROFILE_FUNC();
+	UG_ASSERT(m_writeMatrices, "");
+	vector_type solution2;
+
+	bool bDrawConnections=false;
+
+#ifdef UG_PARALLEL
+	vector_type d;
+	CloneVector(d, const_d);
+	d = const_d;
+	d.change_storage_type(PST_CONSISTENT);
+	size_t pid = pcl::GetProcRank();
+
+	if(solution)
+	{
+		CloneVector(solution2, *solution);
+		solution2 = *solution;
+		solution2.change_storage_type(PST_CONSISTENT);
+	}
+#else
+	const vector_type &d = const_d;
+	size_t pid = 0;
+#endif
+
+	std::string path=std::string("/level") + ToString(level) + "/";
+	CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
+
+	const char *ext = bDrawConnections ? ".mat" : ".vec";
+	std::string name = (m_writeMatrixPath + path + std::string("AMG_L") + ToString(level) + "_" + filename + ext);
+
+
+#ifdef UG_PARALLEL
+	name = GetParallelName(name, levels[level]->pA->layouts()->proc_comm(), true);
+	/*if(levels[level]->bHasBeenMerged && m_agglomerateLevel != level)
+		AMGWriteToFile(levels[level]->uncollectedA, level, level, name.c_str(), m_amghelper);
+	else*/
+#endif
+	if(bDrawConnections)
+	{
+		AMGWriteToFile(*levels[level]->pA, level, level, name.c_str(), m_amghelper);
+		std::fstream f(name.c_str(), std::ios::out | std::ios::app);
+		//UG_LOG("writevec to " << name.c_str() << "\n");
+
+		std::string name2 = (std::string("AMG_L") + ToString(level) + "_" + filename + "_p"+ ToString(pid) + ".values");
+	#ifdef UG_PARALLEL
+		name2 = GetParallelName(name2, levels[level]->pA->layouts()->proc_comm(), false);
+	#endif
+		f << "v " << name2 << "\n";
+
+		std::fstream file((std::string(m_writeMatrixPath)+ path + name2).c_str(), std::ios::out);
+		if(solution)
+			for(size_t i=0; i<d.size(); i++)
+				file << i << " " << d[i] - solution2[i] << std::endl;
+		else
+			for(size_t i=0; i<d.size(); i++)
+				file << i << " " << d[i] << std::endl;
+	}
+	else
+		AMGWriteVecToFile(d, level, name, m_amghelper);
+	return true;
+}
+
 
 // end group plugins_amg
 /// \}

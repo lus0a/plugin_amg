@@ -174,8 +174,10 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 
 	AMG_PROFILE_NEXT(AMG_on_demand_loop)
 
+	PROGRESS_START(prog, N, "FAMG::on demand coarsening");
 	while(1)
 	{
+		PROGRESS_UPDATE(prog, N-rating.get_unassigned());
 		UG_ASSERT(possible_parents[i].size() > 0, "node " << i << "has no possible parents?");
 		neighborstruct2<smallmat_ptype> &n = possible_parents[i][0];
 
@@ -218,7 +220,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 			PoldIndices(i, node) = n.parents[j].value;
 		}
 
-		IF_DEBUG(LIB_ALG_AMG,4) print_vector(neighborsToUpdate, "neighborsToUpdate");
+		PRINT_VECTOR_AMGDEBUG(4, neighborsToUpdate, "neighborsToUpdate");
 
 		// update neighbors
 		for(size_t j=0; j<neighborsToUpdate.size(); j++)

@@ -26,7 +26,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 {
 	Stopwatch SW;;
 	UG_DLOG(LIB_ALG_AMG, 1, "\ncreating possible parent list... "); if(bTiming) SW.start();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelCalculateParentPairs);
+	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, 0); //m_famg.iDebugLevelCalculateParentPairs);
 	AMG_PROFILE_FUNC();
 
 	possible_parents.clear();
@@ -42,13 +42,15 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 			continue;
 		}
 
-
+	PROGRESS_START(prog, A.num_rows(), "FAMG::Calculate all prossible parent pairs");
 	for(size_t i=0; i<A.num_rows(); i++)
 	{
 		if(rating.i_must_assign(i) == false) continue;
 		if(rating[i].is_valid_rating() == false) continue; // could be set coarse from others
 		calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
 		prolongation_calculated[i] = true;
+
+		PROGRESS_UPDATE(prog, i);
 	}
 
 
@@ -71,8 +73,11 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 			rating.set_fine(j);
 	}
 
+	PROGRESS_START(prog, N, "FAMG::precalculate coarsening");
+
 	while(heap.height() != 0)
 	{
+		PROGRESS_UPDATE(prog, N-heap.height());
 		// get node i with best rating
 		size_t i = heap.remove_max();
 		neighborstruct2<smallmat_ptype> &n = possible_parents[i][0];

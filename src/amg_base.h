@@ -31,12 +31,8 @@
 #include "lib_algebra/parallelization/parallel_nodes.h"
 #endif
 
-template<typename T>
-std::string ToString(const T &t) {
-	std::stringstream out;
-	out << t;
-	return out.str();
-}
+#include "common/util/string_util.h"
+
 #define PRINTLAYOUT(pc, com, Layout1, Layout2) MyPrintLayout(pc, com, (Layout1), (Layout2), #Layout1, #Layout2)
 
 namespace ug {
@@ -48,11 +44,6 @@ namespace ug {
  */
 
 #ifdef UG_PARALLEL
-void MyPrintLayout(const pcl::ProcessCommunicator &pc,
-		pcl::InterfaceCommunicator<IndexLayout> &communicator,
-		const IndexLayout &layout1, const IndexLayout &layout2,
-		const char *name1, const char *name2);
-
 typedef HorizontalAlgebraLayouts AMGLayouts;
 #else
 typedef int AMGLayouts;
@@ -487,6 +478,11 @@ public:
 		m_writeMatrixPath = path;
 		m_writeMatrices = true;
 	}
+	void set_debug_write_all_vectors(bool b)
+	{
+		m_bDebugWriteAllVectors=b;
+	}
+
 
 	virtual void tostring() const;
 
@@ -683,6 +679,9 @@ protected:
 
 	stdvector<stdvector<int> > m_parentIndex;///< parentIndex[i] is the index of i on the finer level
 	stdvector<LevelInformation> m_levelInformation;
+
+	bool m_bDebugWriteAllVectors;
+
 	class AMGLevel
 	{
 	public:

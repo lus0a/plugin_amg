@@ -13,7 +13,7 @@
 
 
 #ifndef __H__LIB_ALGEBRA__AMG__FAMG_LEVEL_CALCULATOR_H__
-#define __H__LIB_ALGEBRA__AMG__FAMG_LEVEL_CALCULATORH__
+#define __H__LIB_ALGEBRA__AMG__FAMG_LEVEL_CALCULATOR_H__
 
 //#include "sparsematrix_util.h"
 
@@ -38,24 +38,12 @@
 #ifdef UG_PARALLEL
 #include "lib_algebra/parallelization/parallel_matrix_overlap_impl.h"
 #include "lib_algebra/parallelization/communication_scheme.h"
-#include "pcl/pcl_layout_tests.h"
 #endif
 
 #include "lib_algebra/common/connection_viewer_output.h"
 #include "common/util/file_util.h"
 
 /// \addtogroup plugins_amg_famg
-template<typename vector_type>
-void print_vector(const vector_type &vec, const char *p)
-{
-	UG_LOG(p << ": ");
-	for(size_t i=0; i<vec.size(); i++)
-	{
-		if(i>0) UG_LOG(", ");
-		UG_LOG(vec[i]);
-	}
-	UG_LOG("\n");
-}
 
 //const double damping = 0.5;
 
@@ -85,23 +73,6 @@ namespace ug{
 
 /// \addtogroup plugins_amg_famg
 /// \{
-
-#ifdef UG_PARALLEL
-	void MyPrintLayout(const pcl::ProcessCommunicator &pc,
-	                   pcl::InterfaceCommunicator<IndexLayout> &communicator,
-	                   const IndexLayout &layout1, const IndexLayout &layout2,
-	                   const char *name1, const char *name2)
-{
-	UG_LOG("\n========================================\n");
-	UG_LOG(name1<<"\n");
-	PrintLayout(layout1);
-	UG_LOG("\n"<<name2<<"\n");
-	PrintLayout(layout2);
-	UG_LOG("\n"<<name1 << "-" << name2 <<"\n");
-	PrintLayout(pc, communicator, layout1, layout2);
-	UG_LOG("\n\n");
-}
-#endif
 
 
 
@@ -315,6 +286,9 @@ public:
 	{
 	}
 
+
+
+
 public:
 	void do_calculation()
 	{
@@ -467,7 +441,8 @@ public:
 		IF_DEBUG(LIB_ALG_AMG, 3)
 		{	rating.print(); 	}
 
-
+		Write_LE_Error<prolongation_matrix_type, vector_type>
+			(PoldIndices, m_famg.m_amghelper.positions[level], m_famg.m_writeMatrixPath, "FAMG_tv", level);
 		create_new_indices();
 		//for(size_t i=0; i<rating.get_nr_of_coarse(); i++) { UG_ASSERT(amghelper.parentIndex[level+1][i] != -1, i << " == -1???"); UG_LOG(i << " = " << amghelper.parentIndex[level+1][i] << "\n"); }
 
@@ -511,7 +486,7 @@ public:
 			std::string path=std::string("/level") + ToString(level) + "/";
 			CreateDirectory((std::string(m_famg.m_writeMatrixPath) + path).c_str(), 0777);
 			WriteVectorToConnectionViewer(m_famg.m_writeMatrixPath + path + std::string("AMG_fvalues_L") + ToString(level) + ".vec",
-						fvalues, &m_famg.m_amghelper.positions[level][0], 2);
+						fvalues, &m_famg.m_amghelper.positions[level][0], m_famg.m_amghelper.dimension);
 		}
 	}
 

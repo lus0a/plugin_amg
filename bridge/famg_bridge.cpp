@@ -78,7 +78,8 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_testvector_smoother", &T::set_testvector_smoother, "smoother", "sets the smoother to smooth testvectors")
 			.add_method("set_testvector_smooths", &T::set_testvector_smooths, "n", "number of smoothing steps to smooth testvectors")
 			.add_method("set_testvector_from_matrix_rows", &T::set_testvector_from_matrix_rows, "", "testvector is obtained by setting 1 for dirichlet nodes (nodes with only A(i,i) != 0) and 0 everywhere else")
-			.add_method("set_testvectors_LE", &T::set_testvectors_LE)
+			.add_method("set_testvectors_LE_2d", &T::set_testvectors_LE_2d)
+			.add_method("set_testvectors_LE_3d", &T::set_testvectors_LE_3d)
 
 			.add_method("reset_testvectors", &T::reset_testvectors, "", "removes all added testvectors")
 

@@ -433,7 +433,8 @@ public:
 
 				// F = q^T H q
 			}
-		}AMG_PROFILE_NEXT(FAMG_getPPP_cleanup);
+		}
+		//AMG_PROFILE_NEXT(FAMG_getPPP_cleanup);
 		possible_neighbors.clear();
 		if (i_min != -1)
 		{
@@ -502,7 +503,7 @@ public:
 	template<typename TIndices>
 	bool solve_KKT(size_t i, TIndices indices)
 	{
-		AMG_PROFILE_FUNC();
+		//AMG_PROFILE_FUNC();
 
 		DenseVector<stdvector<smallvec_type> > &t0 = localTestvectors[0];
 
@@ -555,7 +556,7 @@ public:
 	template<typename TIndices>
 	bool solve_KKT(size_t i, TIndices indices)
 	{
-		AMG_PROFILE_FUNC();
+//		AMG_PROFILE_FUNC();
 
 		const size_t blockSize=GetRows(H(0,0)); // assert blocksize is FIXED!!!
 		const size_t N = indices.size();
@@ -973,22 +974,17 @@ private:
 		// 1. Get Neighborhood N1 and N2 of i.
 		//AMG_PROFILE_BEGIN(AMG_H_GetNeighborhood);
 
-		IF_DEBUG(LIB_ALG_AMG, 5)
-			print_vector(onlyN1, "\nn1-neighbors");
-		IF_DEBUG(LIB_ALG_AMG, 5)
-			print_vector(onlyN2, "n2-neighbors");
+		PRINT_VECTOR_AMGDEBUG(5, onlyN1, "\nn1-neighbors");
+		PRINT_VECTOR_AMGDEBUG(5, onlyN2, "\nn2-neighbors");
 
 		//AMG_PROFILE_NEXT(AMG_H_CreateN2);
 		N2 = onlyN1;
 		N2.push_back(i);
 		N2.insert(N2.end(), onlyN2.begin(), onlyN2.end());
 
-		IF_DEBUG(LIB_ALG_AMG, 2)
-		{
-			print_vector(onlyN1, "\nonlyN1");
-			print_vector(onlyN2, "\nonlyN2");
-			print_vector(N2, "\nN2");
-		}
+		PRINT_VECTOR_AMGDEBUG(2, onlyN1, "\nonlyN1");
+		PRINT_VECTOR_AMGDEBUG(2, onlyN2, "\nonlyN2");
+		PRINT_VECTOR_AMGDEBUG(2, N2, "\nN2");
 
 		// 2. get submatrix in A_OL2 on N2
 		//AMG_PROFILE_NEXT(AMG_H_GetLocalMatrix);
@@ -1078,6 +1074,7 @@ private:
 		//AMG_PROFILE_NEXT(AMG_HA_Dinv);
 		// get Dinv = 1/Aii
 
+
 #ifndef FAMG_SCALING1
 		IF_DEBUG(LIB_ALG_AMG, 1)
 		{
@@ -1111,9 +1108,7 @@ private:
 			SF[j] = -Dinv[i_index] * S(i_index, j);
 		SF[i_index] += 1.0;
 
-		IF_DEBUG(LIB_ALG_AMG, 5)
-				print_vector(SF, "SF");
-
+		PRINT_VECTOR_AMGDEBUG(5, SF, "SF");
 
 		// get S = 1-w D^{-1} A
 		for (size_t r = 0; r < N; r++)
@@ -1254,7 +1249,7 @@ private:
 	 */
 	void global_to_local_testvectors(size_t node)
 	{
-		AMG_PROFILE_FUNC();
+		//AMG_PROFILE_FUNC();
 		localTestvectors.resize(m_testvectors.size());
 		//size_t level = m_amghelper.positions.size()-1;
 		//UG_LOG("Getting testvectors for node " << node << ":\n");
@@ -1292,8 +1287,7 @@ private:
 				s += SF[j] * localTestvectors[k][j];
 
 			localTestvectors[k][onlyN1.size()] = s;
-			IF_DEBUG(LIB_ALG_AMG, 5)
-				print_vector(localTestvectors[k], "\nlocalTestvector");
+			PRINT_VECTOR_AMGDEBUG(5, localTestvectors[k], "\nlocalTestvector " << k);
 		}*/
 	}
 
@@ -1331,9 +1325,9 @@ private:
 		std::vector<size_t> &onlyN3 = neighbors[3];
 		GetNeighborhoodHierachy(A_OL2, node, 3, neighbors);
 
-		// print_vector(onlyN1, "\nn1-neighbors");
-		// print_vector(onlyN2, "\nn2-neighbors");
-		// print_vector(onlyN3, "\nn3-neighbors");
+		PRINT_VECTOR_AMGDEBUG(3, onlyN1, "\nn1-neighbors");
+		PRINT_VECTOR_AMGDEBUG(3, onlyN2, "\nn2-neighbors");
+		PRINT_VECTOR_AMGDEBUG(3, onlyN3, "\nn3-neighbors");
 
 		stdvector<size_t> myNeigh;
 		myNeigh = onlyN1;
@@ -1404,8 +1398,6 @@ private:
 	//---------------------------------------
 	void calculate_testvectors(size_t node)
 	{
-		AMG_PROFILE_FUNC();
-
 		if (testvectorsExtern == true)
 		{
 			global_to_local_testvectors(node);
@@ -1440,7 +1432,7 @@ private:
 	 */
 	void add_additional_testvectors_to_H()
 	{
-		AMG_PROFILE_FUNC();
+		//AMG_PROFILE_FUNC();
 		// skip first vector (it is approximated exactly)
 		// /test if other way round is faster/
 		for (size_t r = 0; r < onlyN1.size(); r++)

@@ -98,65 +98,6 @@ void AMGBase<TAlgebra>::write_interfaces()
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// writevec
-//--------------------------------
-template<typename TAlgebra>
-bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_d, size_t level, const vector_type *solution)
-{
-	AMG_PROFILE_FUNC();
-	UG_ASSERT(m_writeMatrices, "");
-	vector_type solution2;
-
-#ifdef UG_PARALLEL
-	vector_type d;
-	CloneVector(d, const_d);
-	d = const_d;
-	d.change_storage_type(PST_CONSISTENT);
-	size_t pid = pcl::GetProcRank();
-
-	if(solution)
-	{
-		CloneVector(solution2, *solution);
-		solution2 = *solution;
-		solution2.change_storage_type(PST_CONSISTENT);
-	}
-#else
-	const vector_type &d = const_d;
-	size_t pid = 0;
-#endif
-
-	std::string path=std::string("/level") + ToString(level) + "/";
-	CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
-	std::string name = (m_writeMatrixPath + path + std::string("AMG_L") + ToString(level) + "_" + filename + ".mat");
-
-
-#ifdef UG_PARALLEL
-	name = GetParallelName(name, levels[level]->pA->layouts()->proc_comm(), true);
-	/*if(levels[level]->bHasBeenMerged && m_agglomerateLevel != level)
-		AMGWriteToFile(levels[level]->uncollectedA, level, level, name.c_str(), m_amghelper);
-	else*/
-#endif
-		AMGWriteToFile(*levels[level]->pA, level, level, name.c_str(), m_amghelper);
-	std::fstream f(name.c_str(), std::ios::out | std::ios::app);
-	//UG_LOG("writevec to " << name.c_str() << "\n");
-
-	std::string name2 = (std::string("AMG_L") + ToString(level) + "_" + filename + "_p"+ ToString(pid) + ".values");
-#ifdef UG_PARALLEL
-	name2 = GetParallelName(name2, levels[level]->pA->layouts()->proc_comm(), false);
-#endif
-	f << "v " << name2 << "\n";
-
-	std::fstream file((std::string(m_writeMatrixPath)+ path + name2).c_str(), std::ios::out);
-	if(solution)
-		for(size_t i=0; i<d.size(); i++)
-			file << i << " " << d[i] - solution2[i] << std::endl;
-	else
-		for(size_t i=0; i<d.size(); i++)
-			file << i << " " << d[i] << std::endl;
-	return true;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // check
 //--------------------------------
 /**

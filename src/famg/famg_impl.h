@@ -18,6 +18,7 @@
 //#include "famg_nodeinfo.h"
 #include "common/stopwatch.h"
 #include "common/assert.h"
+#include "famg_testvectors.h"
 //#include "maxheap.h"
 
 namespace ug{
@@ -139,35 +140,6 @@ void FAMG<TAlgebra>::get_testvectors_from_matrix_rows
 }
 
 template<typename TAlgebra>
-void FAMG<TAlgebra>::get_testvectors_LE
-	(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega)
-{
-	AMG_PROFILE_FUNC();
-
-	UG_ASSERT(m_writeMatrices, "needs position data");
-	testvectors.resize(2);
-	for(size_t i=0; i<testvectors.size(); i++)
-		testvectors[i].resize(A.num_rows());
-
-	omega.resize(2);
-	omega[0] = 1.0;
-	omega[1] = le_weight;
-
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		for(size_t j=0; j<testvectors.size(); j++)
-			testvectors[j][i] = 0.0;
-		if(!A.is_isolated(i))
-		{
-			testvectors[0][i] = 1.0;
-			BlockRef(testvectors[1][i], 0) = m_amghelper.positions[0][i][1];
-			BlockRef(testvectors[1][i], 1) = m_amghelper.positions[0][i][0];
-		}
-	}
-}
-
-
-template<typename TAlgebra>
 void FAMG<TAlgebra>::precalc_level(size_t level)
 {
 
@@ -175,14 +147,25 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 	//UG_LOG("\n\n\nprecalc!\n\n\n");
 	UG_ASSERT(m_testvectorsmoother != NULL, "please provide a testvector smoother.");
 
-
 	if(level == 0)
 	{
 		testvectors.clear();
 		if(m_iTestvectors == TESTVECTORS_DIRICHLET_MATRIX_ROWS)
 			get_testvectors_from_matrix_rows(*levels[level]->pAgglomeratedA, testvectors, omega);
-		else if(m_iTestvectors == TESTVECTORS_LE)
-			get_testvectors_LE(*levels[level]->pAgglomeratedA, testvectors, omega);
+		else if(m_iTestvectors == TESTVECTORS_LE_2D)
+		{
+			UG_ASSERT(m_writeMatrices, "needs position data");
+			UG_ASSERT(m_amghelper.dimension == 2, "dimension needs to be 2");
+			GetTestvectorsLE_2d(*levels[level]->pAgglomeratedA, testvectors, omega,
+					m_amghelper.positions[0], m_weightC, m_weightZ);
+		}
+		else if(m_iTestvectors == TESTVECTORS_LE_3D)
+		{
+			UG_ASSERT(m_writeMatrices, "needs position data");
+			UG_ASSERT(m_amghelper.dimension == 3, "dimension needs to be 3");
+			GetTestvectorsLE_3d(*levels[level]->pAgglomeratedA, testvectors, omega,
+					m_amghelper.positions[0], m_weightC, m_weightX, m_weightY, m_weightZ);
+		}
 		else
 			get_testvectors(testvectors, omega);
 	}
@@ -259,7 +242,6 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 		FAMGLevelCalculator<algebra_type> dummy(*this, AH, R, A, A, P, level, testvectors, omega, nextLevelLayouts);
 		dummy.do_calculation();
 	}
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

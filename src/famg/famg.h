@@ -182,7 +182,8 @@ public:
 	enum{
 		TESTVECTORS_EXTERNAL,
 		TESTVECTORS_DIRICHLET_MATRIX_ROWS,
-		TESTVECTORS_LE
+		TESTVECTORS_LE_2D,
+		TESTVECTORS_LE_3D
 	} m_iTestvectors;
 
 	void set_testvector_from_matrix_rows()
@@ -190,11 +191,20 @@ public:
 		m_iTestvectors = TESTVECTORS_DIRICHLET_MATRIX_ROWS;
 	}
 
-	double le_weight;
-	void set_testvectors_LE(double weight)
+	void set_testvectors_LE_2d(double weightC, double weightZ)
 	{
-		le_weight=weight;
-		m_iTestvectors = TESTVECTORS_LE;
+		m_weightC=weightC;
+		m_weightZ=weightZ;
+		m_iTestvectors = TESTVECTORS_LE_2D;
+	}
+
+	void set_testvectors_LE_3d(double weightC, double weightX, double weightY, double weightZ)
+	{
+		m_weightC=weightC;
+		m_weightX=weightX;
+		m_weightY=weightY;
+		m_weightZ=weightZ;
+		m_iTestvectors = TESTVECTORS_LE_3D;
 	}
 
 	void init_for_EVP(const vector_type &u, const vector_type &b);
@@ -242,7 +252,6 @@ private:
 	void get_testvectors(stdvector<vector_type> &testvectors, stdvector<double> &omega);
 	void get_testvectors_from_matrix_rows
 			(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega);
-	void get_testvectors_LE(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega);
 
 private:
 // data
@@ -285,6 +294,11 @@ private:
 
 	vector_type evpU, evpB;
 	bool m_bProjectedEVP;
+
+	double m_weightC;
+	double m_weightX;
+	double m_weightY;
+	double m_weightZ;
 
 #ifdef UG_PARALLEL
 	IParallelCoarsening *m_pParallelCoarsening;

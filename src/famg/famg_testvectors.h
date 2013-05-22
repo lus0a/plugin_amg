@@ -8,7 +8,8 @@
  * Goethe-Center for Scientific Computing 2010.
  */
 
-#include "common/common.h"
+#include "common/common.h" // MathVector<3>
+#include "famg_level_calculator.h"
 #ifdef UG_PARALLEL
 #include "lib_algebra/parallelization/parallelization_util.h"
 #endif
@@ -189,6 +190,107 @@ void FAMGLevelCalculator<algebra_type>::calculate_next_testvectors()
 	{
 		m_famg.injection(t, m_testvectors[i], level);
 		m_testvectors[i] = t;
+	}
+}
+
+
+/**
+ * @return [0, z, -y], the rotation around the x-axes
+ */
+MathVector<3> GetRotX(MathVector<3> &pos)
+{
+	return MathVector<3>(0, pos.z, -pos.y);
+}
+
+/**
+ * @return [z, 0, -x], the rotation around the x-axes
+ */
+MathVector<3> GetRotY(MathVector<3> &pos)
+{
+	return MathVector<3>(pos.z, 0, -pos.x);
+}
+
+/**
+ * @return [y, -x, 0], the rotation around the z-axes
+ */
+MathVector<3> GetRotZ(MathVector<3> &pos)
+{
+	return MathVector<3>(pos.y, -pos.x, 0);
+}
+
+template<typename T>
+inline void SetAlgVector2d(T &v, MathVector<3> mv)
+{
+	BlockRef(v, 0) = mv.x;
+	BlockRef(v, 1) = mv.y;
+}
+
+template<typename T>
+inline void SetAlgVector3d(T &v, MathVector<3> mv)
+{
+	BlockRef(v, 0) = mv.x;
+	BlockRef(v, 1) = mv.y;
+	BlockRef(v, 2) = mv.z;
+}
+
+
+template<typename TMatrix, typename TVector>
+void GetTestvectorsLE_2d	(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
+		double weightC, double weightZ)
+{
+	testvectors.resize(2);
+	for(size_t i=0; i<testvectors.size(); i++)
+		testvectors[i].resize(A.num_rows());
+
+	omega.resize(2);
+	omega[0] = weightC;
+	omega[1] = weightZ;
+
+	for(size_t i=0; i<A.num_rows(); i++)
+	{
+		if(A.is_isolated(i))
+		{
+			testvectors[0][i] = 0.0;
+			testvectors[1][i] = 0.0;
+		}
+		else
+		{
+			testvectors[0][i] = 1.0;
+			SetAlgVector2d(testvectors[1][i], GetRotZ(pos[i]));
+		}
+	}
+}
+
+
+template<typename TMatrix, typename TVector>
+void GetTestvectorsLE_3d	(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
+		double weightC, double weightX, double weightY, double weightZ)
+
+{
+	testvectors.resize(4);
+	for(size_t i=0; i<testvectors.size(); i++)
+		testvectors[i].resize(A.num_rows());
+
+	omega.resize(4);
+	omega[0] = weightC;
+	omega[1] = weightX;
+	omega[2] = weightY;
+	omega[3] = weightZ;
+
+	for(size_t i=0; i<A.num_rows(); i++)
+	{
+		if(A.is_isolated(i))
+		{
+			testvectors[0][i] = 0.0;
+			testvectors[1][i] = 0.0;
+		}
+		else
+		{
+			testvectors[0][i] = 1.0;
+			SetAlgVector3d(testvectors[1][i], GetRotX(pos[i]));
+			SetAlgVector3d(testvectors[2][i], GetRotY(pos[i]));
+			SetAlgVector3d(testvectors[3][i], GetRotZ(pos[i]));
+		}
 	}
 }
 

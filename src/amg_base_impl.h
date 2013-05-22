@@ -32,8 +32,6 @@
 
 std::string GetProcFilename(std::string path, std::string name, std::string extension);
 
-#define WRITEVEC_IN_SOLVER 0
-
 namespace ug{
 
 /// \addtogroup plugins_amg
@@ -210,12 +208,12 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		if(m_writeMatrices && m_amghelper.has_positions())
 		{
 			std::string path=std::string("/level") + ToString(level) + "/";
-			CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
+			CreateDirectory(m_writeMatrixPath + path);
 			std::string name = m_writeMatrixPath + path + std::string("AMG_A_L") + ToString(level) + ".mat";
 		#ifdef UG_PARALLEL
 			name = GetParallelName(name, L.pAgglomeratedA->layouts()->proc_comm(), true);
 		#endif
-			AMGWriteToFile(*L.pAgglomeratedA, level, level, name.c_str(), m_amghelper);
+			AMGWriteToFile(*L.pAgglomeratedA, level, level, name, m_amghelper);
 			//PRINTPC(L.pAgglomeratedA->get_process_communicator());
 		}
 
@@ -455,6 +453,7 @@ AMGBase<TAlgebra>::AMGBase() :
 	m_bOneInit = false;
 	m_verbose = 0;
 	m_dGalerkinTruncation = 1e-12;
+	m_bDebugWriteAllVectors = false;
 }
 
 
@@ -658,10 +657,11 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 #endif
 
 
-#if WRITEVEC_IN_SOLVER
-	writevec((std::string("AMG_") + ToString(iteration_glboal++) + "aa_d_L").c_str(), d, level);
-	writevec((std::string("AMG_") + ToString(iteration_glboal++) + "aa_c_L").c_str(), c, level);
-#endif
+	if(m_bDebugWriteAllVectors)
+	{
+		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "aa_d_L").c_str(), d, level);
+		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "aa_c_L").c_str(), c, level);
+	}
 
 	// presmooth
 	for(size_t i=0; i < m_numPreSmooth; i++)
@@ -684,10 +684,11 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 	UG_ASSERT(c.has_storage_type(PST_CONSISTENT), "" );
 #endif
 
-#if WRITEVEC_IN_SOLVER
-	writevec((std::string("AMG_") + ToString(iteration_glboal++) + "pa_d_L").c_str(), d, level);
-	writevec((std::string("AMG_") + ToString(iteration_glboal++) + "pa_c_L").c_str(), c, level);
-#endif
+	if(m_bDebugWriteAllVectors)
+	{
+		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "pa_d_L").c_str(), d, level);
+		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "pa_c_L").c_str(), c, level);
+	}
 
 	vector_type &cH = levels[level]->cH;
 	vector_type &dH = levels[level]->dH;
@@ -707,9 +708,8 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 #endif
 
 
-#if WRITEVEC_IN_SOLVER
-	writevec((std::string("AMG_") + ToString(iteration_glboal++) + "_dH_L").c_str(), dH, level+1);
-#endif
+	if(m_bDebugWriteAllVectors)
+		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "_dH_L").c_str(), dH, level+1);
 
 	// apply lmgc on coarser nodes
 
@@ -754,10 +754,11 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 	A.matmul_minus(d, corr);
 
 
-#if WRITEVEC_IN_SOLVER
-	writevec((std::string("AMG_") + ToString(iteration_glboal++) + "cc_d_L").c_str(), d, level);
+	if(m_bDebugWriteAllVectors)
+	{
+		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "cc_d_L").c_str(), d, level);
 		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "cc_c_L" ).c_str(), c, level);
-#endif
+	}
 
 
 	// post f-smoothing
@@ -776,10 +777,12 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 		c += corr;
 	}
 
-#if WRITEVEC_IN_SOLVER
-	writevec((std::string("AMG_") + ToString(iteration_glboal++) + "pp_d_L").c_str(), d, level);
+
+	if(m_bDebugWriteAllVectors)
+	{
+		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "pp_d_L").c_str(), d, level);
 		writevec((std::string("AMG_") + ToString(iteration_glboal++) + "pp_c_L").c_str(), c, level);
-#endif
+	}
 
 	return true;
 }
@@ -952,7 +955,7 @@ void AMGBase<TAlgebra>::
 #endif
 
 
-		AMGWriteToFile(mat, fromlevel, tolevel, filename.c_str(), m_amghelper);
+		AMGWriteToFile(mat, fromlevel, tolevel, filename, m_amghelper);
 		std::fstream f2(filename.c_str(), std::ios::out | std::ios::app);
 		f2 << "c " << GetAMGFilename(mat, "fine", level, ".marks") << "\n";
 		f2 << "c " << GetAMGFilename(mat, "aggfine", level, ".marks") << "\n";
@@ -1013,7 +1016,7 @@ void AMGBase<TAlgebra>::write_debug_matrices(matrix_type &AH, prolongation_matri
 	}
 
 	std::string path=std::string("/level") + ToString(level) + "/";
-	CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
+	CreateDirectory(m_writeMatrixPath + path);
 
 	//if(AH.num_rows() < AMG_WRITE_MATRICES_MAX)
 	std::string name = m_writeMatrixPath + path + std::string("AMG_Au_L") + ToString(level+1) + ".mat";
