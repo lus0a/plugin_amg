@@ -46,12 +46,9 @@ void AMGWriteToFile(const T &A, int fromlevel, int tolevel, std::string filename
 	}
 
 	std::fstream file(filename.c_str(), std::ios::out);
-	file << 1 << std::endl; // connection viewer version
 
 	int minlevel = std::min(fromlevel, tolevel);
-	WritePositionsToStream(file, h.positions[minlevel], h.dimension);
-
-	file << 1 << std::endl;
+	ConnectionViewer::WriteGridHeader(file, h.positions[minlevel], h.dimension);
 	for(size_t i=0; i < A.num_rows(); i++)
 	{
 		for(typename T::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
@@ -72,12 +69,8 @@ void AMGWriteVecToFile(const T &v, int level, std::string filename, const cAMG_h
 		UG_LOG("AWriteVecToFile not possible: no positions available.")
 		return;
 	}
-
 	std::fstream file(filename.c_str(), std::ios::out);
-	file << 1 << std::endl; // connection viewer version
-	WritePositionsToStream(file, h.positions[level], h.dimension);
-
-	file << 1 << std::endl;
+	ConnectionViewer::WriteGridHeader(file, h.positions[level], h.dimension);
 	for(size_t i=0; i<v.size(); i++)
 		file << i << " " << i << " " << v[i] << "\n";
 }
@@ -126,6 +119,7 @@ void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, std::string filena
 // could be in cpp
 inline void WriteAMGGraphToFile(const cgraph &G, std::string filename, const cAMG_helper &h, int level)
 {
+	// attention! this does only work serial.
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
 	{
@@ -134,10 +128,9 @@ inline void WriteAMGGraphToFile(const cgraph &G, std::string filename, const cAM
 	}
 
 	std::fstream file(filename.c_str(), std::ios::out);
-	file << /*CONNECTION_VIEWER_VERSION*/ 1 << std::endl;
 
-	WritePositionsToStream(file, h.positions[level], h.dimension);
-	file << 1 << std::endl;
+	ConnectionViewer::WriteGridHeader(file, h.positions[level], h.dimension);
+
 	for(size_t i=0; i < G.size(); i++)
 	{
 		for(cgraph::const_row_iterator it = G.begin_row(i); it != G.end_row(i); ++it)
@@ -180,6 +173,10 @@ void Write_LE_Error(const TProlongationMatrix &PoldIndices, const stdvector<Math
 
 	vector_type Rres(N);
 	vector_type Cres(N);
+#ifdef UG_PARALLEL
+	SetParallelVectorAsMatrix(Rres, PoldIndices, PST_CONSISTENT);
+	SetParallelVectorAsMatrix(Cres, PoldIndices, PST_CONSISTENT);
+#endif
 	int dim=2;
 	for(size_t i=0; i<N; i++)
 	{
@@ -214,8 +211,8 @@ void Write_LE_Error(const TProlongationMatrix &PoldIndices, const stdvector<Math
 	}
 	std::string path=std::string("/level") + ToString(level) + "/";
 	CreateDirectory(writeMatrixPath + path);
-	WriteVectorToConnectionViewer(writeMatrixPath + path + name + std::string("_Lin_err.vec"), Rres, &v[0], dim);
-	WriteVectorToConnectionViewer(writeMatrixPath + path + name + std::string("_Con_err.vec"), Cres, &v[0], dim);
+	ConnectionViewer::WriteVectorPar(writeMatrixPath + path + name + std::string("_Lin_err.vec"), Rres, &v[0], dim);
+	ConnectionViewer::WriteVectorPar(writeMatrixPath + path + name + std::string("_Con_err.vec"), Cres, &v[0], dim);
 }
 
 
@@ -250,15 +247,13 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 	size_t pid = 0;
 #endif
 
-	std::string path=std::string("/level") + ToString(level) + "/";
-	CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
 
 	const char *ext = bDrawConnections ? ".mat" : ".vec";
-	std::string name = (m_writeMatrixPath + path + std::string("AMG_L") + ToString(level) + "_" + filename + ext);
+	std::string name = get_output_directory(level) + std::string("AMG_L") + ToString(level) + "_" + filename + ext;
 
 
 #ifdef UG_PARALLEL
-	name = GetParallelName(name, levels[level]->pA->layouts()->proc_comm(), true);
+	name = ConnectionViewer::GetParallelName(name, levels[level]->pA->layouts()->proc_comm(), true);
 	/*if(levels[level]->bHasBeenMerged && m_agglomerateLevel != level)
 		AMGWriteToFile(levels[level]->uncollectedA, level, level, name.c_str(), m_amghelper);
 	else*/
@@ -269,13 +264,13 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 		std::fstream f(name.c_str(), std::ios::out | std::ios::app);
 		//UG_LOG("writevec to " << name.c_str() << "\n");
 
-		std::string name2 = (std::string("AMG_L") + ToString(level) + "_" + filename + "_p"+ ToString(pid) + ".values");
+		std::string name2 = get_output_directory(level) + std::string("AMG_L") + ToString(level) + "_" + filename + "_p"+ ToString(pid) + ".values";
 	#ifdef UG_PARALLEL
-		name2 = GetParallelName(name2, levels[level]->pA->layouts()->proc_comm(), false);
+		name2 = ConnectionViewer::GetParallelName(name2, levels[level]->pA->layouts()->proc_comm(), false);
 	#endif
 		f << "v " << name2 << "\n";
 
-		std::fstream file((std::string(m_writeMatrixPath)+ path + name2).c_str(), std::ios::out);
+		std::fstream file(name2.c_str(), std::ios::out);
 		if(solution)
 			for(size_t i=0; i<d.size(); i++)
 				file << i << " " << d[i] - solution2[i] << std::endl;

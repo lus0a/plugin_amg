@@ -261,7 +261,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	if(m_bAggressiveCoarsening && level == 0)
 	{
 #ifdef UG_PARALLEL
-		UG_ASSERT(pcl::GetNumProcesses() == 1, "");
+		UG_ASSERT(pcl::GetNumProcesses() == 1, "aggressive coarsening not implemented for > 1 processes");
 #endif
 		// build graph 2
 		//------------------

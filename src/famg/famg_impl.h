@@ -218,7 +218,7 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 	if(m_writeMatrices && m_writeTestvectors)
 	{
 		for(size_t i=0; i<testvectors.size(); i++)
-			WriteVectorToConnectionViewer((m_writeMatrixPath + ToString("testvector") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
+			ConnectionViewer::WriteVector((m_writeMatrixPath + ToString("testvector") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
 					testvectors[i], &m_amghelper.positions[level][0], m_dbgDimension);
 	}
 

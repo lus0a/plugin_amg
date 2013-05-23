@@ -383,7 +383,7 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 		{
 			std::string path=std::string("/level") + ToString(level) + "/";
 			CreateDirectory((std::string(m_famg.m_writeMatrixPath) + path).c_str(), 0777);
-			WriteMatrixToConnectionViewer((m_famg.m_writeMatrixPath + path + std::string("AMG_A_OL2_L") + ToString(level) + ".mat").c_str(),
+			ConnectionViewer::WriteMatrix((m_famg.m_writeMatrixPath + path + std::string("AMG_A_OL2_L") + ToString(level) + ".mat").c_str(),
 					A_OL2, &m_famg.m_amghelper.positions[level][0], 2);
 		}
 	}

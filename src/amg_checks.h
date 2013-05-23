@@ -33,19 +33,10 @@ void AMGBase<TAlgebra>::write_interfaces()
 	cAMG_helper &h = m_amghelper;
 	for(size_t level=0; level<m_usedLevels; level++)
 	{
-
-		//	\TODO: Implement also Windows support. Comment in below afterwards
-		std::string path=std::string("/level") + ToString(level) + "/";
-		CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
-
-		const char *filename = (std::string(m_writeMatrixPath) + path + std::string("AMG_interface_L") + ToString(level) + "_" + ToString(pcl::GetProcRank()) + std::string(".mat")).c_str();
+		const char *filename = (get_output_directory(level) + std::string("AMG_interface") + "_" + ToString(pcl::GetProcRank()) + std::string(".mat")).c_str();
 		std::fstream file(filename, std::ios::out);
-		file << 1 << std::endl; // connection viewer version
 
-
-		WritePositionsToStream(file, h.positions[level], h.dimension);
-
-		file << 1 << std::endl;
+		ConnectionViewer::WriteGridHeader(file, h.positions[level], h.dimension);
 
 		const IndexLayout &masterLayout = levels[level]->pA->layouts()->master();
 		const IndexLayout &slaveLayout = levels[level]->pA->layouts()->slave();

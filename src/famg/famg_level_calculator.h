@@ -485,7 +485,7 @@ public:
 		{
 			std::string path=std::string("/level") + ToString(level) + "/";
 			CreateDirectory((std::string(m_famg.m_writeMatrixPath) + path).c_str(), 0777);
-			WriteVectorToConnectionViewer(m_famg.m_writeMatrixPath + path + std::string("AMG_fvalues_L") + ToString(level) + ".vec",
+			ConnectionViewer::WriteVector(m_famg.m_writeMatrixPath + path + std::string("AMG_fvalues_L") + ToString(level) + ".vec",
 						fvalues, &m_famg.m_amghelper.positions[level][0], m_famg.m_amghelper.dimension);
 		}
 	}

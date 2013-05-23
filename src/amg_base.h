@@ -573,6 +573,10 @@ protected:
 	bool writevec(std::string filename, const vector_type &d, size_t level,
 			const vector_type *solution = NULL);
 
+	std::string GetAMGFilenamePath(const matrix_type &m, int levelDir, std::string name, int level, std::string extension, bool bWriteHeader=false);
+	std::string GetAMGFilename(const matrix_type &m, std::string name, int level, std::string extension, bool bWriteHeader=false);
+
+
 	/**
 	 * reads in the positions from the position provider
 	 * @sa set_position_provider, set_positions
@@ -584,6 +588,8 @@ protected:
 			const matrix_type &A, prolongation_matrix_type &P, size_t level,
 			AMGLayouts &nextLevelLayouts) = 0;
 	virtual void precalc_level(size_t level) = 0;
+
+	std::string get_output_directory(int level);
 
 private:
 #ifdef UG_PARALLEL

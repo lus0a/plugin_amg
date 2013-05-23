@@ -29,19 +29,6 @@ namespace ug{
 /// \addtogroup plugins_amg
 /// \{
 
-inline void WritePositionsToStream(std::ostream &out, const std::vector<MathVector<3> > &positions, int dimension)
-{
-	out << dimension << std::endl;
-	out << positions.size() << std::endl;
-	for(size_t i=0; i< positions.size() ; i++)
-	{
-		out << positions[i][0] << " " << positions[i][1];
-		if(dimension == 3)
-			out << " " << positions[i][2];
-		out << std::endl;
-	}
-}
-
 /**
  * \brief helper struct for debug output of matrices in AMG
  * This class knows the position to each node on each level of
