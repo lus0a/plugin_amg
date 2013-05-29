@@ -19,9 +19,12 @@
 #include "amg_profiling.h"
 #include "postscript.h"
 
+#ifdef UG_PARALLEL
 #include "pcl/pcl_layout_tests.h"
+#endif
 #include "lib_algebra/common/connection_viewer_output.h"
 #include "common/util/file_util.h"
+#include "common/debug_print.h"
 
 namespace ug {
 
@@ -138,19 +141,6 @@ inline void WriteAMGGraphToFile(const cgraph &G, std::string filename, const cAM
 	}
 }
 
-
-template<typename T>
-void PrintVector(const T &v, std::string desc="")
-{
-	UG_LOG("================ " << desc << " ==================\n");
-	for(size_t i=0; i<v.size(); i++)
-	{
-		UG_LOG(i << " = " << v[i] << "\n");
-	}
-	UG_LOG("==================================================\n");
-}
-
-#define PRINT_VECTOR(v, msg) {std::stringstream ss; ss << msg; PrintVector(v, ss.str()); }
 #define PRINT_VECTOR_AMGDEBUG(dbgLevel, v, msg) {IF_DEBUG(LIB_ALG_AMG, 5){std::stringstream ss; ss << msg; PrintVector(v, ss.str());} }
 
 #ifdef UG_PARALLEL
