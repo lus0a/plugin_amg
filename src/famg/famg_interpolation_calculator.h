@@ -1,5 +1,5 @@
 /**
- * \file amg_debug.h
+ý * \file famg_interpolation_calculator.h
  *
  * \author Martin Rupp
  *
@@ -19,6 +19,9 @@
 #define FAMG_SCALING
 
 #define FAMG_USE_DIRCHLET_AS_PARENTS 1
+
+#define FAMG_FULL_BLOCK
+
 namespace ug
 {
 
@@ -717,14 +720,16 @@ public:
 		get_H(i, rating); // todo: not really necessary if coarseNeighbors.size() == 1
 		if(coarseNeighbors.size() == 1)
 		{
+			// single parent
 			DenseVector<stdvector<smallvec_type> > &t0 = localTestvectors[0];
 			get_H(i, rating);
+			P(i, onlyN1[coarseNeighbors[0]]) = 0.0;
 			const size_t blockSize=GetSize(t0[onlyN1.size()]);
 			for(size_t b=0; b<blockSize; b++)
 			{
-				P(i, onlyN1[coarseNeighbors[0]]) = 0.0;
+
 				BlockRef(P(i, onlyN1[coarseNeighbors[0]]), b, b) =
-						BlockRef(t0[onlyN1.size()], 0) / BlockRef(t0[coarseNeighbors[0]], 0);
+						BlockRef(t0[onlyN1.size()], b) / BlockRef(t0[coarseNeighbors[0]], b);
 			}
 			rating.set_fine(i);
 			return true;
@@ -738,6 +743,7 @@ public:
 		if(solve_KKT(i, subindices(strongNeighbors)))
 		{
 			//IF_DEBUG(LIB_ALG_AMG, 5) q.maple_print("q");
+
 			if(F > m_delta)
 			{
 				UG_DLOG(LIB_ALG_AMG, 3, "coarse neighbors, had to set node " << i << " coarse!");
@@ -1057,9 +1063,11 @@ private:
 	{
 		// before this function, S = local A (on only1, i, only2)
 		AMG_PROFILE_FUNC();
-		const size_t i_index = onlyN1.size();
+
 		UG_ASSERT(S.num_cols() == S.num_rows(), "");
 		UG_ASSERT(S.num_cols() == onlyN1.size()+1+onlyN2.size(), "");
+
+		const size_t i_index = onlyN1.size();
 		const size_t N = S.num_rows(); // = N2
 		//const size_t N1 = onlyN1.size()+1;
 
@@ -1085,11 +1093,18 @@ private:
 
 		for (size_t j = 0; j < N; j++)
 		{
+#ifdef FAMG_FULL_BLOCK
+
+			Dinv[j] = S(j,j);
+			Invert(Dinv[j]);
+#else
 			Dinv[j] = 0.0;
 			for (size_t k = 0; k < GetRows(S(j, j)); k++)
-				//GetInverse(Dinv[j], S(j,j));
 				BlockRef(Dinv[j], k, k) = 1 / BlockRef(S(j, j), k, k);
+
+#endif
 		}
+		PRINT_VECTOR_AMGDEBUG(5, Dinv, "Dinv");
 
 		// get SF = 1-wDF^{-1} A  (F-smoothing)
 		//AMG_PROFILE_BEGIN(AMG_HA_calculate_SF);
@@ -1100,11 +1115,13 @@ private:
 
 		// todo: only go to onlyN1.size(), since S(i_index, j) = 0 forall j > onlyN1.size()
 		for (size_t j = 0; j < N; j++)
+			SF[j] = 0.0;
+		/*
 			for (size_t k1 = 0; k1 < GetRows(SF[j]); k1++)
 				for (size_t k2 = 0; k2 < GetCols(SF[j]); k2++)
 					BlockRef(SF[j], k1, k2) = 0.0;
-
-		for (size_t j = 0; j < N; j++)
+					*/
+	for (size_t j = 0; j < N; j++)
 			SF[j] = -Dinv[i_index] * S(i_index, j);
 		SF[i_index] += 1.0;
 
