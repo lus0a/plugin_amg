@@ -441,8 +441,8 @@ public:
 		IF_DEBUG(LIB_ALG_AMG, 3)
 		{	rating.print(); 	}
 
-		Write_LE_Error<prolongation_matrix_type, vector_type>
-			(PoldIndices, m_famg.m_amghelper.positions[level], m_famg.m_writeMatrixPath, "FAMG_tv", level);
+	//	Write_LE_Error<prolongation_matrix_type, vector_type>
+	//		(PoldIndices, m_famg.m_amghelper.positions[level], m_famg.m_writeMatrixPath, "FAMG_tv", level);
 		create_new_indices();
 		//for(size_t i=0; i<rating.get_nr_of_coarse(); i++) { UG_ASSERT(amghelper.parentIndex[level+1][i] != -1, i << " == -1???"); UG_LOG(i << " = " << amghelper.parentIndex[level+1][i] << "\n"); }
 
