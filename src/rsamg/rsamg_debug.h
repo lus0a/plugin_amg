@@ -72,9 +72,9 @@ void RSAMG<Matrix_type, Vector_type>::printCoarsening(int level, AMGNodes &nodes
 	{
 		postype pos = GetPosForIndexAtLevel(i, level);
 		if(nodes[i].is_coarse())
-			fcoarse << pos.x << " " << pos.y << " " << endl;
+			fcoarse << pos.x() << " " << pos.y() << " " << endl;
 		else
-			ffine << pos.x << " " << pos.y << " " << endl;
+			ffine << pos.x() << " " << pos.y() << " " << endl;
 	}
   	
 	/////////////

@@ -98,7 +98,7 @@ void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, std::string filena
 	for(size_t i=0; i < A.num_rows(); i++)
 	{
 		int from = h.GetOriginalIndex(tolevel, minlevel, i);
-		ps.move_to(h.positions[minlevel][from].x, h.positions[minlevel][from].y);
+		ps.move_to(h.positions[minlevel][from].x(), h.positions[minlevel][from].y());
 		ps.print_text( std::string("0") + ToString(i));
 
 		for(typename T::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
@@ -108,8 +108,8 @@ void AMGWriteToFilePS(const T &A, int fromlevel, int tolevel, std::string filena
 				if(conn.index() != i)
 				{
 					int to = h.GetOriginalIndex(fromlevel, minlevel, conn.index());
-					ps.move_to(h.positions[minlevel][from].x, h.positions[minlevel][from].y);
-					ps.line_to(h.positions[minlevel][to].x, h.positions[minlevel][to].y);
+					ps.move_to(h.positions[minlevel][from].x(), h.positions[minlevel][from].y());
+					ps.line_to(h.positions[minlevel][to].x(), h.positions[minlevel][to].y());
 
 				}
 			}
@@ -178,12 +178,12 @@ void Write_LE_Error(const TProlongationMatrix &PoldIndices, const stdvector<Math
 		for(typename TProlongationMatrix::const_row_iterator it = PoldIndices.begin_row(i); it != PoldIndices.end_row(i); ++it)
 		{
 			size_t j = it.index();
-			BlockRef(tvLin[j], 0) = p0.x - v[j].x;
-			BlockRef(tvLin[j], 1) = p0.y - v[j].y;
+			BlockRef(tvLin[j], 0) = p0.x() - v[j].x();
+			BlockRef(tvLin[j], 1) = p0.y() - v[j].y();
 			if(GetSize(tvLin[j]) == 3)
 			{
 				dim = 3;
-				BlockRef(tvLin[j], 2) = p0.z - v[j].z;
+				BlockRef(tvLin[j], 2) = p0.z() - v[j].z();
 			}
 
 			tvCon[j] = 1;

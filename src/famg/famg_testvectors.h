@@ -199,7 +199,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_next_testvectors()
  */
 MathVector<3> GetRotX(MathVector<3> &pos)
 {
-	return MathVector<3>(0, pos.z, -pos.y);
+	return MathVector<3>(0, pos.z(), -pos.y());
 }
 
 /**
@@ -207,7 +207,7 @@ MathVector<3> GetRotX(MathVector<3> &pos)
  */
 MathVector<3> GetRotY(MathVector<3> &pos)
 {
-	return MathVector<3>(pos.z, 0, -pos.x);
+	return MathVector<3>(pos.z(), 0, -pos.x());
 }
 
 /**
@@ -215,22 +215,22 @@ MathVector<3> GetRotY(MathVector<3> &pos)
  */
 MathVector<3> GetRotZ(MathVector<3> &pos)
 {
-	return MathVector<3>(pos.y, -pos.x, 0);
+	return MathVector<3>(pos.y(), -pos.x(), 0);
 }
 
 template<typename T>
 inline void SetAlgVector2d(T &v, MathVector<3> mv)
 {
-	BlockRef(v, 0) = mv.x;
-	BlockRef(v, 1) = mv.y;
+	BlockRef(v, 0) = mv.x();
+	BlockRef(v, 1) = mv.y();
 }
 
 template<typename T>
 inline void SetAlgVector3d(T &v, MathVector<3> mv)
 {
-	BlockRef(v, 0) = mv.x;
-	BlockRef(v, 1) = mv.y;
-	BlockRef(v, 2) = mv.z;
+	BlockRef(v, 0) = mv.x();
+	BlockRef(v, 1) = mv.y();
+	BlockRef(v, 2) = mv.z();
 }
 
 

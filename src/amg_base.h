@@ -461,9 +461,9 @@ public:
 	void set_positions(const MathVector<2> *pos, size_t size) {
 		m_dbgPositions.resize(size);
 		for (size_t i = 0; i < size; ++i) {
-			m_dbgPositions[i].x = pos[i].x;
-			m_dbgPositions[i].y = pos[i].y;
-			m_dbgPositions[i].z = 0.0;
+			m_dbgPositions[i].x() = pos[i].x();
+			m_dbgPositions[i].y() = pos[i].y();
+			m_dbgPositions[i].z() = 0.0;
 		}
 		m_dbgDimension = 2;
 	}
