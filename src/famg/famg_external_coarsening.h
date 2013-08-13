@@ -10,7 +10,6 @@
 #include "../rsamg/rsamg.h"
 #include "../rsamg/rsamg_coarsening.h"
 
-//#include "../../../../../apps/ugsolver/src/ScalarSubMatrixAdapter.hh"
 #include "lib_algebra/adapter/scalar_submatrix_adapter.hh"
 
 #ifndef FAMG_EXTERNAL_COARSENING_H_
