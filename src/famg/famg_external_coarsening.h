@@ -10,6 +10,8 @@
 #include "../rsamg/rsamg.h"
 #include "../rsamg/rsamg_coarsening.h"
 
+//#include "../../../../../apps/ugsolver/src/ScalarSubMatrixAdapter.hh"
+#include "lib_algebra/adapter/scalar_submatrix_adapter.hh"
 
 #ifndef FAMG_EXTERNAL_COARSENING_H_
 #define FAMG_EXTERNAL_COARSENING_H_
@@ -74,7 +76,20 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	AMGNodes nodes(N);
 #endif
 	cgraph graphS, graphST;
-	CreateStrongConnectionGraph(A_OL2, graphS, m_famg.m_dStrongConnectionExternal, nodes);
+
+	const int submask=m_famg.get_strong_connection_submask();
+	if (submask>=0){
+		// primary sub
+		ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 0, 0>
+		sub(const_cast<typename algebra_type::matrix_type&> (A_OL2));
+		//sub.print("SUB");
+		CreateStrongConnectionGraph(sub, graphS, m_famg.m_dStrongConnectionExternal, nodes);
+
+	}
+	else {
+		//full primary matrix
+		CreateStrongConnectionGraph(A_OL2, graphS, m_famg.m_dStrongConnectionExternal, nodes);
+	};
 
 	graphST.set_as_transpose_of(graphS);
 	CreateMeasureOfImportancePQ(graphS, graphST, PQ, nodes);

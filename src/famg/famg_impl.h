@@ -45,6 +45,8 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 	m_dStrongConnectionExternal = 0.1;
 	m_iPreventFFConnection=0;
 
+	m_iStrongConnectionSubMask=-1;
+
 	m_iTestvectors = TESTVECTORS_DIRICHLET_MATRIX_ROWS;
 
 	m_bExternalCoarsening = false;

@@ -98,6 +98,8 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_external_coarsening", &T::set_external_coarsening, "bExternalCoarsening", "You need to set_parallel_coarsening in parallel.")
 			.add_method("set_strong_connection_external", &T::set_strong_connection_external, "epsilon", "set strong_connection value for coarsening (like set_epsilon_strong in RSAMG)")
 			.add_method("get_strong_connection_external", &T::get_strong_connection_external)
+			.add_method("set_strong_connection_submask", &T::set_strong_connection_submask, "mask", "May specify sub-matrix (< 0 : std. matrix)")
+			.add_method("get_strong_connection_submask", &T::get_strong_connection_submask)
 
 			.add_method("set_write_coarsening", &T::set_write_coarsening)
 			.add_method("set_read_coarsening", &T::set_read_coarsening)
