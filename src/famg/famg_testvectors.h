@@ -317,9 +317,9 @@ void GetTestvectorsLinear_3d(const TMatrix &A, stdvector<TVector> &testvectors, 
 		if(!A.is_isolated(i))
 		{
 			testvectors[0][i] = 1.0;
-			testvectors[1][i] = pos[i].x;
-			testvectors[2][i] = pos[i].y;
-			testvectors[3][i] = pos[i].z;
+			testvectors[1][i] = pos[i].x();
+			testvectors[2][i] = pos[i].y();
+			testvectors[3][i] = pos[i].z();
 		}
 	}
 }
@@ -347,8 +347,8 @@ void GetTestvectorsLinear_2d(const TMatrix &A, stdvector<TVector> &testvectors, 
 		if(!A.is_isolated(i))
 		{
 			testvectors[0][i] = 1.0;
-			testvectors[1][i] = pos[i].x;
-			testvectors[2][i] = pos[i].y;
+			testvectors[1][i] = pos[i].x();
+			testvectors[2][i] = pos[i].y();
 		}
 	}
 }
