@@ -127,7 +127,7 @@ public:
 			li.calc_parallel_data(pc);
 			if(i>0)
 				li.m_dCoarseningRate = (double)li.get_nr_of_nodes()/
-						(double)levelInformation[i-1].get_nr_of_nodes();
+						((double)levelInformation[i-1].get_nr_of_nodes());
 			else
 				li.m_dCoarseningRate = 0.0;
 		}
@@ -135,13 +135,14 @@ public:
 #endif
 
 	template<typename matrix_type>
-	void calculate(matrix_type &A, int _level, double dCreationTime, double coarseningRate)
+	void calculate(matrix_type &A, int _level, double dCreationTime, LevelInformation *previousLevel)
 	{
+
 		level = _level;
 		m_dCreationTimeMS = dCreationTime;
 		m_iNNZs = GetNNZs(A); // A.total_num_connections();
 		m_connectionsMax = GetMaxConnections(A);
-		m_dCoarseningRate = coarseningRate;
+
 #ifdef UG_PARALLEL
 		const pcl::ProcessCommunicator &pc = A.layouts()->proc_comm(); //!
 		m_iNrOfNodes = A.num_rows() - A.layouts()->slave().num_interface_elements();
@@ -156,6 +157,16 @@ public:
 		m_iNrOfNodesMin = m_iNrOfNodesMax = m_iNrOfNodesSum = m_iNrOfNodes;
 		m_iNNZsMin = m_iNNZsMax = m_iNNZsSum = m_iNNZs;
 #endif
+
+		if(previousLevel != NULL)
+		{
+			m_dCoarseningRate = m_iNrOfNodesSum/((double)previousLevel->m_iNrOfNodesSum);
+		}
+		else
+		{
+			m_dCoarseningRate = 0.0;
+		}
+
 	}
 
 	std::string tostring() const
@@ -166,7 +177,7 @@ public:
 				<< get_nr_of_nodes() << ". fill in " << get_fill_in() * 100
 				<< "%. ";
 		if (level != 0)
-			ss << "coarsening rate: " << get_coarsening_rate() * 100
+			ss << "coarsening rate: " << get_coarsening_rate() * 100.0
 					<< "%. ";
 		ss << "nr of interface elements: " << get_nr_of_interface_elements()
 				<< " ("

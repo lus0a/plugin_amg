@@ -33,6 +33,7 @@
 
 
 #define AMG_LOG(lvl, msg) { if(m_verbose >= lvl) UG_LOG(msg); }
+#define AMG_LOGN(lvl, msg) AMG_LOG(lvl, msg << "\n");
 
 // end group plugins_amg
 /// \}

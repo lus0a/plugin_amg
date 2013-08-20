@@ -30,6 +30,7 @@
 
 #include "lib_algebra/common/connection_viewer_output.h"
 
+#define UG_DLOGN(tag, level, msg)			UG_DLOG(tag, level, msg << "\n");
 
 std::string GetProcFilename(std::string path, std::string name, std::string extension);
 
@@ -52,7 +53,6 @@ void SetParallelVectorAsMatrix(TVector &v, TMatrix &m, ParallelStorageType t)
 
 
 
-
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createAMGlevelTiming)
 {
@@ -64,9 +64,11 @@ void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createA
 		m_levelInformation.resize(level+1);
 	LevelInformation &li = m_levelInformation[level];
 
+
 	if(level > 0)
-		li.calculate(A, level, createAMGlevelTiming, li.get_nr_of_nodes()/(double)m_levelInformation[level-1].get_nr_of_nodes());
-	else li.calculate(A, 0, 0.0, 0.0);
+		li.calculate(A, level, createAMGlevelTiming, &m_levelInformation[level-1]);
+	else
+		li.calculate(A, 0, 0.0, NULL);
 
 
 	AMG_LOG(1, li.tostring() << "\n");
@@ -83,6 +85,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 {
 	matrix_operator_type& mat = *pOp;
 	AMG_PROFILE_FUNC();
+
 	if(m_bOneInit && m_bInited)
 		return true;
 
@@ -90,10 +93,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 //	SetMPIErrHandler();
 #endif
 
-//	UG_LOG("matrix " << mat.num_rows() << "\n");
 	cleanup();
-//	UG_LOG("matrix after: " << mat.num_rows() << "\n");
-
 
 	update_positions();
 	m_amghelper.parentIndex = &m_parentIndex;
@@ -113,17 +113,17 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 	if(m_basesolver.invalid())
 	{
-		UG_LOG("amg_base::preprocess(): No base solver selected. Call set_base_solver(basesolver) to set a base solver.\n");
+		UG_LOGN("amg_base::preprocess(): No base solver selected. Call set_base_solver(basesolver) to set a base solver.");
 		return false;
 	}
 	if(m_presmoother.invalid())
 	{
-		UG_LOG("amg_base::preprocess(): No PreSmoother selected. Call set_presmoother(presmoother) to set a PreSmoother.\n");
+		UG_LOGN("amg_base::preprocess(): No PreSmoother selected. Call set_presmoother(presmoother) to set a PreSmoother.");
 		return false;
 	}
 	if(m_postsmoother.invalid())
 	{
-		UG_LOG("amg_base::preprocess(): No PostSmoother selected. Call set_postsmoother(postsmoother) to set a PostSmoother.\n");
+		UG_LOGN("amg_base::preprocess(): No PostSmoother selected. Call set_postsmoother(postsmoother) to set a PostSmoother.");
 		return false;
 	}
 
@@ -157,6 +157,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 //	pL->com = mat.layouts()->comm();
 	pL->spLayouts->comm() = mat.layouts()->comm();
 	pL->bHasBeenMerged = false;
+	pL->spYConvCheck = spYConvCheck;
 #endif
 	levels.push_back(pL);
 
@@ -217,6 +218,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 		levels.push_back(new AMGLevel(level+1));
 		AMGLevel &nextL = *levels[level+1];
+		nextL.spYConvCheck = spYConvCheck->clone();
 
 		//UG_LOG(ToString(nextL.spLayouts->proc_comm()) << "\n" << ToString(L.spAgglomeratedLayouts->proc_comm()));
 
@@ -311,13 +313,13 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	m_totalUsedLevels = m_usedLevels;
 #endif
 
-	AMG_LOG(1, "finished. now init fsmoothing.\n");
+	AMG_LOGN(1, "finished. now init fsmoothing.");
 	init_fsmoothing();
 
 
 	AMG_LOG(1, "AMG Setup finished. Total used Levels: " << m_totalUsedLevels << ". ");
 	m_dTimingWholeSetupMS = SWwhole.ms();
-	UG_DLOG(LIB_ALG_AMG, 1, "AMG Setup took " << m_dTimingWholeSetupMS << " ms." << std::endl);
+	UG_DLOGN(LIB_ALG_AMG, 1, "AMG Setup took " << m_dTimingWholeSetupMS << " ms.");
 
 	// calc complexities
 	double totalNNZs=0;
@@ -415,7 +417,6 @@ template<typename TAlgebra>
 AMGBase<TAlgebra>::AMGBase() :
 	m_numPreSmooth(2),
 	m_numPostSmooth(2),
-	m_cycleType(1),
 
 	m_maxLevels(100),
 	m_usedLevels(0),
@@ -448,6 +449,8 @@ AMGBase<TAlgebra>::AMGBase() :
 	m_verbose = 0;
 	m_dGalerkinTruncation = 1e-12;
 	m_bDebugWriteAllVectors = false;
+
+	set_cycle_type(1);
 }
 
 
@@ -539,72 +542,6 @@ bool AMGBase<TAlgebra>::solve_on_base(vector_type &c, vector_type &d, size_t lev
 {
 	AMG_PROFILE_FUNC();
 	m_basesolver->apply_return_defect(c, d);
-#if 0
-	AMGLevel &L = *levels[level];
-	matrix_operator_type &A = *L.pA;
-#ifdef UG_PARALLEL
-	if(A.layouts()->proc_comm().size()>1)
-	{
-		vector_type collC;
-		vector_type collD;
-		pcl::InterfaceCommunicator<IndexLayout> &com = A.get_communicator();
-		if(pcl::GetProcRank() == 0)
-		{
-			size_t N = L.collectedA->num_rows();
-			collC.resize(N);
-			collC.set(0.0);
-			collC.set_master_layout(m_emptyLayout);
-			collC.set_slave_layout(m_emptyLayout);
-			collC.set_process_communicator(m_emptyPC);
-
-			collD = d;
-			collD.resize(N);
-			for(size_t i=A.num_rows(); i<N; i++)
-				collD[i] = 0.0;
-
-			collD.set_master_layout(m_emptyLayout);
-			collD.set_slave_layout(m_emptyLayout);
-			collD.set_process_communicator(m_emptyPC);
-
-
-
-			com.communicate();
-		}
-		// send d -> collD
-		ComPol_VecAdd<vector_type > compolAdd(&collD, &d);
-		pcl::InterfaceCommunicator<IndexLayout> &com = A.layouts()->comm();
-		com.receive_data(L.agglomerateMasterLayout, compolAdd);
-		com.send_data(agglomerateSlaveLayout, compolAdd);
-		com.communicate();
-
-
-		if(pcl::GetProcRank() == 0)
-			m_basesolver->apply_return_defect(collC, collD);
-
-		// send c -> collC
-		UG_ASSERT(0, "something is wrong here: should be");
-		// com.receive_data(agglomerateSlaveLayout, compolPoly);
-		// com.send_data(L.agglomerateMasterLayout, compolPoly);
-		ComPol_VecCopy<vector_type> compolCopy(&c, &collC);
-		com.receive_data(L.agglomerateMasterLayout, compolPoly);
-		com.send_data(agglomerateSlaveLayout, compolPoly);
-		com.communicate();
-
-		if(pcl::GetProcRank() == 0)
-		{
-			for(size_t i=0; i<A.num_rows(); i++)
-				d[i] = collD[i];
-			for(size_t i=0; i<A.num_rows(); i++)
-				c[i] = collC[i];
-		}
-		else
-			A.matmul_minus(d, c);
-		d.set(0.0);
-	}
-	else
-#endif
-		m_basesolver->apply_return_defect(c, d);
-#endif
 	return true;
 }
 
@@ -711,21 +648,17 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 		add_correction_and_update_defect(cH, dH, level+1);
 	else
 	{
-		if(m_iYCycle == 0)
+		// all V/W/Y-Cycles are handled here
+		// V-Cycle: spYConvCheck = FixedConvergenceCheck(1)
+		// W-Cycle: spYConvCheck = FixedConvergenceCheck(2)
+		// Y-Cycle: spYConvCheck = StdConvergenceCheck(20, 1e-24, 0.01)
+		SmartPtr<IConvergenceCheck<vector_type> > pCheck = levels[level]->spYConvCheck;
+		pCheck->start(dH);
+
+		while(!pCheck->iteration_ended())
 		{
-			for(int i=0; i< m_cycleType; i++)
-				add_correction_and_update_defect(cH, dH, level+1);
-		}
-		else
-		{
-			double preHnorm = ConstTwoNorm(dH);
-			for(size_t i=0; i<m_iYCycle; i++)
-			{
-				add_correction_and_update_defect(cH, dH, level+1);
-				double nH = ConstTwoNorm(dH);
-				if(nH/preHnorm < m_dYreduce || nH < m_dYabs)
-					break;
-			}
+			add_correction_and_update_defect(cH, dH, level+1);
+			pCheck->update(dH);
 		}
 	}
 

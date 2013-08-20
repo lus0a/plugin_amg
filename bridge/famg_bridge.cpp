@@ -64,7 +64,7 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_aggressive_coarsening", &T::set_aggressive_coarsening)
 			.add_method("set_delta", &T::set_delta, "", "delta", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
 			.add_method("get_delta", &T::get_delta, "delta")
-			.add_method("set_theta", &T::set_theta, "" , "theta", "with multiple parents paris, discard pairs with m_theta * F > min F. e.g. 0.9")
+			.add_method("set_theta", &T::set_theta, "" , "theta", "with multiple parents pairs, discard pairs with m_theta * F > min F. e.g. 0.9")
 			.add_method("get_theta", &T::get_theta, "theta")
 
 
@@ -80,6 +80,8 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_testvector_from_matrix_rows", &T::set_testvector_from_matrix_rows, "", "testvector is obtained by setting 1 for dirichlet nodes (nodes with only A(i,i) != 0) and 0 everywhere else")
 			.add_method("set_testvectors_LE_2d", &T::set_testvectors_LE_2d)
 			.add_method("set_testvectors_LE_3d", &T::set_testvectors_LE_3d)
+			.add_method("set_testvectors_linear_2d", &T::set_testvectors_linear_2d)
+			.add_method("set_testvectors_linear_3d", &T::set_testvectors_linear_3d)
 
 			.add_method("reset_testvectors", &T::reset_testvectors, "", "removes all added testvectors")
 

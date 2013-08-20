@@ -183,7 +183,8 @@ public:
 		TESTVECTORS_EXTERNAL,
 		TESTVECTORS_DIRICHLET_MATRIX_ROWS,
 		TESTVECTORS_LE_2D,
-		TESTVECTORS_LE_3D
+		TESTVECTORS_LE_3D,
+		TESTVECTORS_LINEAR
 	} m_iTestvectors;
 
 	void set_testvector_from_matrix_rows()
@@ -205,6 +206,20 @@ public:
 		m_weightY=weightY;
 		m_weightZ=weightZ;
 		m_iTestvectors = TESTVECTORS_LE_3D;
+	}
+
+	void set_testvectors_linear_2d(double weightC, double weightX, double weightY)
+	{
+		set_testvectors_linear_3d(weightC, weightX, weightY, 0);
+	}
+
+	void set_testvectors_linear_3d(double weightC, double weightX, double weightY, double weightZ)
+	{
+		m_weightC=weightC;
+		m_weightX=weightX;
+		m_weightY=weightY;
+		m_weightZ=weightZ;
+		m_iTestvectors = TESTVECTORS_LINEAR;
 	}
 
 	void init_for_EVP(const vector_type &u, const vector_type &b);

@@ -24,15 +24,21 @@ template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::external_coarsening_calculate_prolongation()
 {
 	AMG_PROFILE_FUNC();
+	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
+
 	Stopwatch SW;
 	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "calculate prolongation... "); if(bTiming) SW.start();
 	size_t N = A.num_rows();
+	PROGRESS_START(prog, N, "FAMG::external_coarsening_calculate_prolongation " << N);
 	for(size_t i=0; i<N; i++)
 	{
+		PROGRESS_UPDATE(prog, i);
 		if(rating[i].is_fine_direct() && rating.i_must_assign(i))
 			calculator.get_all_neighbors_interpolation(i, PoldIndices, rating);
 	}
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+
+
 }
 
 template<typename T>
@@ -42,7 +48,7 @@ inline void AMGnodeinfoToFAMGnodeinfo(AMGNodes &amgNodes, FAMGNodes<T> &famgNode
 	for(size_t i=0; i<N; i++)
 	{
 		if(graphS.is_isolated(i))
-			famgNodes.set_fine(i);
+			famgNodes.set_coarse(i); // was fine???
 		else if(amgNodes[i].is_coarse())
 			famgNodes.external_set_coarse(i);
 		else if(amgNodes[i].is_fine_direct() || amgNodes[i].is_fine())
@@ -61,6 +67,9 @@ inline void AMGnodeinfoToFAMGnodeinfo(AMGNodes &amgNodes, FAMGNodes<T> &famgNode
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 {
+	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
+
+#if 1
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
 	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "external coarsening... " ); if(bTiming) SW.start();
@@ -70,6 +79,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	// use RSAMG's methods to do standard rs coarsening
 #ifdef UG_PARALLEL
 	AMGNodes nodes(N, PN);
+	UG_ASSERT(m_famg.m_pParallelCoarsening != NULL, "please set_parallel_coarsening !");
 	UG_DLOG(LIB_ALG_AMG, 0, m_famg.m_pParallelCoarsening->tostring() << "\n");
 #else
 	AMGNodes nodes(N);
@@ -104,7 +114,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 #endif
 
 	// aggressive coarsening
-	if(0 && m_famg.get_aggressive_coarsening() == true && level == 0)
+	if(m_famg.get_aggressive_coarsening() == true && level == 0)
 	{
 		UG_DLOG(LIB_ALG_AMG, 2, std::endl << "building graph2... ");
 		UG_DLOG(LIB_ALG_AMG, 2, "unassigned = " << nodes.get_unassigned() << "\n");
@@ -136,6 +146,20 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
 	//if(nodes[i].is_unassigned_fine_indirect())
 	//	rating.set_aggressive_fine(i);
+#else
+	size_t N = A_OL2.num_rows();
+	for(size_t i=0; i<N; i++)
+	{
+		/////////////////////
+
+		if(i == 4327) // 4608????
+		{
+			rating.set_fine(i);
+		}
+		else
+			rating.set_coarse(i); // was fine???
+	}
+#endif
 }
 
 

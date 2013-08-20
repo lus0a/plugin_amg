@@ -308,8 +308,9 @@ public:
 #endif
 		size_t N = A_OL2.num_rows();
 
-		if(m_famg.m_bWriteFValues)	fvalues.resize(N, 0.0);
-		else 						fvalues.clear();
+//		if(m_famg.m_bWriteFValues)
+			fvalues.resize(N, 0.0);
+//		else 						fvalues.clear();
 
 		// 2. global Testvector calculation (damping)
 		//-----------------------------------------------
@@ -425,10 +426,14 @@ public:
 			if(m_famg.m_writeMatrices) m_famg.write_debug_matrix_markers(level, rating);
 			PoldIndices.resize_and_clear(N, N);
 			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
+
+			UG_LOG("XC\n");
 			if(m_famg.m_fileCoarsening == m_famg.READ_COARSENING)
 				read_coarsening();
 			else
 				rs_amg_external_coarsening();
+
+			UG_LOG("external_coarsening_calculate_prolongation...\n");
 
 			external_coarsening_calculate_prolongation();
 		}
@@ -441,8 +446,8 @@ public:
 		IF_DEBUG(LIB_ALG_AMG, 3)
 		{	rating.print(); 	}
 
-	//	Write_LE_Error<prolongation_matrix_type, vector_type>
-	//		(PoldIndices, m_famg.m_amghelper.positions[level], m_famg.m_writeMatrixPath, "FAMG_tv", level);
+//		Write_LE_Error<prolongation_matrix_type, vector_type>
+//			(PoldIndices, m_famg.m_amghelper.positions[level], m_famg.m_writeMatrixPath, "FAMG_tv", level);
 		create_new_indices();
 		//for(size_t i=0; i<rating.get_nr_of_coarse(); i++) { UG_ASSERT(amghelper.parentIndex[level+1][i] != -1, i << " == -1???"); UG_LOG(i << " = " << amghelper.parentIndex[level+1][i] << "\n"); }
 

@@ -5,9 +5,9 @@
 namespace ug
 {
 
-DebugID RSAMGCoarseningDebug("RSAMG_Coarsening");
-DebugID RSAMGProlongationDebug("RSAMG_Prolongation");
-DebugID AMGAgglomerationDebug("AMG_Agglomeration");
+DebugID RSAMGCoarseningDebug("RSAMG.Coarsening");
+DebugID RSAMGProlongationDebug("RSAMG.Prolongation");
+DebugID AMGAgglomerationDebug("AMG.Agglomeration");
 
 #ifdef UG_PARALLEL
 void MyPrintLayout(const pcl::ProcessCommunicator &pc,

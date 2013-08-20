@@ -18,6 +18,69 @@
 namespace ug
 {
 
+// minimum width is 8
+std::string scientificStr(double d, int width)
+{
+	std::stringstream s;
+	if(d < 0)
+		std::setprecision(width-7);
+	else
+		s << std::setprecision(width-6);
+	s << std::scientific << std::setw(width) << d;
+	return s.str();
+}
+
+
+void PrintHistogramm(stdvector<double> values)
+{
+	sort(values.begin(), values.end());
+
+	double vmin = values[0];
+	double vmax = values[values.size()-1];
+
+	const size_t N = 80;
+	const double Nd=80.0;
+	stdvector<size_t> hist;
+	hist.resize(N, 0);
+
+	size_t histmax=0;
+	for(size_t i=0; i<values.size(); i++)
+	{
+		size_t idx = (size_t)((N-1)*(values[i]-vmin)/(vmax-vmin));
+		hist[idx] ++;
+		if(histmax < hist[idx]) histmax = hist[idx];
+	}
+
+	UG_LOGN("histmax = " << histmax << " vmin = " << vmin << " vmax = " << vmax);
+	const int height = 10;
+	for(int h=height; h>=0; h--)
+	{
+		UG_LOG((histmax*h)/((double)height) << "\t");
+		for(size_t i=0; i<N; i++)
+		{
+			if(hist[i]*height > histmax*h)
+			{	UG_LOG("#"); }
+			else
+			{	UG_LOG(" "); }
+		}
+		UG_LOG("\n");
+	}
+
+	UG_LOG(vmin << "\t");
+	for(size_t i =0; i<N; i+=9)
+		UG_LOG("    |    ");
+
+	UG_LOG("\n" << vmin << "\t");
+	for(size_t i =0; i<N; i+=9)
+		UG_LOG(scientificStr((i+4)*(vmax-vmin)/(Nd-1)+vmin, 8) << " ");
+	UG_LOG(vmax << "\n");
+
+	for(size_t i=0; i<N; i++)
+		UG_LOG("-");
+	UG_LOG("\n");
+}
+
+
 /// \addtogroup plugins_amg_famg
 /// \{
 
@@ -26,7 +89,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 {
 	Stopwatch SW;;
 	UG_DLOG(LIB_ALG_AMG, 1, "\ncreating possible parent list... "); if(bTiming) SW.start();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, 0); //m_famg.iDebugLevelCalculateParentPairs);
+	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelCalculateParentPairs);
 	AMG_PROFILE_FUNC();
 
 	possible_parents.clear();
@@ -50,10 +113,13 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 		calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
 		prolongation_calculated[i] = true;
 
+		if(i < fvalues.size())
+			fvalues[i] = possible_parents[i].size() > 0 ? possible_parents[i][0].F : 0.0;
 		PROGRESS_UPDATE(prog, i);
 	}
 
 
+	PrintHistogramm(fvalues);
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
 }
 

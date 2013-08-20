@@ -15,9 +15,12 @@
 #include "famg_nodeinfo.h"
 #include "../rsamg/rsamg.h"
 #include "lib_algebra/algebra_common/local_helper.h"
+#include "lib_algebra/small_algebra/lapack/eigenvalue2.h"
+
+#include "common/util/ostream_util.h"
 
 #define FAMG_SCALING
-
+#define FAMG_FULL_BLOCK
 #define FAMG_USE_DIRCHLET_AS_PARENTS 1
 
 #define FAMG_FULL_BLOCK
@@ -165,12 +168,13 @@ void GetDiag(double &a, double b)
 }
 
 template<typename T1, typename T2>
-void GetDiag(T1 &v, T2 &m)
+void GetDiag(T1 &m1, T2 &m)
 {
 	UG_ASSERT(m.num_rows()==m.num_cols(), "");
-	v.resize(m.num_rows());
+	m1.resize(m.num_rows(), m.num_rows());
+	m1=0.0;
 	for (size_t i = 0; i < m.num_rows(); i++)
-		v[i] = m(i, i);
+		m1(i, i) = m(i, i);
 }
 
 template<typename T1, typename T2>
@@ -334,6 +338,8 @@ public:
 		;
 	}
 
+#include "local_eigenvalue_test_computation.h"
+
 	// get_possible_parent_pairs:
 	//---------------------------------------
 	/** calculates of an index i a list of interpolating parent pairs.
@@ -359,6 +365,9 @@ public:
 			rating.set_fine(i);
 			return;
 		}
+
+		// see local_eigenvalue_test_computation.h
+		calc_special(i);
 
 		GetNeighborhood(A_OL2, i, onlyN1, onlyN2, bvisited);
 		if (onlyN1.size() == 0)
@@ -404,15 +413,14 @@ public:
 				if (solve_KKT(i, two_indices(p0, p1)) == false)
 					continue;
 
-				// calc q^T H q
+				if (F > m_delta)
+					continue;
 
-				//UG_DLOG(LIB_ALG_AMG, 5, "Hii = " << Hii << ". aiiSqrt = " << aiiSqrt << ", VecProd(rhs, q) = " << VecProd(rhs, q) << "\n.");
+				check_one_interpolation(i, p0, p1);
+				UG_DLOG(LIB_ALG_AMG, 2, "F: " << F << "\n");
+
 				s.F = F;
 
-				UG_DLOG(LIB_ALG_AMG, 2, "F: " << s.F << "\n");
-
-				if (s.F > m_delta)
-					continue;
 				s.parents[0].value = q[0];
 				s.parents[1].value = q[1];
 
@@ -472,6 +480,8 @@ public:
 			UG_ASSERT(rating.i_must_assign(i), i);
 			rating.set_uninterpolateable(i);
 		}
+		i_neighborpairs.clear();
+
 	}
 
 	void set_sizes(size_t N)
@@ -497,7 +507,7 @@ public:
 	 * \param i index of the fine node
 	 * \param indices indices of the nodes to use out of onlyN1
 	 *
-	 *
+	 * asserts H is calculated. \sa get_H
 	 * \note since indices is templated, you can select fixed subsets
 	 * like \sa two_indices , \sa subindices or \sa index_range.
 	 *
@@ -565,25 +575,28 @@ public:
 		const size_t N = indices.size();
 		size_t i_index = onlyN1.size();
 		for(size_t k=0; k<indices.size(); k++)
+		{
+			//UG_DLOG(LIB_ALG_AMG, 3, indices[k] << " = " << onlyN1[indices[k]] << "\n");
 			q[k] = 0.0;
+		}
+		UG_DLOG(LIB_ALG_AMG, 3, "\n");
 		DenseVector<stdvector<smallvec_type> > &t0 = localTestvectors[0];
 		F=0;
 		for(size_t b=0; b<blockSize; b++)
 		{
-			Hii = BlockRef(aiiSqrt, b)*BlockRef(H(i_index, i_index), b, b)*BlockRef(aiiSqrt, b);
-			t_i = BlockRef(t0[i_index],b)*BlockRef(aiiSqrt, b);
-			DenseVector<stdvector<smallvec_type> > &t0 = localTestvectors[0];
+			Hii = BlockRef(H(i_index, i_index), b, b);
+			t_i = BlockRef(t0[i_index],b);
 
 			for(size_t r=0; r<N; r++)
-			for(size_t c=0; c<N; c++)
-			KKT(r, c)=BlockRef(H(indices[r], indices[c]), b, b);
+				for(size_t c=0; c<N; c++)
+					KKT(r, c)=BlockRef(H(indices[r], indices[c]), b, b);
 
 			for(size_t j=0; j < N; j++)
-			KKT(N, j) = KKT(j, N)= BlockRef(t0[indices[j]], b);
+				KKT(N, j) = KKT(j, N)= BlockRef(t0[indices[j]], b);
 
 			KKT(N, N) = 0;
 			for(size_t j=0; j<N; j++)
-			rhs[j] = BlockRef(hat_h[indices[j]], b);
+				rhs[j] = BlockRef(H(i_index, indices[j]), b, b);
 			rhs[N] = t_i;
 
 			IF_DEBUG(LIB_ALG_AMG, 5) KKT.maple_print("KKT");
@@ -602,12 +615,14 @@ public:
 							{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " "); }
 							UG_LOG(" solve_KKT: lq[" << k << "] = " << lq[k] << "\n");
 						}
-						//return false;
+						return false;
 					}
-					BlockRef(q[k], b, b) = lq[k] / BlockRef(aiiSqrt, b);
+					BlockRef(q[k], b, b) = lq[k];
 				}
-				double lF = Hii - VecProd(rhs, lq);
-				//F += lF*lF;
+				IF_DEBUG(LIB_ALG_AMG, 5) rhs.maple_print("rhs");
+				IF_DEBUG(LIB_ALG_AMG, 5) lq.maple_print("lq");
+
+				double lF = Hii - VecProd(lq, rhs);
 				F += lF;
 			}
 			else
@@ -626,6 +641,52 @@ public:
 		F /= blockSize;
 
 		return true;
+	}
+
+	double calc_one_interpolation(size_t i, size_t j, double &newF, smallmat_type &newQ)
+	{
+		newF = 0;
+		size_t i_index = onlyN1.size();
+		DenseVector<stdvector<smallvec_type> > &t0 = localTestvectors[0];
+		newQ = 0.0;
+		const size_t blockSize=GetRows(H(0,0)); // assert blocksize is FIXED!!!
+		for(size_t b=0; b<blockSize; b++)
+		{
+			double w = BlockRef(t0[i_index], b) / BlockRef(t0[j], b);
+			BlockRef(newQ, b, b) = w;
+//			UG_LOG(BlockRef(H(i_index, i_index), b, b)  << " w " << w << " ij " <<  BlockRef(H(i_index, j), b, b) << "\n");
+			newF += BlockRef(H(i_index, i_index), b, b)  - 2 * w *  BlockRef(H(i_index, j), b, b) + BlockRef(H(j, j), b, b) *w*w;
+		}
+		return newF;
+	}
+
+	void check_one_interpolation(size_t i, size_t p0, size_t p1)
+	{
+		double newF=0;
+		smallmat_type newQ;
+		const double limit=1;
+		const double limit2=2;
+		if(BlockRef(q[0], 0, 0) > limit*BlockRef(q[1], 0, 0))
+		{
+			calc_one_interpolation(i, p0, newF, newQ);
+			if(newF < m_delta && newF < F*limit2)
+			{
+				q[0] = newQ;
+				q[1] = 0.0;
+				F = newF;
+			}
+		}
+		else if(limit*BlockRef(q[0], 0, 0) < BlockRef(q[1], 0, 0))
+		{
+			calc_one_interpolation(i, p1, newF, newQ);
+			if(newF < m_delta && newF < F*limit2)
+			{
+				q[1] = newQ;
+				q[0] = 0.0;
+				F = newF;
+			}
+		}
+
 	}
 #endif
 
@@ -689,10 +750,13 @@ public:
 		// eliminate strong connections with small contributions
 		maxVal *=eps;
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
-					if (BlockRef(H(i_index, coarseNeighbors[j]), 0,0)
-							>= maxVal * BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), 0,0))
-
-						strongNeighbors.push_back(coarseNeighbors[j]);
+		{
+			if (BlockRef(H(i_index, coarseNeighbors[j]), 0,0) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), 0,0)
+					>= maxVal)
+			{
+				strongNeighbors.push_back(coarseNeighbors[j]);
+			}
+		}
 
 	}
 
@@ -718,6 +782,7 @@ public:
 		AMG_PROFILE_FUNC();
 
 		get_H(i, rating); // todo: not really necessary if coarseNeighbors.size() == 1
+
 		if(coarseNeighbors.size() == 1)
 		{
 			// single parent
@@ -742,14 +807,7 @@ public:
 		set_sizes(strongNeighbors.size());
 		if(solve_KKT(i, subindices(strongNeighbors)))
 		{
-			//IF_DEBUG(LIB_ALG_AMG, 5) q.maple_print("q");
-
 			if(F > m_delta)
-			{
-				UG_DLOG(LIB_ALG_AMG, 3, "coarse neighbors, had to set node " << i << " coarse!");
-				rating.external_set_coarse(i);
-			}
-			else
 			{
 				UG_DLOG(LIB_ALG_AMG, 3, "coarse neighbors, Interpolating from ");
 				size_t N = strongNeighbors.size();
@@ -759,6 +817,7 @@ public:
 				}
 				if(m_dProlongationTruncation > 0.0)
 				 {
+					assert(0); // no thanks
 					double dmax = BlockNorm(q[0]);
 					for(size_t j=1; j<N; j++)
 						dmax = std::max(BlockNorm(q[j]), dmax);
@@ -967,6 +1026,8 @@ private:
 	 * get_H
 	 * \param i 		central node i
 	 * \param rating	only used for debug output (get_orinal_index)
+	 *
+	 * this function needs onlyN1 and onlyN2 set
 	 */
 	bool get_H(size_t i, FAMGNodes<TPMatrix> &rating)
 	{
@@ -984,6 +1045,8 @@ private:
 		PRINT_VECTOR_AMGDEBUG(5, onlyN2, "\nn2-neighbors");
 
 		//AMG_PROFILE_NEXT(AMG_H_CreateN2);
+		// create N2: N2 consists of all 2-neighbors of N in this order:
+		// onlyN1, i, onlyN2
 		N2 = onlyN1;
 		N2.push_back(i);
 		N2.insert(N2.end(), onlyN2.begin(), onlyN2.end());
@@ -1002,6 +1065,7 @@ private:
 
 		size_t i_index = onlyN1.size();
 		GetDiagSqrt(aiiSqrt, S(i_index, i_index));
+		GetDiag(aii, S(i_index, i_index));
 
 		// make S symmetric
 		/*for(size_t r=0; r<S.num_rows(); r++)
@@ -1031,8 +1095,7 @@ private:
 		// calculate testvector
 		calculate_testvectors(i);
 
-		IF_DEBUG(LIB_ALG_AMG, 5)
-			H.maple_print("\nsubH");
+
 
 
 #if SYS_AS_SYS
@@ -1043,47 +1106,15 @@ private:
 		t_i = VecProd(t0[i_index], aiiSqrt);
 #endif
 
-		// hat h = H b
-		hat_h.resize(onlyN1.size());
-		for (size_t j = 0; j < onlyN1.size(); j++)
-			hat_h[j] = H(i_index, j) * aiiSqrt; // todo: no tmp
-
 		return true;
 	}
 
-	/**
-	 * calculate_H_from_local_A
-	 * calculates locally
-	 * - F-Smoothing SF = 1-w DF^{-1} A  (on only1, i, only2)
-	 * - S = SF (1-w D^{-1} A)			 (on only1, i, only2)
-	 * - H = S Y S^T				 (on only1)
-	 * - Hi[.] = H(., i)				 (on only1)
-	 */
-	void calculate_H_from_local_A(size_t i)
+	void calculate_Dinv_from_local_A(size_t i)
 	{
-		// before this function, S = local A (on only1, i, only2)
-		AMG_PROFILE_FUNC();
-
-		UG_ASSERT(S.num_cols() == S.num_rows(), "");
-		UG_ASSERT(S.num_cols() == onlyN1.size()+1+onlyN2.size(), "");
-
-		const size_t i_index = onlyN1.size();
 		const size_t N = S.num_rows(); // = N2
-		//const size_t N1 = onlyN1.size()+1;
-
+		
 		if (Dinv.size() != N)
 			Dinv.resize(N);
-		if (SF.size() != N)
-			SF.resize(N);
-		//AMG_PROFILE_NEXT(AMG_HA_calculate_H);
-		if (H.num_rows() != onlyN1.size() + 1)
-			H.resize(onlyN1.size() + 1, onlyN1.size() + 1);
-
-		//AMG_PROFILE_NEXT(AMG_HA_Dinv);
-		// get Dinv = 1/Aii
-
-
-#ifndef FAMG_SCALING1
 		IF_DEBUG(LIB_ALG_AMG, 1)
 		{
 			for (size_t j = 0; j < N; j++)
@@ -1105,6 +1136,15 @@ private:
 #endif
 		}
 		PRINT_VECTOR_AMGDEBUG(5, Dinv, "Dinv");
+	}
+
+	void calculate_SF_from_Dinv_and_local_A(size_t i)
+	{
+		const size_t N = S.num_rows(); // = N2
+		const size_t i_index = onlyN1.size();
+
+		if (SF.size() != N)
+			SF.resize(N);
 
 		// get SF = 1-wDF^{-1} A  (F-smoothing)
 		//AMG_PROFILE_BEGIN(AMG_HA_calculate_SF);
@@ -1114,19 +1154,17 @@ private:
 			UG_LOG("i=" << i << "S(i,i) = " << S(i,i) << "\n");
 
 		// todo: only go to onlyN1.size(), since S(i_index, j) = 0 forall j > onlyN1.size()
+		// SF[i] = (1 -wD^{-1} A )_( i, N2[i])
 		for (size_t j = 0; j < N; j++)
-			SF[j] = 0.0;
-		/*
-			for (size_t k1 = 0; k1 < GetRows(SF[j]); k1++)
-				for (size_t k2 = 0; k2 < GetCols(SF[j]); k2++)
-					BlockRef(SF[j], k1, k2) = 0.0;
-					*/
-	for (size_t j = 0; j < N; j++)
 			SF[j] = -Dinv[i_index] * S(i_index, j);
 		SF[i_index] += 1.0;
 
 		PRINT_VECTOR_AMGDEBUG(5, SF, "SF");
+	}
 
+	void calculate_Sjac_from_Dinv_and_local_A()
+	{
+		const size_t N = S.num_rows(); // = N2
 		// get S = 1-w D^{-1} A
 		for (size_t r = 0; r < N; r++)
 		{
@@ -1141,12 +1179,16 @@ private:
 
 		IF_DEBUG(LIB_ALG_AMG, 5)
 			S.maple_print("Sjac");
+	}
+
+	void calculate_S_from_SF_and_Sjac()
+	{
+		const size_t N = S.num_rows(); // = N2
+		const size_t i_index = onlyN1.size();
 
 		// get S' = SF S
-		//AMG_PROFILE_NEXT(AMG_HA_calculate_SFS);
 		// (possible without temporary since SF is mostly Id,
 		//  and then SF S is addition of rows of S)
-		// r<N1size, c<N1size
 
 		// S'(i_index, i) = sum_t SF(i_index,t) * S(t, i)
 		for (size_t j = 0; j < N; j++)
@@ -1170,87 +1212,73 @@ private:
 		 S(r, c) = s;
 		 }*/
 
+		S*=64;
 		IF_DEBUG(LIB_ALG_AMG, 5)
-			S.maple_print("S_SF");
+		{ S.maple_print("S_SF"); }
+		S/=64;
+	}
+
+	void calculate_H_from_S_and_Dinv()
+	{
+		const size_t N = S.num_rows(); // = N2
+		if (H.num_rows() != onlyN1.size() + 1)
+			H.resize(onlyN1.size() + 1, onlyN1.size() + 1);
 
 		// get H = S' Y S'^T
 		// todo: use symmetric H.
+
 		for (size_t r = 0; r < onlyN1.size() + 1; r++)
+		{
 			for (size_t c = r; c < onlyN1.size() + 1; c++)
 			{
 				smallmat_type s = 0.0;
 				for (size_t j = 0; j < N; j++)
 					s += S(r, j) * Dinv[j] * S(c, j);
+				s = aii*s;
 				H(r, c) = s;
 				H(c, r) = s;
 			}
-
-		IF_DEBUG(LIB_ALG_AMG, 2)
-			H.maple_print("H");
-#else
-		for (size_t j = 0; j < onlyN1.size(); j++)	{
-			SF[j] = S(i_index, j);	SF[j] *= -1;
-		}
-		SF[i_index] = 0.0;
-
-		// get S = 1-w A
-		for (size_t r = 0; r < N; r++)
-		{
-			for (size_t c = 0; c < N; c++)
-			{
-				S(r, c) *= -m_damping;
-				if (r == c) S(r, c) += 1.0;
-			}
 		}
 
-		// get S' = SF S
-		//AMG_PROFILE_NEXT(AMG_HA_calculate_SFS);
-		// (possible without temporary since SF is mostly Id,
-		//  and then SF S is addition of rows of S)
-		// r<N1size, c<N1size
+		H*=64;
+		IF_DEBUG(LIB_ALG_AMG, 2)	{ H.maple_print("H"); }
+		H/=64;
+	}
 
-		// S'(i_index, i) = sum_t SF(i_index,t) * S(t, i)
-		for (size_t j = 0; j < N; j++)
-			S(i_index, j) *= SF[i_index];
-		for (size_t t = 0; t < N; t++)
-		{
-			if (t == i_index)
-				continue;
-			for (size_t i = 0; i < N; i++)
-				S(i_index, i) += SF[t] * S(t, i);
-		}
+	/**
+	 * calculate_H_from_local_A
+	 * calculates locally
+	 * - F-Smoothing
+	 * 		SF = 1 -D^{-1} A 						on N2 = {i} x {onlyN1, i, onlyN2}
+	 * 	so  SF[i] = (1 -D^{-1} A )_( i, N2[i])
+	 * - S = SF (1-w D^{-1} A)			 (on N2 x N2)
+	 * - H = S Y S^T				 	(on {only1} x {only1})
+	 * - Hi[.] = H(., i)				 (on {i} x {only1})
+	 *
+	 * asserts:
+	 * S is precalculated to be A locally on N2 x N2, that is
+	 * 		S[i, j] = A( N2[i], N2[j] )
+	 *
+	 * 	note that S is first A and then overwritten to be S.
+	 */
+	void calculate_H_from_local_A(size_t i)
+	{
+		// before this function, S = local A (on only1, i, only2)
+		AMG_PROFILE_FUNC();
 
-		/* ?? for(size_t r=0; r<N; r++)
-		 for(size_t c=0; c < N; c++)
-		 {
-		 double s = 0;
-		 if(c != i_index)
-		 s += S(r, c); // SF[c,c] = 1.0
-		 //s += S(r, j) * SF(j, c);
-		 s += S(r, i_index) * SF[c];
-		 S(r, c) = s;
-		 }*/
+		UG_ASSERT(S.num_cols() == S.num_rows(), "");
+		UG_ASSERT(S.num_cols() == onlyN1.size()+1+onlyN2.size(), "");
 
-		IF_DEBUG(LIB_ALG_AMG, 5)
-			S.maple_print("S_SF");
 
-		// get H = S' Y S'^T
-		// todo: use symmetric H.
-		for (size_t r = 0; r < onlyN1.size() + 1; r++)
-			for (size_t c = r; c < onlyN1.size() + 1; c++)
-			{
-				smallmat_type s = 0.0;
-				for (size_t j = 0; j < N; j++)
-					s += S(r, j) * S(c, j);
-				H(r, c) = s;
-				H(c, r) = s;
-			}
+		calculate_Dinv_from_local_A(i);
 
-		IF_DEBUG(LIB_ALG_AMG, 2)
-			H.maple_print("H");
+		calculate_SF_from_Dinv_and_local_A(i);
 
-#endif
+		calculate_Sjac_from_Dinv_and_local_A();
 
+		calculate_S_from_SF_and_Sjac();
+
+		calculate_H_from_S_and_Dinv();
 	}
 
 	// global_to_local_testvectors
@@ -1452,6 +1480,7 @@ private:
 		//AMG_PROFILE_FUNC();
 		// skip first vector (it is approximated exactly)
 		// /test if other way round is faster/
+
 		for (size_t r = 0; r < onlyN1.size(); r++)
 			for (size_t c = 0; c < onlyN1.size(); c++)
 			{
@@ -1468,16 +1497,42 @@ private:
 	stdvector<bool> bvisited; // used for N2-neighborhood calculation
 
 	// todo: instead of VariableArray2, use ReserveableArray2
-	// onlyN1: 1-neighborhood without i
-	// onlyN2: 2-neighborhood without i and N1.
-	DenseMatrix<VariableArray2<smallmat_type> > S; //< local matrix S = 1 - wD^{-1}A on {onlyN1, i, onlyN2}
-	stdvector<smallmat_type> SF; //< SF = 1 -wD^{-1} A(ix,.)  on {onlyN1, i, onlyN2}
-	stdvector<smallmat_type> D; //< diagonal
-	stdvector<smallmat_type> Dinv; //< diagonal on {onlyN1, i, onlyN2}
-	DenseMatrix<VariableArray2<smallmat_type> > H; //< matrix H = S Y S^T  on {onlyN1}
+
+	// note: matrices/vectors which are "on" N2 are meant like this: Mlocal(i, j) = M( N2[i], N2[j] )
+
+	/// sqrt( diag(A_ii) )
+	smallvec_type aiiSqrt;
+	smallmat_type aii;
+
+	/// local matrix S = 1 - wD^{-1} A on N2 = {onlyN1, i, onlyN2}
+	DenseMatrix<VariableArray2<smallmat_type> > S;
+
+	/// SF[i] = 1 -wD^{-1} A( N2[i], .)  on N2 = {onlyN1, i, onlyN2}
+	stdvector<smallmat_type> SF;
+
+	/// diagonal on {onlyN1, i, onlyN2}
+	stdvector<smallmat_type> D;
+
+	/// inverse of diagonal on N2 = {onlyN1, i, onlyN2}
+	stdvector<smallmat_type> Dinv;
+
+	/// matrix H = S Y S^T  on {onlyN1}
+	DenseMatrix<VariableArray2<smallmat_type> > H;
+
+	/// matrix H = S Y S^T  on {i}
+	double Hii;
+
+	// matrix H = S Y S^T  on {i} x {onlyN1}   ( hat_h[j] = H(i, onlyN1[j] ) )
+	//stdvector<smallmat_type> hat_h;
+
+
+	/// testvectors on {onlyN1, i}
+	stdvector<DenseVector<stdvector<smallvec_type> > > localTestvectors;
+
+	/// testvector on {i}
+	double t_i;
 
 	// for the KKT system
-	stdvector<DenseVector<stdvector<smallvec_type> > > localTestvectors; //< on {onlyN1, i}
 
 	DenseMatrix<VariableArray2<double> > KKT;
 	DenseVector<stdvector<double> > rhs;
@@ -1485,17 +1540,20 @@ private:
 	stdvector<smallmat_type> q;
 //	DenseVector<stdvector<double> > t;
 
-	smallvec_type aiiSqrt;
-	double Hii, t_i;
-	stdvector<smallvec_type> hat_h;
+	double F; // calculated F
 
+	/// indices which are in distance 1 of i (exactly), so it doesnt contain i
+	stdvector<size_t> onlyN1;
+
+	/// indices which are in distance 2 of i (exactly), so it doesnt contain i or onlyN1.
+	stdvector<size_t> onlyN2;
+
+	/// N2 = {onlyN1, i, onlyN2} 		(in this order!)
+	stdvector<size_t> N2;
+
+	/// temporary storage of possible parent pairs (elements with theta F < Fmin are put into possible parent pairs)
 	stdvector<neighborstruct2<smallmat_ptype> > i_neighborpairs;
 
-	stdvector<size_t> onlyN1;
-	stdvector<size_t> onlyN2, N2;
-
-private:
-	double F;
 	const TMatrix &A;
 	const TMatrix &A_OL2;
 	double m_delta;

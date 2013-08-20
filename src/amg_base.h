@@ -31,6 +31,8 @@
 #include "lib_algebra/parallelization/parallel_nodes.h"
 #endif
 
+#include "lib_algebra/operator/fixed_convergence_check.h"
+
 #include "common/util/string_util.h"
 
 #define PRINTLAYOUT(pc, com, Layout1, Layout2) MyPrintLayout(pc, com, (Layout1), (Layout2), #Layout1, #Layout2)
@@ -378,6 +380,7 @@ public:
 		UG_ASSERT(new_cycletype > 0,
 				"cannot set cycle type " << new_cycletype << ", has to be > 0");
 		m_cycleType = new_cycletype;
+		spYConvCheck = new FixedConvergenceCheck<vector_type>(m_cycleType);
 	}
 	size_t get_cycle_type() const {
 		return m_cycleType;
@@ -503,6 +506,11 @@ public:
 		m_dYreduce = dYreduce;
 		m_dYabs = dYabs;
 		m_iYCycle = maxIterations;
+	}
+
+	void set_Y_check(SmartPtr<IConvergenceCheck<vector_type> > spCC)
+	{
+		spYConvCheck = spCC;
 	}
 
 	void	set_galerkin_truncation(double d)	{ m_dGalerkinTruncation = d; }
@@ -745,6 +753,7 @@ protected:
 		vector_type collC, collD;
 		SmartPtr<matrix_operator_type> collectedA;
 		bool bLevelHasMergers;
+		SmartPtr<IConvergenceCheck<vector_type> > spYConvCheck;
 #else
 		int *spLayouts;
 #endif
@@ -753,6 +762,8 @@ protected:
 	};
 
 	stdvector<SmartPtr<AMGLevel> > levels;
+
+	SmartPtr<IConvergenceCheck<vector_type> > spYConvCheck;
 
 #ifdef UG_PARALLEL
 	// on level m_agglomerateLevel

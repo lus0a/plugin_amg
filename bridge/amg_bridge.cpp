@@ -118,7 +118,8 @@ static void Algebra(Registry& reg, string grp)
 		.add_method("set_matrix_write_path", &T::set_matrix_write_path, "", "matrixWritePath", "set the path where connectionviewer matrices/vectors of the levels are written")
 
 		.add_method("set_checkLevel_post_iterations", &T::set_checkLevel_post_iterations)
-		.add_method("set_Y_cycle", &T::set_Y_cycle)
+		.add_method("set_Y_cycle", &T::set_Y_cycle, "", "maxIterations#reduction#abs", "calls the mg-cycle max maxIterations or when reduction or abs error is achieved.")
+		.add_method("set_Y_check", &T::set_Y_check, "", "convCheck", "")
 		;
 	reg.add_class_to_group(string("AMGBase").append(suffix), "AMGBase", tag);
 }

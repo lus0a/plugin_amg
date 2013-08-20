@@ -69,10 +69,14 @@ public:
 	}
 	inline bool operator > (const FAMGNode &other) const
 	{
+		return floor(rating) < floor(other.rating);
+
 		if(rating == other.rating)
 			return this < &other;
 		else
 			return rating < other.rating;
+
+
 	}
 
 	inline char get_state() const

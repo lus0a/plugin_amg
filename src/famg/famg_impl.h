@@ -168,6 +168,19 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 			GetTestvectorsLE_3d(*levels[level]->pAgglomeratedA, testvectors, omega,
 					m_amghelper.positions[0], m_weightC, m_weightX, m_weightY, m_weightZ);
 		}
+		else if(m_iTestvectors == TESTVECTORS_LINEAR)
+		{
+			UG_ASSERT(m_writeMatrices, "needs position data");
+			UG_ASSERT(m_amghelper.dimension == 2 || m_amghelper.dimension == 3, "dimension " << m_amghelper.dimension << " not supported");
+			if(m_amghelper.dimension == 3)
+				GetTestvectorsLinear_3d(*levels[level]->pAgglomeratedA, testvectors, omega,
+								m_amghelper.positions[0], m_weightC, m_weightX, m_weightY, m_weightZ);
+			else
+				GetTestvectorsLinear_2d(*levels[level]->pAgglomeratedA, testvectors, omega,
+							m_amghelper.positions[0], m_weightC, m_weightX, m_weightY);
+
+
+		}
 		else
 			get_testvectors(testvectors, omega);
 	}
@@ -232,6 +245,7 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 
 	if(m_dPrereduceAToStrongParameter > 0.0)
 	{
+		assert(0); // no thanks
 		matrix_type Aeps;
 		ReduceToStrongConnections(Aeps, A, m_dPrereduceAToStrongParameter);
 

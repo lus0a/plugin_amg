@@ -279,17 +279,76 @@ void GetTestvectorsLE_3d	(const TMatrix &A, stdvector<TVector> &testvectors, std
 
 	for(size_t i=0; i<A.num_rows(); i++)
 	{
-		if(A.is_isolated(i))
-		{
-			testvectors[0][i] = 0.0;
-			testvectors[1][i] = 0.0;
-		}
-		else
+		testvectors[0][i] = 0.0;
+		testvectors[1][i] = 0.0;
+		testvectors[2][i] = 0.0;
+		testvectors[3][i] = 0.0;
+		if(!A.is_isolated(i))
 		{
 			testvectors[0][i] = 1.0;
 			SetAlgVector3d(testvectors[1][i], GetRotX(pos[i]));
 			SetAlgVector3d(testvectors[2][i], GetRotY(pos[i]));
 			SetAlgVector3d(testvectors[3][i], GetRotZ(pos[i]));
+		}
+	}
+}
+
+template<typename TMatrix, typename TVector>
+void GetTestvectorsLinear_3d(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
+		double weightC, double weightX, double weightY, double weightZ)
+
+{
+	testvectors.resize(4);
+	for(size_t i=0; i<testvectors.size(); i++)
+		testvectors[i].resize(A.num_rows());
+
+	omega.resize(4);
+	omega[0] = weightC;
+	omega[1] = weightX;
+	omega[2] = weightY;
+	omega[3] = weightZ;
+
+	for(size_t i=0; i<A.num_rows(); i++)
+	{
+		testvectors[0][i] = 0.0;
+		testvectors[1][i] = 0.0;
+		testvectors[2][i] = 0.0;
+		testvectors[3][i] = 0.0;
+		if(!A.is_isolated(i))
+		{
+			testvectors[0][i] = 1.0;
+			testvectors[1][i] = pos[i].x;
+			testvectors[2][i] = pos[i].y;
+			testvectors[3][i] = pos[i].z;
+		}
+	}
+}
+
+
+template<typename TMatrix, typename TVector>
+void GetTestvectorsLinear_2d(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
+		double weightC, double weightX, double weightY)
+
+{
+	testvectors.resize(3);
+	for(size_t i=0; i<testvectors.size(); i++)
+		testvectors[i].resize(A.num_rows());
+
+	omega.resize(3);
+	omega[0] = weightC;
+	omega[1] = weightX;
+	omega[2] = weightY;
+
+	for(size_t i=0; i<A.num_rows(); i++)
+	{
+		testvectors[0][i] = 0.0;
+		testvectors[1][i] = 0.0;
+		testvectors[2][i] = 0.0;
+		if(!A.is_isolated(i))
+		{
+			testvectors[0][i] = 1.0;
+			testvectors[1][i] = pos[i].x;
+			testvectors[2][i] = pos[i].y;
 		}
 	}
 }
