@@ -30,7 +30,7 @@
 
 #include "lib_algebra/common/connection_viewer_output.h"
 
-#define UG_DLOGN(tag, level, msg)			UG_DLOG(tag, level, msg << "\n");
+//#define UG_DLOGN(tag, level, msg)			UG_DLOG(tag, level, msg << "\n");
 
 std::string GetProcFilename(std::string path, std::string name, std::string extension);
 
