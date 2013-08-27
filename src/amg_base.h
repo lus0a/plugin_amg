@@ -753,10 +753,10 @@ protected:
 		vector_type collC, collD;
 		SmartPtr<matrix_operator_type> collectedA;
 		bool bLevelHasMergers;
-		SmartPtr<IConvergenceCheck<vector_type> > spYConvCheck;
 #else
 		int *spLayouts;
 #endif
+		SmartPtr<IConvergenceCheck<vector_type> > spYConvCheck;
 		// in contrast to collC, collD, and collectedA, this can also point to other vectors.
 		SmartPtr<matrix_operator_type> pAgglomeratedA;
 	};
