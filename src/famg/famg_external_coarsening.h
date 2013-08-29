@@ -87,17 +87,32 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	cgraph graphS, graphST;
 
 	const int submask=m_famg.get_strong_connection_submask();
-	if (submask>=0){
-		// primary sub
+	const double sigma = m_famg.get_strong_connection_external();
+
+	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "FAMG strong connections ("<< sigma <<") based on comp="<< submask << " (comp=-1 indicates full)."<< std::endl);
+
+	if (submask==0){
+		// primary sub 0
 		ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 0, 0>
 		sub(const_cast<typename algebra_type::matrix_type&> (A_OL2));
-		//sub.print("SUB");
-		CreateStrongConnectionGraph(sub, graphS, m_famg.m_dStrongConnectionExternal, nodes);
-
+		CreateStrongConnectionGraph(sub, graphS, sigma, nodes);
 	}
-	else {
+	else if (submask==1){
+			// primary sub 1
+			ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 1, 1>
+			sub(const_cast<typename algebra_type::matrix_type&> (A_OL2));
+			CreateStrongConnectionGraph(sub, graphS, sigma, nodes);
+	}
+	else if (submask==2)
+	{
+		// primary sub 1
+		ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 2, 2>
+		sub(const_cast<typename algebra_type::matrix_type&> (A_OL2));
+		CreateStrongConnectionGraph(sub, graphS, sigma, nodes);
+	} else
+	{
 		//full primary matrix
-		CreateStrongConnectionGraph(A_OL2, graphS, m_famg.m_dStrongConnectionExternal, nodes);
+		CreateStrongConnectionGraph(A_OL2, graphS, sigma, nodes);
 	};
 
 	graphST.set_as_transpose_of(graphS);
