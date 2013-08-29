@@ -70,13 +70,13 @@ static void Algebra(Registry& reg, string grp)
 
 			.add_method("set_damping_for_smoother_in_interpolation_calculation",&T::set_damping_for_smoother_in_interpolation_calculation)
 
-			.add_method("add_testvector", (void(T::*)(vector_type& c, double weight))&T::add_testvector, "testVector#weight",
+			.add_method("add_testvector", (void(T::*)(vector_type& c, double weight))&T::add_testvector, "", "testVector#weight",
 					"adds a testvector with weight")
-			.add_method("add_testvector", (void(T::*)(IVectorWriter<vector_type> *vw, double weight))&T::add_testvector, "testVector#weight",
+			.add_method("add_testvector", (void(T::*)(IVectorWriter<vector_type> *vw, double weight))&T::add_testvector, "", "testVector#weight",
 					"adds a testvector with weight by using the IVectorWriter interface")
-			.add_method("set_write_testvectors", &T::set_write_testvectors, "bWrite", "if true, write testvectors to path specified in set_matrix_write_path")
-			.add_method("set_testvector_smoother", &T::set_testvector_smoother, "smoother", "sets the smoother to smooth testvectors")
-			.add_method("set_testvector_smooths", &T::set_testvector_smooths, "n", "number of smoothing steps to smooth testvectors")
+			.add_method("set_write_testvectors", &T::set_write_testvectors, "", "bWrite", "if true, write testvectors to path specified in set_matrix_write_path")
+			.add_method("set_testvector_smoother", &T::set_testvector_smoother, "", "smoother", "sets the smoother to smooth testvectors")
+			.add_method("set_testvector_smooths", &T::set_testvector_smooths, "", "n", "number of smoothing steps to smooth testvectors")
 			.add_method("set_testvector_from_matrix_rows", &T::set_testvector_from_matrix_rows, "", "testvector is obtained by setting 1 for dirichlet nodes (nodes with only A(i,i) != 0) and 0 everywhere else")
 			.add_method("set_testvectors_LE_2d", &T::set_testvectors_LE_2d)
 			.add_method("set_testvectors_LE_3d", &T::set_testvectors_LE_3d)
@@ -97,10 +97,10 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_prereduce_A_parameter", &T::set_prereduce_A_parameter, "", "prereduceA", "by setting this != 0.0, we reduce the matrix A before using it to its strong connections. (e.g. 1e-3)")
 			.add_method("get_prereduce_A_parameter", &T::get_prereduce_A_parameter, "prereduceA")
 
-			.add_method("set_external_coarsening", &T::set_external_coarsening, "bExternalCoarsening", "You need to set_parallel_coarsening in parallel.")
-			.add_method("set_strong_connection_external", &T::set_strong_connection_external, "epsilon", "set strong_connection value for coarsening (like set_epsilon_strong in RSAMG)")
+			.add_method("set_external_coarsening", &T::set_external_coarsening, "", "bExternalCoarsening", "You need to set_parallel_coarsening in parallel.")
+			.add_method("set_strong_connection_external", &T::set_strong_connection_external, "", "epsilon", "set strong_connection value for coarsening (like set_epsilon_strong in RSAMG)")
 			.add_method("get_strong_connection_external", &T::get_strong_connection_external)
-			.add_method("set_strong_connection_submask", &T::set_strong_connection_submask, "mask", "May specify sub-matrix (< 0 : std. matrix)")
+			.add_method("set_strong_connection_submask", &T::set_strong_connection_submask, "", "mask", "May specify sub-matrix (< 0 : std. matrix)")
 			.add_method("get_strong_connection_submask", &T::get_strong_connection_submask)
 
 			.add_method("set_write_coarsening", &T::set_write_coarsening)
