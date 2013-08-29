@@ -242,7 +242,7 @@ public:
 	double	get_strong_connection_external() 			{ return m_dStrongConnectionExternal; }
 
 	void	set_strong_connection_submask(int m) 	{ m_iStrongConnectionSubMask = m; }
-	int	get_strong_connection_submask() 	{ return m_iStrongConnectionSubMask; }
+	int		get_strong_connection_submask() 		{ return m_iStrongConnectionSubMask; }
 
 	void	set_prevent_ff_connection_external(int i) 	{ m_iPreventFFConnection = i; }
 	double	get_prevent_ff_connection_external() 		{ return m_iPreventFFConnection; }
