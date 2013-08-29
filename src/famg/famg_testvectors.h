@@ -137,9 +137,9 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 
 		m_famg.m_testvectorsmoother->init(m_famg.levels[level]->pAgglomeratedA);
 
-		if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
+		if(m_famg.m_/Matrices && m_famg.m_writeTestvectors)
 					for(size_t i=0; i<m_testvectors.size(); i++)
-						ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("testvector_pS") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
+						ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_pS") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
 							m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
 
 		for(size_t jj=0; jj < m_famg.get_testvector_smooths(); jj++)
@@ -153,7 +153,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 
 		if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
 			for(size_t i=0; i<m_testvectors.size(); i++)
-				ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("testvector_S") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
+				ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_S") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
 					m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
 		//VecScaleAdd(m_testvectors[i], 1.0, m_testvectors[i], -1.0, d);
 	}
