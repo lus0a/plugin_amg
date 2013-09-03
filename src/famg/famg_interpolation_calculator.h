@@ -421,7 +421,7 @@ public:
 				if (F > m_delta)
 					continue;
 
-				check_one_interpolation(i, p0, p1);
+				//check_one_interpolation(i, p0, p1);
 				UG_DLOG(LIB_ALG_AMG, 2, "F: " << F << "\n");
 
 				s.F = F;
@@ -1220,10 +1220,8 @@ private:
 		 S(r, c) = s;
 		 }*/
 
-		S*=64;
 		IF_DEBUG(LIB_ALG_AMG, 5)
 		{ S.maple_print("S_SF"); }
-		S/=64;
 	}
 
 	void calculate_H_from_S_and_Dinv()
@@ -1247,9 +1245,7 @@ private:
 			}
 		}
 
-		H*=64;
 		IF_DEBUG(LIB_ALG_AMG, 2)	{ H.maple_print("H"); }
-		H/=64;
 	}
 
 	/**
