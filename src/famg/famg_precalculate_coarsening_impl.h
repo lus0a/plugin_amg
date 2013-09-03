@@ -110,11 +110,11 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 	{
 		if(rating.i_must_assign(i) == false) continue;
 		if(rating[i].is_valid_rating() == false) continue; // could be set coarse from others
-		calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
+		double F = calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
+		if(i < fvalues.size())
+			fvalues[i] = F;
 		prolongation_calculated[i] = true;
 
-		if(i < fvalues.size())
-			fvalues[i] = possible_parents[i].size() > 0 ? possible_parents[i][0].F : 0.0;
 		PROGRESS_UPDATE(prog, i);
 	}
 

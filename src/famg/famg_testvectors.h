@@ -14,6 +14,8 @@
 #include "lib_algebra/parallelization/parallelization_util.h"
 #endif
 
+#include "lib_algebra/operator/eigensolver/additional_math.h"
+
 #ifndef __H__LIB_ALGEBRA__FAMG_SOLVER__FAMG_TESTVECTORS_H__
 #define __H__LIB_ALGEBRA__FAMG_SOLVER__FAMG_TESTVECTORS_H__
 
@@ -58,56 +60,6 @@ inline void get_testvector_xy(DenseVector<VariableArray1<double> > &testvector, 
 
 
 
-template<typename matrix_type, typename vector_type>
-double ScalProd(const vector_type &v1, const matrix_type &M, const vector_type &v2)
-{
-	double sum=0.0;
-	UG_ASSERT(v1.size() == M.num_rows() && M.num_cols() == v2.size(), "size mismatch");
-	for(size_t i=0; i < v1.size(); ++i)
-	{
-		for(typename matrix_type::const_row_iterator it = M.begin_row(i); it != M.end_row(i); ++it)
-			sum += v1[i] * it.value() * v2[i];
-	}
-	return sum;
-}
-
-template<typename matrix_type, typename vector_type>
-double EnergyProd(const vector_type &v1, const matrix_type &M)
-{
-	double sum=0.0;
-	UG_ASSERT(v1.size() == M.num_rows() && M.num_cols() == v1.size(), "size mismatch");
-	for(size_t i=0; i < v1.size(); ++i)
-	{
-		double s=0.0;
-		for(typename matrix_type::const_row_iterator it = M.begin_row(i); it != M.end_row(i); ++it)
-			s += v1[it.index()] * it.value();
-		sum += v1[i]*s;
-	}
-	return sum;
-}
-
-
-
-template<typename matrix_type, typename vector_type>
-void CalculateTestvector(const matrix_type &A_OL2, vector_type &big_testvector,
-		size_t iTestvectorDamps)
-{
-	AMG_PROFILE_FUNC();
-	vector_type d; d.resize(A_OL2.num_rows());
-	for(size_t jj=0; jj < iTestvectorDamps; jj++)
-	{
-		MatMult(d, 1.0, A_OL2, big_testvector);
-		for(size_t i=0; i<A_OL2.num_rows(); i++)
-			big_testvector[i] = big_testvector[i] - 0.6*d[i]/A_OL2(i,i);
-	}
-
-	//big_testvector.set_storage_type(PST_CONSISTENT);
-	//big_testvector.change_storage_type(PST_UNIQUE);
-	//UG_LOG("Norm of testvector " << big_testvector.norm() << "\n");
-	//big_testvector.change_storage_type(PST_CONSISTENT);
-	//VecScaleAssign(big_testvector, 1/sqrt(EnergyProd(big_testvector, A_OL2)), big_testvector);
-}
-
 
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
@@ -126,6 +78,11 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 	d.set_layouts(A.layouts());
 #endif
 
+	if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
+		for(size_t i=0; i<m_testvectors.size(); i++)
+			ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_pS") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
+					m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
+
 	for(size_t i=0; i<m_testvectors.size(); i++)
 	{
 
@@ -137,11 +94,6 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 
 		m_famg.m_testvectorsmoother->init(m_famg.levels[level]->pAgglomeratedA);
 
-		if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
-					for(size_t i=0; i<m_testvectors.size(); i++)
-						ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_pS") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
-							m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
-
 		for(size_t jj=0; jj < m_famg.get_testvector_smooths(); jj++)
 		{
 			d.set(0.0);
@@ -151,12 +103,17 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 			m_testvectors[i] -= c;
 		}
 
-		if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
+		double e=EnergyProd(m_testvectors[i], A, m_testvectors[i]);;
+		UG_LOG("EnergyProd " << i << " = " << e << "\n");
+//		m_testvectors[i] *= 1/e;
+
+		//VecScaleAdd(m_testvectors[i], 1.0, m_testvectors[i], -1.0, d);
+	}
+
+	if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
 			for(size_t i=0; i<m_testvectors.size(); i++)
 				ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_S") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
 					m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
-		//VecScaleAdd(m_testvectors[i], 1.0, m_testvectors[i], -1.0, d);
-	}
 
 
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");

@@ -347,7 +347,7 @@ public:
 	 * \param possible_neighbors	here goes list of possible parent pairs
 	 * \param rating				fine/coarse infos of the nodes
 	 */
-	void get_possible_parent_pairs(size_t i,
+	double get_possible_parent_pairs(size_t i,
 			stdvector<neighborstruct2<smallmat_ptype> > &possible_neighbors, FAMGNodes<TPMatrix> &rating)
 	{
 		AMG_PROFILE_FUNC();
@@ -363,7 +363,7 @@ public:
 			UG_DLOG(LIB_ALG_AMG, 2,
 					"testvector in " << i << " nearly 0, set as fine\n");
 			rating.set_fine(i);
-			return;
+			return 0;
 		}
 
 		// see local_eigenvalue_test_computation.h
@@ -374,7 +374,7 @@ public:
 		{
 			UG_DLOG(LIB_ALG_AMG, 2, "node has no connections, set as fine\n");
 			rating.set_fine(i);
-			return;
+			return 0;
 		}
 
 		// get H on onlyN1,i_index,onlyN2.
@@ -398,7 +398,8 @@ public:
 
 		set_sizes(2);
 		//size_t blockSize = GetRows(H(0,0));
-
+		double total_f_min=1e12;
+		bool bOneFound=false;
 		for (size_t p0 = 0; p0 < onlyN1.size(); p0++)
 		{
 			size_t gp0 = onlyN1[p0];
@@ -413,6 +414,10 @@ public:
 				if (solve_KKT(i, two_indices(p0, p1)) == false)
 					continue;
 
+
+				if ((F < 10 || F < 10*m_delta) && F < total_f_min)
+					total_f_min = F;
+
 				if (F > m_delta)
 					continue;
 
@@ -420,6 +425,7 @@ public:
 				UG_DLOG(LIB_ALG_AMG, 2, "F: " << F << "\n");
 
 				s.F = F;
+
 
 				s.parents[0].value = q[0];
 				s.parents[1].value = q[1];
@@ -481,6 +487,8 @@ public:
 			rating.set_uninterpolateable(i);
 		}
 		i_neighborpairs.clear();
+
+		return total_f_min != 1e12 ? total_f_min : 0.0;
 
 	}
 
@@ -622,7 +630,7 @@ public:
 				IF_DEBUG(LIB_ALG_AMG, 5) rhs.maple_print("rhs");
 				IF_DEBUG(LIB_ALG_AMG, 5) lq.maple_print("lq");
 
-				double lF = Hii - VecProd(lq, rhs);
+				double lF = BlockRef(aii, b, b)*(Hii - VecProd(lq, rhs));
 				F += lF;
 			}
 			else
@@ -638,7 +646,7 @@ public:
 			}
 		}
 		// TODO: Sinvoll?
-		F /= blockSize;
+		//F /= blockSize;
 
 		return true;
 	}
@@ -807,7 +815,7 @@ public:
 		set_sizes(strongNeighbors.size());
 		if(solve_KKT(i, subindices(strongNeighbors)))
 		{
-			if(F > m_delta)
+			if(F < m_delta)
 			{
 				UG_DLOG(LIB_ALG_AMG, 3, "coarse neighbors, Interpolating from ");
 				size_t N = strongNeighbors.size();
@@ -1234,7 +1242,6 @@ private:
 				smallmat_type s = 0.0;
 				for (size_t j = 0; j < N; j++)
 					s += S(r, j) * Dinv[j] * S(c, j);
-				s = aii*s;
 				H(r, c) = s;
 				H(c, r) = s;
 			}
