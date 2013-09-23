@@ -399,7 +399,6 @@ public:
 		set_sizes(2);
 		//size_t blockSize = GetRows(H(0,0));
 		double total_f_min=1e12;
-		bool bOneFound=false;
 		for (size_t p0 = 0; p0 < onlyN1.size(); p0++)
 		{
 			size_t gp0 = onlyN1[p0];
@@ -1239,7 +1238,7 @@ private:
 			{
 				smallmat_type s = 0.0;
 				for (size_t j = 0; j < N; j++)
-					s += S(r, j) * Dinv[j] * S(c, j);
+					s += S(r, j) * Dinv[j] * MatrixTranspose(S(c, j));
 				H(r, c) = s;
 				H(c, r) = s;
 			}
