@@ -425,7 +425,6 @@ public:
 
 				s.F = F;
 
-
 				s.parents[0].value = q[0];
 				s.parents[1].value = q[1];
 
@@ -573,6 +572,27 @@ public:
 		}
 	}
 #else
+
+	// Eliminate rows from non-strong couplings from KKT system
+	template<typename TIndices>
+	void reduceKKTSystem(TIndices indices, size_t b)
+	{
+		const size_t N = indices.size();
+		std::vector<bool> strong(N, false);
+		markAllStrong(indices, strong, m_dHReduceInterpolationNodesParameter,b);
+
+		for(size_t r=0; r<N; r++)
+		{
+			// fix entries for non-strong
+			if (strong[r]) continue;
+			for(size_t c=0; c<=N; c++) KKT(r, c)= 0.0;
+			KKT(r, r)= 1.0;
+			rhs[r] = 0.0;
+
+		}
+
+	}
+
 	template<typename TIndices>
 	bool solve_KKT(size_t i, TIndices indices)
 	{
@@ -589,28 +609,57 @@ public:
 		UG_DLOG(LIB_ALG_AMG, 3, "\n");
 		DenseVector<stdvector<smallvec_type> > &t0 = localTestvectors[0];
 		F=0;
+
 		for(size_t b=0; b<blockSize; b++)
 		{
 			Hii = BlockRef(H(i_index, i_index), b, b);
+			const double Hiiscale = BlockRef(aii, b, b)*Hii;
 			t_i = BlockRef(t0[i_index],b);
 
+			// quick check: do we really need to solve? (i.e., dirichlet component?)
+			UG_DLOG(LIB_ALG_AMG, 5, "Hiiscale="<< Hiiscale << std::endl);
+			
+			// if (Hii<-1e-10){ F+=1e+99; continue; }
+			UG_ASSERT(Hii>-1e-10, "ERROR: negative values Hii="<< Hii <<" are impossible.");
+			
+			// skip, if entry can be treated by smoothing
+			if (fabs(Hiiscale) < 0.01*m_delta/blockSize)
+			{
+				UG_LOG("Skipping comp="<<b<< " (Hiiscale="<< Hiiscale <<")"<< std::endl);
+				//  no interpolation for this component
+				for(size_t k=0; k<indices.size(); k++)
+					BlockRef(q[k], b, b) = 0.0;
+				F += Hiiscale;
+				continue;
+			}
+
+			// fill KKT matrix
 			for(size_t r=0; r<N; r++)
 				for(size_t c=0; c<N; c++)
 					KKT(r, c)=BlockRef(H(indices[r], indices[c]), b, b);
 
 			for(size_t j=0; j < N; j++)
 				KKT(N, j) = KKT(j, N)= BlockRef(t0[indices[j]], b);
-
 			KKT(N, N) = 0;
+
 			for(size_t j=0; j<N; j++)
 				rhs[j] = BlockRef(H(i_index, indices[j]), b, b);
 			rhs[N] = t_i;
 
-			IF_DEBUG(LIB_ALG_AMG, 5) KKT.maple_print("KKT");
-			IF_DEBUG(LIB_ALG_AMG, 5) rhs.maple_print("rhs");
+			IF_DEBUG(LIB_ALG_AMG, 5) KKT.maple_print("KKT1");
+			IF_DEBUG(LIB_ALG_AMG, 5) rhs.maple_print("rhs1");
 
+			// reduce to essential entries
+			// todo: do less work here (KKT system is too large)
+
+			reduceKKTSystem(indices, b);
+			IF_DEBUG(LIB_ALG_AMG, 5) KKT.maple_print("KKT2");
+			IF_DEBUG(LIB_ALG_AMG, 5) rhs.maple_print("rhs2");
+
+			// solve system
 			if(InverseMatMult(lq, 1.0, KKT, rhs))
 			{
+				IF_DEBUG(LIB_ALG_AMG, 5) lq.maple_print("lq");
 				for(size_t k=0; k<indices.size(); k++)
 				{
 					if(lq[k] < 0)
@@ -630,6 +679,10 @@ public:
 				IF_DEBUG(LIB_ALG_AMG, 5) lq.maple_print("lq");
 
 				double lF = BlockRef(aii, b, b)*(Hii - VecProd(lq, rhs));
+				IF_DEBUG(LIB_ALG_AMG, 5) {
+					UG_LOG(Hii <<"-" << VecProd(rhs, lq) <<"+" <<2.0*t_i*lq[N] <<"="<< lF);
+				}
+				UG_ASSERT(lF>-1e-10, "ERROR: negative values lF="<<lF<<" (b="<<b <<") are impossible!");
 				F += lF;
 			}
 			else
@@ -645,7 +698,7 @@ public:
 			}
 		}
 		// TODO: Sinvoll?
-		//F /= blockSize;
+		F /= blockSize;
 
 		return true;
 	}
@@ -740,29 +793,83 @@ public:
 		return true;
 	}
 
+	template <typename TIndices>
+	void maple_print(TIndices v, const char *title){
+		std::cout << title << " = [";
+		for(size_t i = 0; i<v.size(); ++i)
+			std::cout << v[i] << ", ";
+		std::cout << "]"<< std::endl;
+	}
+
+
+	// select only coarse neighbors w/ sufficiently large couplings
+	template<typename TIndices>
+	void markAllStrong(const TIndices &coarseNeighbors,
+				std::vector<bool> &strongMarks, double eps, int b=0)
+		{
+
+			UG_DLOG(LIB_ALG_AMG, 3, "markAllStrong with sigma = "<<eps <<" for comp=" << b << std::endl);
+			const size_t i_index = onlyN1.size();
+
+			// determine maximum of offdiag/diag in i-th row
+			double maxVal = 0.0;
+			for (size_t j = 0; j < coarseNeighbors.size(); j++)
+			{
+				const double val = fabs(BlockRef(H(i_index, coarseNeighbors[j]), b,b) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b));
+				maxVal = std::max(maxVal, val);
+				UG_DLOG(LIB_ALG_AMG, 3, val<< " ")
+				strongMarks[j]=false;
+			}
+
+			// eliminate coarse connections with small contributions
+			maxVal *=eps;
+			for (size_t j = 0; j < coarseNeighbors.size(); j++)
+						if (fabs(BlockRef(H(i_index, coarseNeighbors[j]), b,b))
+								>= maxVal * fabs(BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b)))
+
+							strongMarks[j]=true;
+
+			IF_DEBUG(LIB_ALG_AMG, 3) {
+				maple_print(coarseNeighbors, "coarseNghbs");
+				maple_print(strongMarks,     "strongMarks");
+			}
+
+		}
+
 	// select only coarse neighbors w/ sufficiently large couplings
 	void reduceToStrong(const std::vector<size_t> &coarseNeighbors,
-			std::vector<size_t> &strongNeighbors, double eps)
+			std::vector<size_t> &strongNeighbors, double eps, int b=0)
 	{
+
+		UG_DLOG(LIB_ALG_AMG, 3, "reduceToStrong with sigma = "<<eps <<" for comp=" << b << std::endl);
+		IF_DEBUG(LIB_ALG_AMG, 3) {
+			maple_print(coarseNeighbors, "coarse");
+		}
 		const size_t i_index = onlyN1.size();
 
 		// determine maximum of offdiag/diag in i-th row
 		double maxVal = 0.0;
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
 		{
-			const double val = BlockRef(H(i_index, coarseNeighbors[j]), 0,0) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), 0,0);
+			const double val = BlockRef(H(i_index, coarseNeighbors[j]), b,b) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b);
 			maxVal = std::max(maxVal, val);
+			UG_DLOG(LIB_ALG_AMG, 3, val<< " ")
 		}
 
-		// eliminate strong connections with small contributions
+		// eliminate coarse connections with small contributions
 		maxVal *=eps;
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
 		{
-			if (BlockRef(H(i_index, coarseNeighbors[j]), 0,0) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), 0,0)
-					>= maxVal)
+			if (BlockRef(H(i_index, coarseNeighbors[j]), b,b)
+							>= maxVal * BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b))
 			{
 				strongNeighbors.push_back(coarseNeighbors[j]);
 			}
+		}
+
+
+		IF_DEBUG(LIB_ALG_AMG, 3) {
+			maple_print(strongNeighbors, "strong");
 		}
 
 	}
@@ -789,7 +896,7 @@ public:
 		AMG_PROFILE_FUNC();
 
 		get_H(i, rating); // todo: not really necessary if coarseNeighbors.size() == 1
-
+/*
 		if(coarseNeighbors.size() == 1)
 		{
 			// single parent
@@ -806,18 +913,30 @@ public:
 			rating.set_fine(i);
 			return true;
 		}
-
-		std::vector<size_t> strongNeighbors;
-		//reduceToStrong(coarseNeighbors, strongNeighbors, 0.5);
+*/
+		// global reduce
+		/*
+		 std::vector<size_t> strongNeighbors;
 		reduceToStrong(coarseNeighbors, strongNeighbors, m_dHReduceInterpolationNodesParameter);
+		std::vector<size_t> &myNeighbors = strongNeighbors;
+        */
 
-		set_sizes(strongNeighbors.size());
-		if(solve_KKT(i, subindices(strongNeighbors)))
+		std::vector<size_t> &myNeighbors = coarseNeighbors;
+		set_sizes(myNeighbors.size());
+		if(solve_KKT(i, subindices(myNeighbors)))
 		{
-			if(F < m_delta)
+			UG_ASSERT(F>-1e-10, "ERROR: negative F values are impossible (i.e., find bug and fix it!)");
+
+			if(F > m_delta)
+			{
+
+				UG_DLOG(LIB_ALG_AMG, 3, "direct_interpolation, had to set node " << i << " coarse: " << F << ">" << m_delta);
+							rating.external_set_coarse(i);
+			}
+			else
 			{
 				UG_DLOG(LIB_ALG_AMG, 3, "coarse neighbors, Interpolating from ");
-				size_t N = strongNeighbors.size();
+				size_t N = myNeighbors.size();
 				if(m_dProlongationTruncation > 0.0)
 				{
 					UG_ASSERT(0, "disabled due to systems");
@@ -831,7 +950,7 @@ public:
 					for(size_t j=0; j<N; j++)
 					{
 						if(BlockNorm(q[j]) < dmax*m_dProlongationTruncation) continue;
-						size_t node = onlyN1[strongNeighbors[j]];
+						size_t node = onlyN1[myNeighbors[j]];
 						UG_DLOG(LIB_ALG_AMG, 3, node << ": " << q[j] << ", ");
 						P(i, node) = q[j];
 					}
@@ -840,9 +959,9 @@ public:
 				{
 					for(size_t j=0; j<N; j++)
 					{
-						size_t node = onlyN1[strongNeighbors[j]];
-						P(i, node) = q[j];
-						UG_DLOG(LIB_ALG_AMG, 3, node << ": " << q[j] << ", ");
+						size_t nodej = onlyN1[myNeighbors[j]];
+						P(i, nodej) = q[j];
+						UG_DLOG(LIB_ALG_AMG, 3, nodej << ": " << q[j] << ", ");
 					}
 				}
 				check_weights(P, i);
