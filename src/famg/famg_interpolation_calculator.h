@@ -666,12 +666,12 @@ public:
 					{
 						IF_DEBUG(LIB_ALG_AMG, 2)
 						{
-							UG_LOG("WARNING: Problem at node " << i << ": ");
+							UG_LOG("WARNING: Negative entries at node " << i << ": ");
 							for(size_t l=0; l<indices.size(); l++)
 							{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " "); }
 							UG_LOG(" solve_KKT: lq[" << k << "] = " << lq[k] << "\n");
 						}
-						return false;
+						// return false;
 					}
 					BlockRef(q[k], b, b) = lq[k];
 				}
@@ -1359,7 +1359,7 @@ private:
 				for (size_t j = 0; j < N; j++)
 					s += S(r, j) * Dinv[j] * MatrixTranspose(S(c, j));
 				H(r, c) = s;
-				H(c, r) = s;
+				H(c, r) = MatrixTranspose(s);
 			}
 		}
 
