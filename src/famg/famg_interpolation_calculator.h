@@ -529,10 +529,47 @@ public:
 		}
 	}
 
+
 	/**
-	 *
+	 * if Hii*aii is really small, the smoother is sufficient,
+	 * so we don' t need to interpolate this unknown
+	 * @param b	block
+	 * @param i_index index of i in H
+	 * @return true if smoother sufficient, false otherwise
+	 */
+	bool check_smoother_sufficient(size_t b, size_t i_index)
+	{
+		Hii = BlockRef(H(i_index, i_index), b, b);
+		const double Hiiscale = BlockRef(aii, b, b)*Hii;
+
+		// quick check: do we really need to solve? (i.e., dirichlet component?)
+		UG_DLOG(LIB_ALG_AMG, 5, "Hiiscale="<< Hiiscale << std::endl);
+
+		// if (Hii<-1e-10){ F+=1e+99; continue; }
+		UG_ASSERT(Hii>-1e-10, "ERROR: negative values Hii="<< Hii <<" are impossible.");
+
+		// skip, if entry can be treated by smoothing
+		if (fabs(Hiiscale) < 0.01*m_delta/blockSize)
+		{
+			UG_LOG("Skipping comp="<<b<< " (Hiiscale="<< Hiiscale <<")"<< std::endl);
+			//  no interpolation for this component
+			for(size_t k=0; k<indices.size(); k++)
+				BlockRef(q[k], b, b) = 0.0;
+			F += Hiiscale;
+			return true;
+		}
+		else
+			return false;
+	}
+
+	/**
+	 * assemble the KKT system from H and solve for a set of interpolation parents
+	 * note that H has local indices 0 to onlyN1.size()-1
+	 * their global indices are k -> onlyN1[k]
+	 * indices is a subset of {0, ..., onlyN1.size()-1} of the local indices,
+	 * so indices[k] has global index onlyN1[indices[k]].
 	 * @param i
-	 * @param indices
+	 * @param indices set of parents.
 	 * @param bCalcNegatives
 	 * @return 0: ok, -1 : negative interpolation weights. -2 : could not solve KKT system
 	 */
@@ -554,27 +591,10 @@ public:
 		for(size_t b=0; b<blockSize; b++)
 		{
 			UG_LOGI("BLOCK [ " << b << " ]\n");
+
+//			if(check_smoother_sufficient(b) == true) continue;
+
 			Hii = BlockRef(H(i_index, i_index), b, b);
-
-			const double Hiiscale = BlockRef(aii, b, b)*Hii;
-
-			// quick check: do we really need to solve? (i.e., dirichlet component?)
-			UG_DLOG(LIB_ALG_AMG, 5, "Hiiscale="<< Hiiscale << std::endl);
-			
-			// if (Hii<-1e-10){ F+=1e+99; continue; }
-			UG_ASSERT(Hii>-1e-10, "ERROR: negative values Hii="<< Hii <<" are impossible.");
-			
-			// skip, if entry can be treated by smoothing
-			if (fabs(Hiiscale) < 0.01*m_delta/blockSize)
-			{
-				UG_LOG("Skipping comp="<<b<< " (Hiiscale="<< Hiiscale <<")"<< std::endl);
-				//  no interpolation for this component
-				for(size_t k=0; k<indices.size(); k++)
-					BlockRef(q[k], b, b) = 0.0;
-				F += Hiiscale;
-				continue;
-			}
-
 			KKT = 0.0;
 
 			// fill KKT matrix
