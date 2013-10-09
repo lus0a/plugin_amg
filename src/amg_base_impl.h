@@ -27,7 +27,7 @@
 #include "common/util/file_util.h"
 #include "common/progress.h"
 #include "common/util/string_concat.h"
-
+#include "additional_math.h"
 #include "lib_algebra/common/connection_viewer_output.h"
 
 //#define UG_DLOGN(tag, level, msg)			UG_DLOG(tag, level, msg << "\n");
@@ -967,6 +967,29 @@ AMGBase<TAlgebra>::get_output_directory(int level)
 	return path;
 }
 
+
+
+template<typename TAlgebra>
+double
+AMGBase<TAlgebra>::Dnorm(vector_type &v, size_t level)
+{
+	return DNorm(*levels[level]->pA, v);
+}
+
+template<typename TAlgebra>
+double
+AMGBase<TAlgebra>::Anorm(vector_type &v, size_t level)
+{
+	return ANorm(*levels[level]->pA, v);
+}
+
+/*template<typename TAlgebra>
+void
+AMGBase<TAlgebra>::calculate_smoothing_property(vector_type &t)
+{
+	// <ASt, St> <= <Ae, e> - \sigma <D^{-1}Ae, Ae}
+	// dh. sigma = min_e (<ASt, St> - <Ae, e>) / <D^{-1}Ae, Ae}
+}*/
 
 // end group plugins_amg
 /// \}

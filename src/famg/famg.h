@@ -129,8 +129,15 @@ public:
 
 	double get_damping_for_smoother_in_interpolation_calculation() const { return m_dDampingForSmootherInInterpolationCalculation; }
 
+	std::map<size_t, double> mDeltaLevel;
+	double mDeltaAll;
+	bool m_bHAsInverse;
+
+	void set_H_as_inverse(bool b) { m_bHAsInverse = b; }
 	//! "Interpolation quality" F may not be worse than this (F < m_delta)
-	void set_delta(double delta) { m_delta = delta; }
+	void set_delta(double delta) { mDeltaLevel.clear(); mDeltaAll = delta; }
+	void set_delta(double delta, size_t level) { mDeltaLevel[level] = delta; }
+
 	//! with multiple parents, discard pairs with m_theta * F > min F.
 	void set_theta(double theta) { m_theta = theta; }
 
@@ -248,6 +255,9 @@ public:
 	double	get_prevent_ff_connection_external() 		{ return m_iPreventFFConnection; }
 
 	void	set_write_f_values(bool b)	{ m_bWriteFValues = b; }
+	void	set_injection_restriction(bool b) { m_bInjectionRestriction = b; }
+
+	void 	set_max_parents(size_t n) 	{ m_iMaxParents = n;}
 
 	bool check_testvector(size_t fromlevel, size_t tolevel);
 	bool check_testvector(size_t fromlevel)
@@ -294,10 +304,12 @@ private:
 	bool m_writeTestvectors;
 
 
+
 	bool m_bAggressiveCoarsening;
 	bool m_bExternalCoarsening;
 	bool m_bUsePrecalculate;
 	bool m_bWriteFValues;
+	bool m_bInjectionRestriction;
 
 	SmartPtr<ILinearIterator<vector_type> > m_testvectorsmoother;
 
@@ -322,6 +334,8 @@ private:
 #ifdef UG_PARALLEL
 	IParallelCoarsening *m_pParallelCoarsening;
 #endif
+public:
+	size_t m_iMaxParents;
 };
 
 // end group plugins_amg_famg

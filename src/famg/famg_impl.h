@@ -59,7 +59,9 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 
 	m_bWriteFValues = false;
 	m_bProjectedEVP = false;
+	m_bInjectionRestriction = false;
 	m_fileCoarsening = NONE;
+	m_iMaxParents = 2;
 #ifdef UG_PARALLEL
 	m_pParallelCoarsening = NULL;
 #endif
@@ -77,7 +79,7 @@ void FAMG<TAlgebra>::tostring() const
 	AMGBase<TAlgebra>::tostring();
 	UG_LOG("FAMG Preconditioner:\n");
 
-	UG_LOG(" Delta: " << m_delta << " (forces interpolation quality measure F < delta.) " << std::endl);
+	UG_LOG(" Delta: " << mDeltaAll << " (forces interpolation quality measure F < delta.) " << std::endl);
 	UG_LOG(" Theta: " << m_theta << " (with multiple parents pairs, discard pairs with m_theta * F > min F.) " << std::endl);
 	UG_LOG(" Damping for Smoother in interpolation calculation: " << m_dDampingForSmootherInInterpolationCalculation << std::endl);
 	UG_LOG(" Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF"));
@@ -153,9 +155,13 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 	{
 		testvectors.clear();
 		if(m_iTestvectors == TESTVECTORS_DIRICHLET_MATRIX_ROWS)
+		{
+			UG_LOG("USING TESTVECTORS_DIRICHLET_MATRIX_ROWS\n");
 			get_testvectors_from_matrix_rows(*levels[level]->pAgglomeratedA, testvectors, omega);
+		}
 		else if(m_iTestvectors == TESTVECTORS_LE_2D)
 		{
+			UG_LOG("USING TESTVECTORS_LE_2D\n");
 			UG_ASSERT(m_writeMatrices, "needs position data");
 			UG_ASSERT(m_amghelper.dimension == 2, "dimension needs to be 2");
 			GetTestvectorsLE_2d(*levels[level]->pAgglomeratedA, testvectors, omega,
@@ -163,6 +169,7 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 		}
 		else if(m_iTestvectors == TESTVECTORS_LE_3D)
 		{
+			UG_LOG("USING TESTVECTORS_LE_3D\n");
 			UG_ASSERT(m_writeMatrices, "needs position data");
 			UG_ASSERT(m_amghelper.dimension == 3, "dimension needs to be 3");
 			GetTestvectorsLE_3d(*levels[level]->pAgglomeratedA, testvectors, omega,
@@ -170,6 +177,7 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 		}
 		else if(m_iTestvectors == TESTVECTORS_LINEAR)
 		{
+			UG_LOG("USING TESTVECTORS_LINEAR\n");
 			UG_ASSERT(m_writeMatrices, "needs position data");
 			UG_ASSERT(m_amghelper.dimension == 2 || m_amghelper.dimension == 3, "dimension " << m_amghelper.dimension << " not supported");
 			if(m_amghelper.dimension == 3)
@@ -182,7 +190,11 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 
 		}
 		else
+		{
+			UG_ASSERT(m_iTestvectors == TESTVECTORS_EXTERNAL, "");
+			UG_LOG("USING TESTVECTORS_EXTERNAL\n");
 			get_testvectors(testvectors, omega);
+		}
 	}
 
 #ifdef UG_PARALLEL
@@ -221,6 +233,12 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 {
 	AMG_PROFILE_FUNC();
 
+
+	if(mDeltaLevel.find(level) != mDeltaLevel.end())
+		m_delta = mDeltaLevel[level];
+	else
+		m_delta = mDeltaAll;
+
 	UG_ASSERT(m_testvectorsmoother != NULL, "please provide a testvector smoother.");
 
 	if(m_bProjectedEVP && level == 0)
@@ -258,6 +276,7 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 		FAMGLevelCalculator<algebra_type> dummy(*this, AH, R, A, A, P, level, testvectors, omega, nextLevelLayouts);
 		dummy.do_calculation();
 	}
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

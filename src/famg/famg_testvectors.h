@@ -101,6 +101,16 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 			A.apply(d, m_testvectors[i]);
 			m_famg.m_testvectorsmoother->apply(c, d);
 			m_testvectors[i] -= c;
+			if(false && m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
+			{
+					ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_St") + ToString(i) + "____" + ToString(jj) + ToString("_L") + ToString(level) + ".vec").c_str(),
+						m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
+					ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_Sc") + ToString(i) + "____" + ToString(jj) + ToString("_L") + ToString(level) + ".vec").c_str(),
+										c, &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
+					ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_Sd") + ToString(i) + "____" + ToString(jj) + ToString("_L") + ToString(level) + ".vec").c_str(),
+										d, &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
+			}
+
 		}
 
 		double e=EnergyProd(m_testvectors[i], A, m_testvectors[i]);;
@@ -195,25 +205,26 @@ template<typename TMatrix, typename TVector>
 void GetTestvectorsLE_2d	(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
 		double weightC, double weightZ)
 {
-	testvectors.resize(2);
+	testvectors.resize(3);
 	for(size_t i=0; i<testvectors.size(); i++)
 		testvectors[i].resize(A.num_rows());
 
-	omega.resize(2);
+	omega.resize(3);
 	omega[0] = weightC;
-	omega[1] = weightZ;
+	omega[1] = weightC;
+	omega[2] = weightZ;
 
 	for(size_t i=0; i<A.num_rows(); i++)
 	{
-		if(A.is_isolated(i))
+		testvectors[0][i] = 0.0;
+		testvectors[1][i] = 0.0;
+		testvectors[2][i] = 0.0;
+
+		if(!A.is_isolated(i))
 		{
-			testvectors[0][i] = 0.0;
-			testvectors[1][i] = 0.0;
-		}
-		else
-		{
-			testvectors[0][i] = 1.0;
-			SetAlgVector2d(testvectors[1][i], GetRotZ(pos[i]));
+			BlockRef(testvectors[0][i], 0) = 1.0;
+			BlockRef(testvectors[1][i], 1) = 1.0;
+			SetAlgVector2d(testvectors[2][i], GetRotZ(pos[i]));
 		}
 	}
 }
@@ -224,28 +235,31 @@ void GetTestvectorsLE_3d	(const TMatrix &A, stdvector<TVector> &testvectors, std
 		double weightC, double weightX, double weightY, double weightZ)
 
 {
-	testvectors.resize(4);
+	testvectors.resize(6);
 	for(size_t i=0; i<testvectors.size(); i++)
 		testvectors[i].resize(A.num_rows());
 
-	omega.resize(4);
+	omega.resize(6);
 	omega[0] = weightC;
-	omega[1] = weightX;
-	omega[2] = weightY;
-	omega[3] = weightZ;
+	omega[1] = weightC;
+	omega[2] = weightC;
+	omega[3] = weightX;
+	omega[4] = weightY;
+	omega[5] = weightZ;
 
 	for(size_t i=0; i<A.num_rows(); i++)
 	{
-		testvectors[0][i] = 0.0;
-		testvectors[1][i] = 0.0;
-		testvectors[2][i] = 0.0;
-		testvectors[3][i] = 0.0;
+		for(size_t j=0; j<6; j++)
+			testvectors[j][i] = 0.0;
+
 		if(!A.is_isolated(i))
 		{
-			testvectors[0][i] = 1.0;
-			SetAlgVector3d(testvectors[1][i], GetRotX(pos[i]));
-			SetAlgVector3d(testvectors[2][i], GetRotY(pos[i]));
-			SetAlgVector3d(testvectors[3][i], GetRotZ(pos[i]));
+			BlockRef(testvectors[0][i], 0) = 1.0;
+			BlockRef(testvectors[1][i], 1) = 1.0;
+			BlockRef(testvectors[2][i], 2) = 1.0;
+			SetAlgVector3d(testvectors[3][i], GetRotX(pos[i]));
+			SetAlgVector3d(testvectors[4][i], GetRotY(pos[i]));
+			SetAlgVector3d(testvectors[5][i], GetRotZ(pos[i]));
 		}
 	}
 }

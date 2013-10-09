@@ -699,6 +699,28 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 }
 
 
+template<typename TAlgebra>
+void AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filename)
+{
+	double anorm = Anorm(v, 0);
+	double dnorm = Dnorm(v, 0);
+	AMGLevel &L = *levels[0];
+	vector_type &vH = L.cH;
+	vector_type &v2 = L.corr;
+	L.R.apply(vH, v);
+	L.P.apply(v2, vH);
+	if(m_writeMatrices)
+	{
+		writevec(std::string(filename)+std::string("_v.vec"), v, 0);
+		writevec(std::string(filename)+std::string("_Rv.vec"), vH, 1);
+		writevec(std::string(filename)+std::string("_PRv.vec"), v2, 0);
+		v2 -= v;
+		writevec(std::string(filename)+std::string("_(1-PR)v.vec"), v2, 0);
+	}
+	else v2 -= v;
+	double dnorm2 = Dnorm(v2, 0);
+	UG_LOG("Anorm(v) = " << anorm << " Dnorm(v) = " << dnorm << " Dnorm( (1-PR)v ) = " << dnorm2 << "\n");
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // check_fsmoothing

@@ -60,7 +60,7 @@ bool OnDemand_UpdateRating(size_t node, stdvector<TNeighborstruct> &PN, FAMGNode
 
 #endif
 		UG_DLOG(LIB_ALG_AMG, 2, "node " << node << " has coarse neighbors, but rating is not calculated yet. calculating rating now\n");
-		calculator.get_possible_parent_pairs(node, PN, nodes);
+		calculator.get_possible_parents(node, PN, nodes);
 		prolongation_calculated[node] = true;
 		nodes.update_rating(node, PN);
 		return true;
@@ -146,7 +146,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 
 		if(IsCloseToBoundary(A_OL2, i , 2) == false)
 		{
-			calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
+			calculator.get_possible_parents(i, possible_parents[i], rating);
 			prolongation_calculated[i] = true;
 			rating.update_rating(i, possible_parents[i]);
 			if(!rating[i].is_uninterpolateable() && !rating[i].is_fine())
@@ -179,7 +179,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 	{
 		PROGRESS_UPDATE(prog, N-rating.get_unassigned());
 		UG_ASSERT(possible_parents[i].size() > 0, "node " << i << "has no possible parents?");
-		neighborstruct2<smallmat_ptype> &n = possible_parents[i][0];
+		neighT &n = possible_parents[i][0];
 
 		UG_DLOG(LIB_ALG_AMG, 2, "\n\n\nSelect next node...\n");
 		UG_DLOG(LIB_ALG_AMG, 2, "======================================\n");
@@ -247,7 +247,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 					if(prolongation_calculated[i] == false)
 					{
 						//UG_LOG(" calculating prologation...");
-						calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
+						calculator.get_possible_parents(i, possible_parents[i], rating);
 						prolongation_calculated[i] = true;
 					}
 					rating.update_rating(i, possible_parents[i]);
@@ -260,7 +260,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 
 			UG_DLOG(LIB_ALG_AMG, 2, "\n\nRESTARTING WITH NODE " << rating.get_original_index(i) << "!!!\n\n");
 
-			calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
+			calculator.get_possible_parents(i, possible_parents[i], rating);
 			prolongation_calculated[i] = true;
 			rating.update_rating(i, possible_parents[i]);
 		}
@@ -284,7 +284,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 				if(prolongation_calculated[i] == false)
 				{
 					UG_DLOG(LIB_ALG_AMG, 2, ", but prolongation not calculated. update.\n");
-					calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
+					calculator.get_possible_parents(i, possible_parents[i], rating);
 					prolongation_calculated[i] = true;
 					rating.update_rating(i, possible_parents[i]);
 					heap.update(i);

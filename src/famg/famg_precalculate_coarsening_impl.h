@@ -15,71 +15,10 @@
 #ifndef __H__LIB_ALGEBRA__AMG__FAMG_PRECALCULATE_COARSENING_IMPL_H__
 #define __H__LIB_ALGEBRA__AMG__FAMG_PRECALCULATE_COARSENING_IMPL_H__
 
+#include "common/util/histogramm.h"
+
 namespace ug
 {
-
-// minimum width is 8
-std::string scientificStr(double d, int width)
-{
-	std::stringstream s;
-	if(d < 0)
-		std::setprecision(width-7);
-	else
-		s << std::setprecision(width-6);
-	s << std::scientific << std::setw(width) << d;
-	return s.str();
-}
-
-
-void PrintHistogramm(stdvector<double> values)
-{
-	sort(values.begin(), values.end());
-
-	double vmin = values[0];
-	double vmax = values[values.size()-1];
-
-	const size_t N = 80;
-	const double Nd=80.0;
-	stdvector<size_t> hist;
-	hist.resize(N, 0);
-
-	size_t histmax=0;
-	for(size_t i=0; i<values.size(); i++)
-	{
-		size_t idx = (size_t)((N-1)*(values[i]-vmin)/(vmax-vmin));
-		hist[idx] ++;
-		if(histmax < hist[idx]) histmax = hist[idx];
-	}
-
-	UG_LOGN("histmax = " << histmax << " vmin = " << vmin << " vmax = " << vmax);
-	const int height = 10;
-	for(int h=height; h>=0; h--)
-	{
-		UG_LOG((histmax*h)/((double)height) << "\t");
-		for(size_t i=0; i<N; i++)
-		{
-			if(hist[i]*height > histmax*h)
-			{	UG_LOG("#"); }
-			else
-			{	UG_LOG(" "); }
-		}
-		UG_LOG("\n");
-	}
-
-	UG_LOG(vmin << "\t");
-	for(size_t i =0; i<N; i+=9)
-		UG_LOG("    |    ");
-
-	UG_LOG("\n" << vmin << "\t");
-	for(size_t i =0; i<N; i+=9)
-		UG_LOG(scientificStr((i+4)*(vmax-vmin)/(Nd-1)+vmin, 8) << " ");
-	UG_LOG(vmax << "\n");
-
-	for(size_t i=0; i<N; i++)
-		UG_LOG("-");
-	UG_LOG("\n");
-}
-
 
 /// \addtogroup plugins_amg_famg
 /// \{
@@ -110,7 +49,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 	{
 		if(rating.i_must_assign(i) == false) continue;
 		if(rating[i].is_valid_rating() == false) continue; // could be set coarse from others
-		double F = calculator.get_possible_parent_pairs(i, possible_parents[i], rating);
+		double F = calculator.get_possible_parents(i, possible_parents[i], rating);
 		if(i < fvalues.size())
 			fvalues[i] = F;
 		prolongation_calculated[i] = true;
@@ -119,7 +58,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 	}
 
 
-	PrintHistogramm(fvalues);
+//	UG_LOG(HistogrammString(fvalues));
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
 }
 
@@ -146,7 +85,7 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 		PROGRESS_UPDATE(prog, N-heap.height());
 		// get node i with best rating
 		size_t i = heap.remove_max();
-		neighborstruct2<smallmat_ptype> &n = possible_parents[i][0];
+		neighT &n = possible_parents[i][0];
 
 		UG_DLOG(LIB_ALG_AMG, 4, "\n\n\nSelect next node...\n");
 		UG_DLOG(LIB_ALG_AMG, 4, "node " << i << " has rating " << rating[i] << ". now gets fine. parents: ");

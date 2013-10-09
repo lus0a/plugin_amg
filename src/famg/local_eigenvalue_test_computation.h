@@ -44,8 +44,161 @@ void print_matlab_positions(std::vector<size_t> indices)
 	UG_LOG("\n")
 }
 
+template<typename TMatrix>
+void ToDouble(DenseMatrix<VariableArray2<double> > &Ad, TMatrix &d)
+{
+	size_t blockSize = GetRows(A(0,0));
+	A2.resize(blockSize*A.num_rows(), blockSize*A.num_cols());
+
+	for(size_t i=0; i<A.num_rows(); i++)
+	{
+		for(size_t j=0; j<A.num_cols(); j++)
+			for(size_t r=0; r<blockSize; r++)
+				for(size_t c=0; c<blockSize; c++)
+					A2(i*blockSize+r, j*blockSize+c) = BlockRef(Aloc(i, j), r, c);
+	}
+}
+
+template<typename A_type, typename B_type, typename vector_type>
+int GeneralizedEigenvalueProblemSys(A_type &A, std::vector<vector_type> &X,
+		B_type &lambda, A_type &B, bool bSortEigenvalues=false)
+{
+	size_t blockSize = GetRows(A(0,0));
+	DenseMatrix<VariableArray2<double> > A2, B2, X2;
+	size_t N = A.num_rows();
+	size_t Nb = N*blockSize;
+	std::vector<double> lambda;
+	ToDouble(A2, A);
+	ToDouble(B2, B);
+	lambda.resize(Nb);
+	X2.resize(Nb, Nb);
+
+	GeneralizedEigenvalueProblem(A2, X2, lambda, B2, bSortEigenvalues);
+	X.resize(Nb);
+	for(size_t i=0; i<Nb; i++)
+	{
+		X[i].resize(N);
+		for(size_t j=0; j<N; j++)
+			for(size_t k=0; k<blockSize; k++)
+				BlockRef(X[i][j], k) = X2(j*blockSize+k, i);
+	}
+}
+
+
+void calc_special2(size_t i)
+{
+	if(i != 0) return;
+	std::vector<std::vector<size_t> > indicesSysH;
+	GetNeighborhoodHierachy(A_OL2, i, 3, indicesH);
+
+	std::vector<size_t> indices;
+	for(size_t k=0; k <= 3; k++)
+		indices.insert(indices.end(), indicesH[k].begin(), indicesH[k].end());
+
+	size_t indices1=indicesH[0].size();
+	size_t indices2=indicesH[1].size()+indices1;
+	size_t indices3=indicesH[2].size()+indices2;
+	size_t indices4=indices.size();
+	size_t N=indices4;
+
+	DenseMatrix<VariableArray2<smallmat_type> > Aloc;
+
+	Aloc.resize(indices.size(), indices.size());
+
+	GetLocalMatrix(A_OL2, Aloc, &indices[0], &indices[0]);
+
+	DenseMatrix<VariableArray2<smallmat_type> > Dinv;
+	Dinv.resize(N, N);
+	for(size_t r=0; r<N; r++)
+	{
+		Dinv(r,r) = S(r,r);
+		Invert(Dinv(r,r));
+	}
+
+	DenseMatrix<VariableArray2<smallmat_type> > diagm;
+	diagm.resize(N, N);
+	for(size_t r=0; r<N; r++)
+		diagm(r,r)=1.0;
+
+	DenseMatrix<VariableArray2<smallmat_type> > S = diagm - Dinv*A;
+	DenseMatrix<VariableArray2<smallmat_type> > SF = diagm;
+	for(size_t c=0; c<N; c++)
+		SF(0, c) = S(0, c);
+
+	S = SF*S;
+	writeSubMatrix("/Users/mrupp/matrices/S.mat", S, indices, indices4);
+
+	DenseVector<VariableArray1<smallvec_type> > q;
+	DenseVector<VariableArray1<smallvec_type> > Sq;
+
+	DenseMatrix<VariableArray2<double> > ev;
+	std::vector<double> lambda;
+	size_t blockSize = GetRows(Aloc(0,0));
+	size_t Nb = N*blockSize;
+
+	DenseMatrix<VariableArray2<double> > A2, Q2;
+	A2.resize(Nb, Nb);
+	ev.reize(Nb, Nb);
+	lambda.resize(Nb);
+
+	ToDouble(A2, A);
+
+
+	for (size_t p0 = indices1; p0 < indices2; p0++)
+	{
+		size_t gp0 = indices[p0];
+		for (size_t p1 = p0+1; p1 < indices2; p1++)
+		{
+
+			double w1=0.5;
+			double w2=0.5;
+			double eps=0.5;
+
+			//while(eps > 0.001)
+			{
+				q*=0.0;
+				q[0] = 1.0;
+				q[p0] = -w1;
+				q[p1] = -w2;
+
+				Sq = transpose(S)*q;
+				DenseMatrix<VariableArray2<smallmat_type> > Q;
+				for(size_t r=0; r<N; r++)
+					for(size_t c=0; c<N; c++)
+						Q(r, c) = Sq[r]*Sq[c];
+
+				ToDouble(Q2, Q);
+
+
+				// bei blockalgorithmen entstehen hier N*blockSize eigenwerte
+				GeneralizedEigenvalueProblem(Q2, ev, lambda, A2, true);
+
+				writeSubVec(std::string("/Users/mrupp/matrices/ev_")+ToString(gp0)+"_"+ToString(gp0)+"_"+ToString(lambda[N-1])+"_.vec", A, ev, N-1, indices, indices4);
+			}
+
+		}
+	}
+
+
+
+
+	// select q
+	// calc Sq=S*q
+	// calc Q = Sq*Sq^T
+	// (lambda, v)=eig(Q, A)
+	// iMax = argmax(lambda)
+	// emax = v[:, iMax]
+	// lmax = lambda[iMax]
+	// return lmax
+
+
+
+}
+
 void calc_special(size_t i)
 {
+//	calc_special2(i);
+	return;
 	if(i!=105) // gitarre
 //		if(i!=0) // famgLE// unit square
 //		if(i!=604) // ugshell -ex amg/famgLE3d_rechteck_working.lua -writeMatrices -numRefs 1 -maxLevels 2

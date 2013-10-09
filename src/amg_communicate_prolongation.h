@@ -66,7 +66,7 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 
 {
 	AMG_PROFILE_FUNC();
-
+//	create new indices
 	newIndex.clear();
 	newIndex.resize(PoldIndices.num_cols(), -1);
 	size_t nrOfCoarse=0;
@@ -81,6 +81,8 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 				newIndex[c] = nrOfCoarse++;
 		}
 	}
+
+//	P to new indices
 	PnewIndices.resize_and_clear(N, nrOfCoarse);
 	for(size_t r=0; r<N; r++)
 	{
@@ -129,10 +131,10 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 template<typename TAlgebra>
 template<typename TAMGNodes>
 void AMGBase<TAlgebra>::serial_process_prolongation(prolongation_matrix_type &PoldIndices,
-		prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level, TAMGNodes &amgnodes)
+		prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level, TAMGNodes &amgnodes, stdvector<int> &newIndex)
 {
 	AMG_PROFILE_FUNC();
-	stdvector<int> newIndex;
+
 	create_new_indices(PoldIndices, PnewIndices, PoldIndices.num_rows(), amgnodes, newIndex, dEpsilonTruncation);
 	create_parent_index(level, newIndex, PnewIndices.num_cols());
 
@@ -208,7 +210,7 @@ template<typename TAMGNodes>
 void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &PoldIndices,
 		prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level,
 		TAMGNodes &amgnodes, ParallelNodes &PN, bool bCreateNewNodes,
-		HorizontalAlgebraLayouts &nextLevelLayouts)
+		HorizontalAlgebraLayouts &nextLevelLayouts, stdvector<int> &newIndex)
 {
 
 	AMG_PROFILE_FUNC();
@@ -216,7 +218,7 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 	//PRINTPC(PnewIndices.layouts()->proc_comm());
 
 	// send rows of PoldIndices from master to slave, update P, PN and layouts
-	communicate_prolongation(PN, PoldIndices, bCreateNewNodes);
+	communicate_prolongation_additive_to_consistent(PN, PoldIndices, bCreateNewNodes);
 
 
 	postset_coarse(PN, PoldIndices, amgnodes);
@@ -224,7 +226,6 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 
 	CheckMatrixLayouts(PN, PoldIndices, nextLevelLayouts);
 
-	stdvector<int> newIndex;
 	create_new_indices(PoldIndices, PnewIndices, PN.get_original_size(), amgnodes, newIndex,
 			dEpsilonTruncation);
 	PnewIndices.set_storage_type(PST_CONSISTENT);
@@ -246,11 +247,11 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// communicate_prolongation:
+// communicate_prolongation_additive_to_consistent:
 //------------------------------
 // docu see amg_base.h
 template<typename TAlgebra>
-void AMGBase<TAlgebra>::communicate_prolongation(ParallelNodes &PN, prolongation_matrix_type &PoldIndices, bool bCreateNewNodes)
+void AMGBase<TAlgebra>::communicate_prolongation_additive_to_consistent(ParallelNodes &PN, prolongation_matrix_type &PoldIndices, bool bCreateNewNodes)
 {
 	AMG_PROFILE_FUNC();
 

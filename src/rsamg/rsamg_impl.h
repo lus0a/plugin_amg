@@ -338,12 +338,15 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	/////////////////////////////////////////
 	/// create layouts
 	/////////////////////////////////////////
+	{
+		stdvector<int> newIndex;
 #ifdef UG_PARALLEL
 	this->parallel_process_prolongation(PoldIndices, PnewIndices, m_dProlongationTr, level, nodes,
-			PN, true, nextLevelLayouts);
+			PN, true, nextLevelLayouts, newIndex);
 #else
-	this->serial_process_prolongation(PoldIndices, PnewIndices, m_dProlongationTr, level, nodes);
+	this->serial_process_prolongation(PoldIndices, PnewIndices, m_dProlongationTr, level, nodes, newIndex);
 #endif
+	}
 
 	/////////////////////////////////////////
 	// construct restriction R = I_{h->2h}

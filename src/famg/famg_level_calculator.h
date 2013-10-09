@@ -189,7 +189,7 @@ private:
 
 	//! list of possible interpolating parents for each node
 	typedef typename prolongation_matrix_type::value_type smallmat_ptype;
-	typedef neighborstruct2<smallmat_ptype> neighT;
+	typedef neighborstruct_var<smallmat_ptype> neighT;
 	stdvector<stdvector< neighT > > possible_parents;
 
 	stdvector<bool> prolongation_calculated;
@@ -206,13 +206,34 @@ private:
 
 	prolongation_matrix_type PoldIndices;
 
-	void create_restriction()
+	void create_restriction(stdvector<int> &newIndex)
 	{
 		AMG_PROFILE_FUNC();
 		Stopwatch SW;
 		UG_DLOG(LIB_ALG_AMG, 0, std::endl << "restriction... "); if(bTiming) SW.start();
 		// construct restriction R = I_{h -> 2h}
-		R.set_as_transpose_of(PnewIndices);
+
+		if(m_famg.m_bInjectionRestriction==false)
+			R.set_as_transpose_of(PnewIndices);
+		else
+		{
+			R.resize_and_clear(PnewIndices.num_cols(), PnewIndices.num_rows());
+			for(size_t i=0; i<A.num_rows(); i++)
+			{
+				if(newIndex[i] >= 0)
+				{
+					UG_ASSERT(rating[i].is_coarse(), i);
+					R(newIndex[i], i) = 1.0;
+				}
+				else
+				{
+					UG_ASSERT(!rating[i].is_coarse(), i);
+				}
+
+			}
+		}
+
+
 		// R is already defragmented
 		if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms.");
 
@@ -448,14 +469,17 @@ public:
 
 //		Write_LE_Error<prolongation_matrix_type, vector_type>
 //			(PoldIndices, m_famg.m_amghelper.positions[level], m_famg.m_writeMatrixPath, "FAMG_tv", level);
-		create_new_indices();
-		//for(size_t i=0; i<rating.get_nr_of_coarse(); i++) { UG_ASSERT(amghelper.parentIndex[level+1][i] != -1, i << " == -1???"); UG_LOG(i << " = " << amghelper.parentIndex[level+1][i] << "\n"); }
+		{
+			stdvector<int> newIndex;
+			create_new_indices(newIndex);
+			//for(size_t i=0; i<rating.get_nr_of_coarse(); i++) { UG_ASSERT(amghelper.parentIndex[level+1][i] != -1, i << " == -1???"); UG_LOG(i << " = " << amghelper.parentIndex[level+1][i] << "\n"); }
 
-		//UG_DLOG(LIB_ALG_AMG, 0, std::endl << rating.get_nr_of_coarse() << " coarse.");
+			//UG_DLOG(LIB_ALG_AMG, 0, std::endl << rating.get_nr_of_coarse() << " coarse.");
 
-		// 8. construct restriction R = I_{h->2h}
-		//-----------------------------------------
-		create_restriction();
+			// 8. construct restriction R = I_{h->2h}
+			//-----------------------------------------
+			create_restriction(newIndex);
+		}
 
 
 		for(size_t i=0; i<A.num_rows(); i++)
@@ -497,7 +521,7 @@ public:
 
 private:
 
-	void create_new_indices()
+	void create_new_indices(stdvector<int> &newIndex)
 	{
 		AMG_PROFILE_FUNC();
 		UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelCommunicateProlongation);
@@ -506,10 +530,10 @@ private:
 #ifdef UG_PARALLEL
 		PoldIndices.set_layouts(A.layouts());
 		m_famg.parallel_process_prolongation(PoldIndices, PnewIndices,
-				m_famg.m_dProlongationTruncation, level, rating, PN, false, nextLevelLayouts);
+				m_famg.m_dProlongationTruncation, level, rating, PN, false, nextLevelLayouts, newIndex);
 		TESTLAYOUTS(nextLevelLayouts);
 #else
-		m_famg.serial_process_prolongation(PoldIndices, PnewIndices, m_famg.m_dProlongationTruncation, level, rating);
+		m_famg.serial_process_prolongation(PoldIndices, PnewIndices, m_famg.m_dProlongationTruncation, level, rating, newIndex);
 #endif
 
 	}

@@ -193,7 +193,7 @@ protected:
 	 */
 	template<typename TAMGNodes>
 	void serial_process_prolongation(prolongation_matrix_type &PoldIndices, prolongation_matrix_type &PnewIndices,
-			double dEpsilonTruncation, int level, TAMGNodes &amgnodes);
+			double dEpsilonTruncation, int level, TAMGNodes &amgnodes, stdvector<int> &newIndex);
 #else
 
 	/**
@@ -228,7 +228,7 @@ protected:
 	void parallel_process_prolongation(prolongation_matrix_type &PoldIndices,
 			prolongation_matrix_type &PnewIndices, double dEpsilonTruncation,
 			int level, TAMGNodes &amgnodes, ParallelNodes &PN,
-			bool bCreateNewNodes, HorizontalAlgebraLayouts &nextLevelLayout);
+			bool bCreateNewNodes, HorizontalAlgebraLayouts &nextLevelLayout, stdvector<int> &newIndex);
 
 	/** since we calculate the prolongation only in the master/inner nodes, we need to send this communication to the slave nodes
 	 *  (so we get additive AH=RAP again)
@@ -240,7 +240,7 @@ protected:
 	 * @note this function can create new nodes in ParallelNodes. This is because for example a Slave node may be interpolated by
 	 * a node which is in Overlap1.
 	 */
-	void communicate_prolongation(ParallelNodes &PN,
+	void communicate_prolongation_additive_to_consistent(ParallelNodes &PN,
 			prolongation_matrix_type &PoldIndices, bool bCreateNewNodes);
 
 	/**
@@ -555,7 +555,13 @@ public:
 			return NULL;
 	}
 
+public:
+	void check_interpolation(vector_type &v, const char *filename);
 protected:
+
+	double Dnorm(vector_type &t, size_t level);
+	double Anorm(vector_type &t, size_t level);
+
 	void write_debug_matrices(matrix_type &AH, prolongation_matrix_type &R,
 			const matrix_type &A, prolongation_matrix_type &P, size_t level);
 
