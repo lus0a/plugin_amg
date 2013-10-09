@@ -188,7 +188,7 @@ public:
 					continue;
 
 				UG_LOGI("parents " << gp0 << ", " << gp1 << "\n");
-				if (solve_KKT(i, two_indices(p0, p1)) != 0)
+				if (solve_KKT_copy(i, two_indices(p0, p1)) != 0)
 					continue;
 				UG_LOGI("F = " << F << "\n");
 
@@ -259,7 +259,7 @@ public:
 					size_t gp2 = onlyN1[p2];
 
 //					UG_LOG("parents " << gp0 << ", " << gp1 << ", " << gp2 << "\n");
-					if (solve_KKT(i, three_indices(p0, p1, p2)) != 0)
+					if (solve_KKT_copy(i, three_indices(p0, p1, p2)) != 0)
 						continue;
 					F*=1.10;
 
@@ -537,7 +537,8 @@ public:
 	 * @param i_index index of i in H
 	 * @return true if smoother sufficient, false otherwise
 	 */
-	bool check_smoother_sufficient(size_t b, size_t blockSize, size_t i_index)
+	template<typename TIndices>
+	bool check_smoother_sufficient(TIndices &indices, size_t b, size_t blockSize, size_t i_index)
 	{
 		Hii = BlockRef(H(i_index, i_index), b, b);
 		const double Hiiscale = BlockRef(aii, b, b)*Hii;
@@ -574,7 +575,7 @@ public:
 	 * @return 0: ok, -1 : negative interpolation weights. -2 : could not solve KKT system
 	 */
 	template<typename TIndices>
-	int solve_KKT(size_t i, TIndices indices, bool bCalcNegatives=false)
+	int solve_KKT(size_t i, const TIndices &indices, bool bCalcNegatives=false)
 	{
 //		AMG_PROFILE_FUNC();
 
@@ -592,7 +593,7 @@ public:
 		{
 			UG_LOGI("BLOCK [ " << b << " ]\n");
 
-//			if(check_smoother_sufficient(b, blockSize, i_index) == true) continue;
+//			if(check_smoother_sufficient(indices, b, blockSize, i_index) == true) continue;
 
 			Hii = BlockRef(H(i_index, i_index), b, b);
 			KKT = 0.0;
@@ -693,6 +694,12 @@ public:
 		F /= blockSize;
 
 		return bNegative == false ? 0 : -1;
+	}
+	// non-reference version
+	template<typename TIndices>
+	inline int solve_KKT_copy(size_t i, const TIndices indices, bool bCalcNegatives=false)
+	{
+		return solve_KKT(i, indices, bCalcNegatives);
 	}
 
 	double calc_one_interpolation(size_t i, size_t j, double &newF, smallmat_type &newQ)
