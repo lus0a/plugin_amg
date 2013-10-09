@@ -537,7 +537,7 @@ public:
 	 * @param i_index index of i in H
 	 * @return true if smoother sufficient, false otherwise
 	 */
-	bool check_smoother_sufficient(size_t b, size_t i_index)
+	bool check_smoother_sufficient(size_t b, size_t blockSize, size_t i_index)
 	{
 		Hii = BlockRef(H(i_index, i_index), b, b);
 		const double Hiiscale = BlockRef(aii, b, b)*Hii;
@@ -592,7 +592,7 @@ public:
 		{
 			UG_LOGI("BLOCK [ " << b << " ]\n");
 
-//			if(check_smoother_sufficient(b) == true) continue;
+//			if(check_smoother_sufficient(b, blockSize, i_index) == true) continue;
 
 			Hii = BlockRef(H(i_index, i_index), b, b);
 			KKT = 0.0;
