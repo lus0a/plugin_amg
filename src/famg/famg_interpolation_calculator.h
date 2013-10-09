@@ -632,13 +632,9 @@ public:
 							{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " "); }
 							UG_LOG(" solve_KKT: lq[" << k << "] = " << lq[k] << "\n");
 						}
-<<<<<<< .mine
 						if(bCalcNegatives==false)
 							return -1;
 						bNegative=true;
-=======
-						// return false;
->>>>>>> .r11786
 					}
 					BlockRef(q[k], b, b) = lq[k];
 				}
