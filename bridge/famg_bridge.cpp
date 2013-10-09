@@ -62,7 +62,8 @@ static void Algebra(Registry& reg, string grp)
 			.add_constructor()
 			.add_method("tostring", &T::tostring)
 			.add_method("set_aggressive_coarsening", &T::set_aggressive_coarsening)
-			.add_method("set_delta", &T::set_delta, "", "delta", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
+			.add_method("set_delta", (void(T::*)(double delta))&T::set_delta, "", "delta", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
+			.add_method("set_delta", (void(T::*)(double delta, size_t level))&T::set_delta, "", "delta#level", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
 			.add_method("get_delta", &T::get_delta, "delta")
 			.add_method("set_theta", &T::set_theta, "" , "theta", "with multiple parents pairs, discard pairs with m_theta * F > min F. e.g. 0.9")
 			.add_method("get_theta", &T::get_theta, "theta")
@@ -108,6 +109,9 @@ static void Algebra(Registry& reg, string grp)
 
 			.add_method("set_prevent_ff_connection_external", &T::set_prevent_ff_connection_external)
 			.add_method("get_prevent_ff_connection_external", &T::get_prevent_ff_connection_external)
+			.add_method("set_injection_restriction", &T::set_injection_restriction)
+			.add_method("set_max_parents", &T::set_max_parents)
+			.add_method("set_H_as_inverse", &T::set_H_as_inverse)
 
 
 

@@ -26,7 +26,7 @@ endif(PARALLEL)
 	set(srcAMG ${srcAMG}
 		src/rsamg/rsamg_coarsening.cpp	
 		src/agglomeration.cpp
-		src/famg/debug_ids.cpp
+		src/famg/debug_ids.cpp		
 		)								
 
 
