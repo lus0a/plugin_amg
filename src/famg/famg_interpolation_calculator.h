@@ -20,6 +20,7 @@
 #include "neighborhood.h"
 
 #include "common/util/ostream_util.h"
+#include "common/util/sort_util.h"
 #include "lib_algebra/small_algebra/solve_deficit.h"
 #include "lib_algebra/small_algebra/small_matrix/print.h"
 
