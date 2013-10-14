@@ -11,7 +11,8 @@
 
 namespace ug{
 
-//! $$-a_{ij} \ge \epsilon \max_{a_{ik}<0} |a_{ik}|$$
+//! Adds 'strong negative connections' to graph.
+/*! Criterion: $$-a_{ij} \ge \epsilon \max_{a_{ik}<0} |a_{ik}|$$ */
 template<typename TRowType>
 void FindStrongNegativeConnections(const TRowType &Ci, size_t i, double theta, cgraph &graph)
 {
@@ -34,7 +35,8 @@ void FindStrongNegativeConnections(const TRowType &Ci, size_t i, double theta, c
 }
 
 
-//! $$a_{ij} \ge \epsilon^+ \max_{k\neq i} |a_{ik}|$$
+//! Adds 'strong positive connections' to graph.
+/*! Criterion: $$a_{ij} \ge \epsilon^+ \max_{k\neq i} |a_{ik}|$$ */
 template<typename TRowType>
 void FindStrongPositiveConnections(const TRowType &Ci, size_t i, double theta, cgraph &graph)
 {
@@ -56,6 +58,29 @@ void FindStrongPositiveConnections(const TRowType &Ci, size_t i, double theta, c
 		const double dval =  amg_offdiag_value(conn->value());
 		if( dval >= theta * dmax)
 			graph.set_connection(i, j);
+	}
+}
+
+//! Adds 'strong negative connections' to graph.
+/*! Criterion: $$-a_{ij} \ge \epsilon \max_{a_{ik}<0} |a_{ik}|$$ */
+template<typename TRowType>
+void FindStrongConnectionsByBlockNorm(const TRowType &Ci, size_t i, double theta, cgraph &graph)
+{
+	double dmax = 0.0;
+	typedef typename TRowType::const_iterator const_iterator;
+
+	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+	{
+		if(conn.index() == i) continue; // skip diag
+		if(conn.value() != 0.0 && BlockNorm(conn.value()) < dmax)
+			dmax = BlockNorm(conn.value());
+	}
+
+	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+	{
+		if(conn.index() == i) continue; // skip diag
+		if( BlockNorm(conn.value()) <= theta * dmax)
+			graph.set_connection(i, conn.index());
 	}
 }
 
@@ -93,6 +118,33 @@ void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double the
 
 		// Find strong connections
 		FindStrongNegativeConnections(Ri, i, theta, graph);
+
+		if(graph.num_connections(i) == 0)
+			nodes.set_coarse(i);
+	}
+
+#ifdef AMG_PRINT_GRAPH
+	graph.print();
+#endif
+}
+
+template<typename matrix_type>
+void CreateStrongConnectionGraphForSystems(const matrix_type &A, cgraph &graph, double theta, AMGNodes &nodes)
+{
+	AMG_PROFILE_FUNC();
+	graph.resize(A.num_rows());
+
+	for(size_t i=0; i< A.num_rows(); i++)
+	{
+		// Skip isolated node
+		if(A.is_isolated(i)) continue;
+
+		// copy all off-diag entries
+		SparseVector<typename matrix_type::value_type> Ri(A.num_cols());
+		CopyOffDiagEntries(A, i, Ri);
+
+		// Find strong connections
+		FindStrongConnectionsByBlockNorm(Ri, i, theta, graph);
 
 		if(graph.num_connections(i) == 0)
 			nodes.set_coarse(i);

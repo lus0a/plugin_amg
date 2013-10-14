@@ -91,29 +91,34 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 
 	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "FAMG strong connections ("<< sigma <<") based on comp="<< submask << " (comp=-1 indicates full)."<< std::endl);
 
-	if (submask==0){
-		// primary sub 0
-		ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 0, 0>
-		sub(const_cast<typename algebra_type::matrix_type&> (A_OL2));
+	switch (submask) {
+	case 0: // primary sub 0
+		{ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 0, 0>
+		sub(const_cast<typename algebra_type::matrix_type&> (A_OL2)); // warning: slow
 		CreateStrongConnectionGraph(sub, graphS, sigma, nodes);
-	}
-	else if (submask==1){
-			// primary sub 1
-			ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 1, 1>
-			sub(const_cast<typename algebra_type::matrix_type&> (A_OL2));
-			CreateStrongConnectionGraph(sub, graphS, sigma, nodes);
-	}
-	else if (submask==2)
-	{
-		// primary sub 1
-		ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 2, 2>
-		sub(const_cast<typename algebra_type::matrix_type&> (A_OL2));
+		break;}
+
+	case 1: // primary sub 1
+		{ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 1, 1>
+		sub(const_cast<typename algebra_type::matrix_type&> (A_OL2)); // warning: slow
 		CreateStrongConnectionGraph(sub, graphS, sigma, nodes);
-	} else
-	{
-		//full primary matrix
+		break;}
+
+	case 2: // primary sub 2
+		{ScalarSubMatrixAdapter<algebra_type, CPUAlgebra, 2, 2>
+		sub(const_cast<typename algebra_type::matrix_type&> (A_OL2)); // warning: slow
+		CreateStrongConnectionGraph(sub, graphS, sigma, nodes);
+		break;}
+
+	case -2: //full primary matrix (norm based)
+	{// todo: could be replaced by primary matrix!
+		CreateStrongConnectionGraphForSystems(A_OL2, graphS, sigma, nodes);
+		break;}
+
+	default:
+		// standard scalar case
 		CreateStrongConnectionGraph(A_OL2, graphS, sigma, nodes);
-	};
+	}
 
 	graphST.set_as_transpose_of(graphS);
 	CreateMeasureOfImportancePQ(graphS, graphST, PQ, nodes);

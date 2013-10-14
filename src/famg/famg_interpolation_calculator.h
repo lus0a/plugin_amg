@@ -618,9 +618,9 @@ public:
 			for(size_t k=0; k<M; k++)
 				rhs[N+k] = BlockRef(localTestvectors[k][i_index],b);
 
-			IF_DEBUG(LIB_ALG_AMG, 5) KKT.maple_print("KKT");
+
 			IFI(rhs.maple_print("rhs"));
-			IF_DEBUG(LIB_ALG_AMG, 5) KKT.maple_print("KKT1");
+			IF_DEBUG(LIB_ALG_AMG, 5) UG_LOG(JuliaString(KKT, "KKT1"));
 			IF_DEBUG(LIB_ALG_AMG, 5) rhs.maple_print("rhs1");
 
 
@@ -628,7 +628,7 @@ public:
 			// todo: do less work here (KKT system is too large)
 
 			reduceKKTSystem(indices, b);
-			IF_DEBUG(LIB_ALG_AMG, 5) KKT.maple_print("KKT2");
+			IF_DEBUG(LIB_ALG_AMG, 5) UG_LOG(JuliaString(KKT, "KKT2"))
 			IF_DEBUG(LIB_ALG_AMG, 5) rhs.maple_print("rhs2");
 
 			// solve system
@@ -967,12 +967,6 @@ public:
 			return true;
 		}
 */
-		// global reduce
-		/*
-		 std::vector<size_t> strongNeighbors;
-		reduceToStrong(coarseNeighbors, strongNeighbors, m_dHReduceInterpolationNodesParameter);
-		std::vector<size_t> &myNeighbors = strongNeighbors;
-        */
 
 		std::vector<size_t> &myNeighbors = coarseNeighbors;
 		set_sizes(myNeighbors.size());

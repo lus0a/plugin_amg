@@ -11,7 +11,6 @@ namespace ug
 {
 
 
-
 template <class T> struct PositiveOffDiagCheck
 {
 	//! returns true for any positive off-diag connection
@@ -34,6 +33,18 @@ private:
 	 const cgraph &strong;
 };
 
+
+
+template<typename TMatrixType, typename TRowType>
+void CopyOffDiagEntries(const TMatrixType &A, size_t i, TRowType &row, bool enforceNew=false)
+{
+	// copy matrix entries selected by rule
+	for(typename TMatrixType::const_row_iterator connij = A.begin_row(i); connij != A.end_row(i); ++connij)
+	{
+		const size_t j=connij.index();
+		row(connij.index()) = (i==j) ? 0.0 : connij.value();
+	}
+}
 
 
 template<typename TMatrixType, typename TRowType, typename TElimRule>
