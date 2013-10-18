@@ -22,16 +22,20 @@ void FindStrongNegativeConnections(const TRowType &Ci, size_t i, double theta, c
 	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
 	{
 		if(conn.index() == i) continue; // skip diag
-		if(conn.value() != 0.0 && amg_offdiag_value(conn.value()) < dmax)
-			dmax = amg_offdiag_value(conn.value());
+		if(conn.value() != 0.0 && amg_trace(conn.value()) < dmax)
+			dmax = amg_trace(conn.value());
 	}
-
+	UG_LOG("Strong negative( = influencing) connections for " << i<< " (" << dmax <<") :" );
 	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
 	{
 		if(conn.index() == i) continue; // skip diag
-		if( amg_offdiag_value(conn.value()) <= theta * dmax)
+		const double d = amg_trace(conn.value());
+		if( d <= theta * dmax) {
 			graph.set_connection(i, conn.index());
+			UG_LOG(conn.index() << "(" << d << "), ")
+		}
 	}
+	UG_LOG("\n")
 }
 
 
@@ -72,14 +76,15 @@ void FindStrongConnectionsByBlockNorm(const TRowType &Ci, size_t i, double theta
 	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
 	{
 		if(conn.index() == i) continue; // skip diag
-		if(conn.value() != 0.0 && BlockNorm(conn.value()) < dmax)
-			dmax = BlockNorm(conn.value());
+		double d = BlockNorm(conn.value());
+		std::cout << d << std::endl;
+		if(d > dmax) dmax = BlockNorm(conn.value());
 	}
 
 	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
 	{
 		if(conn.index() == i) continue; // skip diag
-		if( BlockNorm(conn.value()) <= theta * dmax)
+		if( BlockNorm(conn.value()) >= theta * dmax)
 			graph.set_connection(i, conn.index());
 	}
 }

@@ -15,7 +15,8 @@ template <class T> struct PositiveOffDiagCheck
 {
 	//! returns true for any positive off-diag connection
 	 static bool eval(size_t i, size_t j, T Aij) {
-		return ((amg_offdiag_value(Aij) > 0.0) && (i!=j));
+	   //return ((amg_offdiag_value(Aij) > 0.0) && (i!=j));
+	   return ((amg_trace(Aij) > 0.0) && (i!=j));
 	}
 };
 
@@ -48,7 +49,7 @@ void CopyOffDiagEntries(const TMatrixType &A, size_t i, TRowType &row, bool enfo
 
 
 template<typename TMatrixType, typename TRowType, typename TElimRule>
-void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TRowType &row, bool enforceNew=false)
+void EliminateEntries(const TElimRule &elimRule, const TMatrixType &A, size_t i, TRowType &row, bool enforceNew=false)
 {
 	// copy 'non-negative' matrix entries that we wish to keep
 	for(typename TMatrixType::const_row_iterator connij = A.begin_row(i); connij != A.end_row(i); ++connij)
@@ -56,15 +57,13 @@ void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TRo
 		size_t j=connij.index();
 		typename TMatrixType::value_type Aij=connij.value();
 //		UG_LOG( i << " " << connij.index() << "\n");
-		row(connij.index()) = (rule.eval(i, j, Aij)) ? 0.0 : connij.value();
+		row(connij.index()) = (elimRule.eval(i, j, Aij)) ? 0.0 : connij.value();
 	}
 
-//	UG_LOG("=============\n");
 	/*
 	std::cout << "EliminateEntries (BEGIN) "<< i << "\n";
-	A.pr(i);
-	B.pr(i);
-*/
+	row.print();
+	*/
 
 	// distribute 'positive' rows
 	for(typename TMatrixType::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
@@ -72,16 +71,25 @@ void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TRo
 		const size_t j=conn.index();
 		typename TMatrixType::value_type Aij=conn.value();
 
-		if (rule.eval(i,j,Aij))
+
+		if (elimRule.eval(i,j,Aij))
 		{
-			//std::cout << "Eliminating A (" << i << "," << j<< ")=" << Aij <<std::endl;
+			typename TMatrixType::value_type Bjj;
 			typename TMatrixType::const_row_iterator connjj = A.get_connection(j,j);
+			GetInverse(Bjj, connjj.value());
+
+			typename TMatrixType::value_type Cij=Aij*Bjj;			
+
+			//	std::cout << "Eliminating A (" << i << "," << j<< ")=" << Aij << "using" <<  Bjj << Cij << std::endl;
+
 			for(typename TMatrixType::const_row_iterator connjk = A.begin_row(j); connjk != A.end_row(j); ++connjk)
 			{
-				size_t k=connjk.index();
+				const size_t k=connjk.index();
 				if (k==j) continue;
-
-				typename TMatrixType::value_type Aijjk = Aij*(1.0 /BlockRef(connjj.value(), 0, 0)) * connjk.value();
+				
+			
+				typename TMatrixType::value_type Aijjk = Cij * connjk.value();
+				//	std::cout << "adding  (" << i << "," << k<< ")=" << -Aijjk << " = -Cij*"<< connjk.value() <<" to "<< row(k) << std::endl;
 
 				if(enforceNew || row.has_connection(k))
 					row(k) -= Aijjk;
@@ -90,10 +98,9 @@ void EliminateEntries(const TElimRule &rule, const TMatrixType &A, size_t i, TRo
 
 	}
 
-/*
-	std::cout << "EliminateEntries (POST) "<< i << "\n";
-	A.pr(i);
-	B.pr(i);
+
+	/*	std::cout << "EliminateEntries (POST) "<< i << "\n";
+	row.print();
 	std::cout << "EliminateEntries (END) "<< i << "\n";
 	*/
 }
