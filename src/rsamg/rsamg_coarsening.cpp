@@ -194,9 +194,9 @@ void ChangeRatingOfUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MarkUnassignedNeighborsFine:
 //-------------------------
-void MarkUnassignedNeighborsFine(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, bool bMarkAsFineIndirect)
+  void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, bool bMarkAsFineIndirect)
 {
-	for(cgraph::const_row_iterator conn = graph.begin_row(i); conn != graph.end_row(i); ++conn)
+	for(cgraph::const_row_iterator conn = ST.begin_row(i); conn != ST.end_row(i); ++conn)
 	{
 		int indexN = (*conn);
 
@@ -217,7 +217,7 @@ void MarkUnassignedNeighborsFine(const cgraph &graph, nodeinfo_pq_type &PQ, AMGN
 		else
 			nodes.set_fine_direct(indexN);
 
-		ChangeRatingOfUnassignedNeighbors(graph, PQ, nodes, indexN, +1);
+		ChangeRatingOfUnassignedNeighbors(S, PQ, nodes, indexN, +1);
 	}
 }
 
@@ -240,7 +240,7 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 	PROGRESS_START(prog, nodes.size(), "Coarsening graph size " << nodes.size());
 	UG_ASSERT(S.size() == nodes.size() && S.size() == PQ.arr_size() && S.size() == ST.size(), "");
 
-	//UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, 3);
+	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, 3);
 
 #ifdef UG_DEBUG
 	size_t n=0;
@@ -272,7 +272,7 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 		RemoveUnassignedNeighbors(ST, PQ, nodes, best);
 
 		// now mark unassigned neighbors as fine
-		MarkUnassignedNeighborsFine(ST, PQ, nodes, best, bAggressiveCoarsening);
+		MarkUnassignedNeighborsFine(S, ST, PQ, nodes, best, bAggressiveCoarsening);
 
 		if(bUnsymmetric)
 			ChangeRatingOfUnassignedNeighbors(S, PQ, nodes, best, -1);
