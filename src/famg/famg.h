@@ -293,7 +293,7 @@ private:
 	double m_dProlongationTruncation;		///< parameter used for truncation of interpolation
 
 	double m_dHReduceInterpolationNodesParameter; ///< parameter used to reduce the number of interpolation nodes by looking at the H(i,j) value.
-	double m_iHReduceMinParents; ///< parameter used to reduce the number of interpolation nodes by looking at the H(i,j) value.
+	int m_iHReduceMinParents; ///< parameter used to reduce the number of interpolation nodes by looking at the H(i,j) value.
 
 	double m_dPrereduceAToStrongParameter;	///< parameter used to reduce the matrix A to
 
