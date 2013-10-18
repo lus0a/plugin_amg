@@ -109,9 +109,9 @@ public:
 
 
 	size_t iDebugLevelOverlapAMG, iDebugLevelOverlapMatrix, iDebugLevelTestvectorCalc, iDebugLevelPhase3,
-			iDebugLevelCalculateParentPairs, iDebugLevelColoring, iDebugLevelRecvCoarsening, iDebugLevelGetRatings, iDebugLevelPrecalculateCoarsening,
-			iDebugLevelAggressiveCoarsening, iDebugLevelSendCoarsening, iDebugLevelCommunicateProlongation, iDebugLevelAfterCommunicateProlongation,
-			iDebugLevelExternalCoarsening;
+	       iDebugLevelCalculateParentPairs, iDebugLevelColoring, iDebugLevelRecvCoarsening, iDebugLevelGetRatings, iDebugLevelPrecalculateCoarsening,
+	       iDebugLevelAggressiveCoarsening, iDebugLevelSendCoarsening, iDebugLevelCommunicateProlongation, iDebugLevelAfterCommunicateProlongation,
+	       iDebugLevelExternalCoarsening;
 	void set_debug_level_overlap(size_t amg, size_t matrix) { iDebugLevelOverlapAMG = amg; iDebugLevelOverlapMatrix = matrix; }
 	void set_debug_level_testvector_calc(size_t lvl) { iDebugLevelTestvectorCalc = lvl; }
 	void set_debug_level_phase_3(size_t lvl) { iDebugLevelPhase3 = lvl; }
@@ -245,6 +245,9 @@ public:
 	void 	set_H_reduce_interpolation_nodes_parameter(double d)	{	m_dHReduceInterpolationNodesParameter = d; 	}
 	double	get_H_reduce_interpolation_nodes_parameter() const		{	return m_dHReduceInterpolationNodesParameter; }
 
+	void 	set_H_reduce_min_parents(int min)	{ m_iHReduceMinParents = min; }
+	int	get_H_reduce_min_parents() const	{ return m_iHReduceMinParents; }
+
 	void	set_strong_connection_external(double d) 	{ m_dStrongConnectionExternal = d; }
 	double	get_strong_connection_external() 			{ return m_dStrongConnectionExternal; }
 
@@ -290,6 +293,7 @@ private:
 	double m_dProlongationTruncation;		///< parameter used for truncation of interpolation
 
 	double m_dHReduceInterpolationNodesParameter; ///< parameter used to reduce the number of interpolation nodes by looking at the H(i,j) value.
+	double m_iHReduceMinParents; ///< parameter used to reduce the number of interpolation nodes by looking at the H(i,j) value.
 
 	double m_dPrereduceAToStrongParameter;	///< parameter used to reduce the matrix A to
 

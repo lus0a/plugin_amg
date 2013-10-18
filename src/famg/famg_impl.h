@@ -38,9 +38,11 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 	m_bWriteFValues = false;
 
 	m_dProlongationTruncation = 0.0;
-	m_dHReduceInterpolationNodesParameter = 0.0;
+	
 	m_dPrereduceAToStrongParameter = 0.0;
 
+	m_dHReduceInterpolationNodesParameter = 0.0;
+	m_iHReduceMinParents = 1;
 
 	m_dStrongConnectionExternal = 0.1;
 	m_iPreventFFConnection=0;
