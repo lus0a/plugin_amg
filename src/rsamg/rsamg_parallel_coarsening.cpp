@@ -178,7 +178,7 @@ public:
 			if(b == AMG_COARSE_RATING)
 			{
 				RemoveUnassignedNeighbors(graphST, PQ, m_nodes, i);
-				MarkUnassignedNeighborsFine(graphST, PQ, m_nodes, i, false);
+				MarkUnassignedNeighborsFine(graphS, graphST, PQ, m_nodes, i, false);
 
 				if(bUnsymmetric)
 					ChangeRatingOfUnassignedNeighbors(graphS, PQ, m_nodes, i, -1);
