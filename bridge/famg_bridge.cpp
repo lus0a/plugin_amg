@@ -112,6 +112,7 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_injection_restriction", &T::set_injection_restriction)
 			.add_method("set_max_parents", &T::set_max_parents)
 			.add_method("set_H_as_inverse", &T::set_H_as_inverse)
+			.add_method("set_three_parents_penalty", &T::set_three_parents_penalty)
 
 
 
