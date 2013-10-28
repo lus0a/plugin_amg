@@ -194,7 +194,7 @@ void ChangeRatingOfUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MarkUnassignedNeighborsFine:
 //-------------------------
-  void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, bool bMarkAsFineIndirect)
+void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, bool bMarkAsFineIndirect)
 {
 	for(cgraph::const_row_iterator conn = ST.begin_row(i); conn != ST.end_row(i); ++conn)
 	{
