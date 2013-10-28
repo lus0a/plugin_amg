@@ -64,6 +64,7 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 	m_bInjectionRestriction = false;
 	m_fileCoarsening = NONE;
 	m_iMaxParents = 2;
+	m_threeParentsPenalty = 1.1;
 #ifdef UG_PARALLEL
 	m_pParallelCoarsening = NULL;
 #endif
@@ -81,19 +82,33 @@ void FAMG<TAlgebra>::tostring() const
 	AMGBase<TAlgebra>::tostring();
 	UG_LOG("FAMG Preconditioner:\n");
 
+	// coarsening
+	UG_LOG(" Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF") << "\n");
+	if(m_bExternalCoarsening)
+		UG_LOG(" External Coarsening: StrongConnection = " << m_dStrongConnectionExternal << ", StrongConnectionSub = " << get_strong_connection_submask_desc() << "\n");
+	if(m_bUsePrecalculate)
+	{ UG_LOG(" precalculate Coarsening\n");}
+	else
+	{ UG_LOG(" std FAMG coarsening.\n"); }
+
+	UG_LOG("Truncation of interpolation = " << m_dProlongationTruncation << "\n");
+	UG_LOG("Prereduce A parameter: " << m_dPrereduceAToStrongParameter << "\n");
+
+	UG_LOG("Injection Restriction " << (m_bInjectionRestriction ? "[ON]" : "OFF") << "\n");
+
 	UG_LOG(" Delta: " << mDeltaAll << " (forces interpolation quality measure F < delta.) " << std::endl);
 	UG_LOG(" Theta: " << m_theta << " (with multiple parents pairs, discard pairs with m_theta * F > min F.) " << std::endl);
 	UG_LOG(" Damping for Smoother in interpolation calculation: " << m_dDampingForSmootherInInterpolationCalculation << std::endl);
-	UG_LOG(" Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF"));
-	UG_LOG(", external Coarsening is " << (m_bExternalCoarsening ? "[ON]" : "OFF"));
-	UG_LOG(", precalculate Coarsening is " << (m_bUsePrecalculate ? "[ON]" : "OFF"));
-	UG_LOG(", truncation of interpolation = " << m_dProlongationTruncation << "\n");
-	if(m_bExternalCoarsening)
-		UG_LOG("Strong Connection External Coarsening: " << m_dStrongConnectionExternal << "\n");
-	UG_LOG("H-Reduce Interpolation Nodes Parameter:" << m_dHReduceInterpolationNodesParameter << "\n");
-	UG_LOG("prereduce A parameter: " << m_dPrereduceAToStrongParameter << "\n");
+	UG_LOG(" max parents: " << m_iMaxParents << ", ");
+	UG_LOG(" H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n");
+
+	if(m_testvectorsmoother == NULL)
+	{ UG_LOG("No testvectorsmoother set!!!;\n"); }
+	else
+	{ UG_LOG("Testvector Smoother is " << m_testvectorsmoother->name() << ", number of smooths is " << m_iTestvectorDamps << "\n"); }
 
 	UG_LOG(" \n");
+	UG_LOG("Testvectors: " << testvector_desc() << "\n");
 	UG_LOG(m_testvectors.size() + m_vVectorWriters.size() << " test vectors. Nr. of testvector damps: " << m_iTestvectorDamps << std::endl);
 	if(m_writeMatrices && m_writeTestvectors)
 		UG_LOG(" Write Testvectors is on.\n")

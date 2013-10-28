@@ -1,3 +1,4 @@
+// new
 /**
 ý * \file famg_interpolation_calculator.h
  *
@@ -39,7 +40,9 @@ namespace ug
 #define SYS_AS_SYS 0
 //#define SYS_AS_SYS 1
 
-
+#define IFI(s)
+//#define IFI(s) if(i==1) { s; }
+#define UG_LOGI(s) IFI(UG_LOG(s));
 /**
  * FAMGInterpolationCalculator
  *
@@ -116,6 +119,7 @@ public:
 				famg.get_damping_for_smoother_in_interpolation_calculation();
 		m_dProlongationTruncation = famg.get_prolongation_truncation();
 		m_iMaxParents = famg.m_iMaxParents;
+		m_threeParentsPenalty = famg.m_threeParentsPenalty;
 
 		m_dHReduceInterpolationNodesParameter = famg.get_H_reduce_interpolation_nodes_parameter();
 		m_iHReduceMinParents = famg.get_H_reduce_min_parents();
@@ -144,6 +148,14 @@ public:
 		}
 	}
 
+	/**
+	 * it could be that this processor can not set node i coarse because
+	 * a) it is master on another processor
+	 * b) it is already fine
+	 * @param rating
+	 * @param i
+	 * @return true if i could be parent
+	 */
 	bool asParent(FAMGNodes<TPMatrix> &rating, size_t i)
 	{
 		return rating.i_can_set_coarse(i)
@@ -155,6 +167,12 @@ public:
 
 #include "local_eigenvalue_test_computation.h"
 #if 1
+	/**
+	 * get possible interpolations for i with 2 interpolation parents.
+	 * @param i
+	 * @param rating used to decide if node can be parent
+	 * @return
+	 */
 	double get_possible_parent_pairs(size_t i, FAMGNodes<TPMatrix> &rating)
 	{
 		AMG_PROFILE_NEXT(FAMG_getPPP_minCalc);
@@ -168,10 +186,6 @@ public:
 		set_sizes(2);
 		//size_t blockSize = GetRows(H(0,0));
 		double total_f_min=1e12;
-
-#define IFI(s)
-//#define IFI(s) if(i==0) { s; }
-#define UG_LOGI(s) IFI(UG_LOG(s));
 
 		IFI(PrintVector(onlyN1, "N1"))
 		IFI(UG_LOG(CPPString(H, "H")));
@@ -230,9 +244,16 @@ public:
 		}
 		if(i_min != -1 && i_neighborpairs.size() > 0 && i_neighborpairs[0].F > i_neighborpairs[i_min].F)
 			std::swap(i_neighborpairs[0],  i_neighborpairs[i_min]);
-//		UG_LOG("best 2-F is " << total_f_min << "\n");
+		IFI(UG_LOG("best 2-F is " << total_f_min << "\n"));
 		return total_f_min != 1e12 ? total_f_min : 0.0;
 	}
+
+	/**
+	 * get possible interpolations for i with 3 interpolation parents.
+	 * @param i
+	 * @param rating used to decide if node can be parent
+	 * @return
+	 */
 	double get_possible_parent_threes(size_t i, FAMGNodes<TPMatrix> &rating)
 	{
 		AMG_PROFILE_FUNC();
@@ -259,10 +280,9 @@ public:
 				{
 					size_t gp2 = onlyN1[p2];
 
-//					UG_LOG("parents " << gp0 << ", " << gp1 << ", " << gp2 << "\n");
-					if (solve_KKT_copy(i, three_indices(p0, p1, p2)) != 0)
+					UG_LOGI("parents " << gp0 << ", " << gp1 << ", " << gp2 << "\n");
+					if (solve_KKT_copy(i, three_indices(p0, p1, p2), true) != 0)
 						continue;
-					F*=1.10;
 
 					if ((F < 10 || F < 10*m_delta) && F < total_f_min)
 						total_f_min = F;
@@ -270,6 +290,7 @@ public:
 					if (F > m_delta)
 						continue;
 
+					F *= m_threeParentsPenalty;
 					//check_one_interpolation(i, p0, p1);
 					UG_DLOG(LIB_ALG_AMG, 2, "F: " << F << "\n");
 
@@ -304,11 +325,18 @@ public:
 		}
 		if(i_min != -1 && i_neighborpairs.size() > 0 && i_neighborpairs[0].F > i_neighborpairs[i_min].F)
 			std::swap(i_neighborpairs[0],  i_neighborpairs[i_min]);
-//		UG_LOG("best 3-F is " << total_f_min << "\n");
+		IFI(UG_LOG("best 3-F is " << total_f_min << "\n"));
 		return f_min;
 	}
 #endif
 
+	/**
+	 * prepare interpolation calculation
+	 * that is: Get Neighborhood of i, calculate H-matrix.
+	 * @param i
+	 * @param rating
+	 * @return
+	 */
 	bool prepare_interpolation_calculation(size_t i, FAMGNodes<TPMatrix> rating)
 	{
 		UG_DLOG(LIB_ALG_AMG, 2,
@@ -349,11 +377,10 @@ public:
 		}
 		return true;
 	}
-	// get_possible_parent_pairs:
-	//---------------------------------------
-	/** calculates of an index i a list of interpolating parent pairs.
-	 * \param i						node index for which to calculate possible parent pairs
-	 * \param possible_neighbors	here goes list of possible parent pairs
+
+	/** get_possible_parents: calculates possible interpolations for index i
+	 * \param i
+	 * \param possible_neighbors	here goes list of possible interpolations (2 or 3 parents)
 	 * \param rating				fine/coarse infos of the nodes
 	 */
 	double get_possible_parents(size_t i,
@@ -370,14 +397,16 @@ public:
 		AMG_PROFILE_FUNC();
 		UG_DLOG(LIB_ALG_AMG, 2, "\n\n\n\n============================\n\n\n");
 		if(prepare_interpolation_calculation(i, rating) == false) return 0;
-//		UG_LOG("----" << i << "\n");
+		IFI(UG_LOG("----" << i << "\n"));
 
 		i_neighborpairs.clear();
 
 //		double bestF = get_all_neighbors_interpolation(i);
-//		UG_LOG("Best F is " << bestF << "\n");
+		IFI(UG_LOG("Best F is " << get_all_neighbors_interpolation(i) << "\n"));
 		get_possible_parent_pairs(i, rating);
-		if(m_iMaxParents >= 3)
+		double bestf = 1e3*m_delta;
+		if(i_neighborpairs.size() > 0) bestf = i_neighborpairs[0].F;
+		if(m_iMaxParents == 3 || (m_iMaxParents == 4 && bestf > 0.5*m_delta))
 			get_possible_parent_threes(i, rating);
 
 		if(i_neighborpairs.size() == 0)
@@ -394,6 +423,13 @@ public:
 
 	}
 
+	/**
+	 * from the list of possible parents (in i_neighborpairs), extract the best (with F=f_min), and
+	 * the ones with F * m_theta < f_min. (e.g. m_theta = 0.9)
+	 * @param i
+	 * @param possible_neighbors
+	 * @return
+	 */
 	double extract_best_parents(size_t i, stdvector<neighborstruct_var<smallmat_ptype> > &possible_neighbors)
 	{
 		//AMG_PROFILE_NEXT(FAMG_getPPP_cleanup);
@@ -426,7 +462,10 @@ public:
 	}
 
 
-
+	/**
+	 * resizes needed matrices
+	 * @param N
+	 */
 	void set_sizes(size_t N)
 	{
 		q.resize(N);
@@ -444,76 +483,17 @@ public:
 #endif
 	}
 
-	// set KKT matrix
-	/*
-	 * solve_KKT
-	 *
-	 * \param i index of the fine node
-	 * \param indices indices of the nodes to use out of onlyN1
-	 *
-	 * asserts H is calculated. \sa get_H
-	 * \note since indices is templated, you can select fixed subsets
-	 * like \sa two_indices , std::vector or \sa index_range.
-	 *
+
+	/**
+	 * reduceKKTSystem : force values to zero for non-strong couplings because they would become very small
+	 * the size of the KKT system stays the same.
+	 * @sa markAllStrong, H_strong_measure
+	 * @param indices the indices of the KKT system
+	 * @param ntv number of testvectors
+	 * @param b the block to be used in H_strong_measure
 	 */
-#if SYS_AS_SYS
 	template<typename TIndices>
-	bool solve_KKT(size_t i, TIndices indices)
-	{
-		//AMG_PROFILE_FUNC();
-
-		DenseVector<stdvector<smallvec_type> > &t0 = localTestvectors[0];
-
-		const size_t N = indices.size();
-		const size_t blockSize = GetRows(H(0, 0)); // assert blocksize is FIXED!!!
-
-		/* we solve the following system. say i[]=indices[], n=indices.size()-1
-		 *  ( H(i_0, i_0) ... H(i_0, i_n)  t[i_0]) ( q[i_0] )   ( h[i_0] )
-		 *  (      ...            ...       ...  ) ( ...    )   (  ...   )
-		 *  ( H(i_n, i_0) ... H(i_n, i_n)  t[i_n]) ( q[i_n] ) = ( h[i_n] )
-		 *  ( t[i_0]^T    ... t[i_n]^T       0.0 ) ( lambda ) = ( t_i    )
-		 */
-
-		for (size_t r = 0; r < N; r++)
-			for (size_t c = 0; c < N; c++)
-				KKT.subassign(blockSize * r, blockSize * c,
-						H(indices[r], indices[c]));
-
-		for (size_t j = 0; j < N; j++)
-		{
-			KKT.subassign(blockSize * j, blockSize * N, t0[indices[j]]);
-			KKT.subassign(blockSize * N, blockSize * j,
-					te_transpose(t0[indices[j]]));
-		}
-
-		KKT(blockSize * N, blockSize * N) = 0;
-
-		for (size_t j = 0; j < N; j++)
-			rhs.subassign(blockSize * j, hat_h[indices[j]]);
-		rhs[blockSize * N] = t_i;
-
-		IF_DEBUG(LIB_ALG_AMG, 5)
-			KKT.maple_print("KKT");
-		IF_DEBUG(LIB_ALG_AMG, 5)
-			rhs.maple_print("rhs");
-
-		if (InverseMatMult(q, 1.0, KKT, rhs))
-		{
-			F = Hii - VecProd(rhs, q);
-			F /= blockSize;
-			return true;
-		}
-		else
-		{
-			UG_DLOG(LIB_ALG_AMG, 1, "solve_KKT: could not invert KKT :" << KKT);
-			return false;
-		}
-	}
-#else
-
-	// Eliminate rows from non-strong couplings from KKT system
-	template<typename TIndices>
-	  void reduceKKTSystem(TIndices indices, size_t ntv, size_t b)
+	  void reduceKKTSystem(TIndices indices, size_t b)
 	{
 		const size_t N = indices.size();
 		std::vector<bool> strong(N, false);
@@ -521,9 +501,10 @@ public:
 
 		for(size_t r=0; r<N; r++)
 		{
-			// fix entries for non-strong
+			// fix entries to zero for non-strong
 			if (strong[r]) continue;
-			for(size_t c=0; c<N+ntv; c++) KKT(r, c)= 0.0;
+			for(size_t c=0; c < indices.size(); c++)
+				KKT(r, c)= 0.0;
 			KKT(r, r)= 1.0;
 			rhs[r] = 0.0;
 
@@ -626,7 +607,7 @@ public:
 			// reduce to essential entries
 			// todo: do less work here (KKT system is too large)
 
-			reduceKKTSystem(indices, M, b);
+			reduceKKTSystem(indices, b);
 			IF_DEBUG(LIB_ALG_AMG, 5) UG_LOG(JuliaString(KKT, "KKT2"))
 			IF_DEBUG(LIB_ALG_AMG, 5) rhs.maple_print("rhs2");
 
@@ -683,7 +664,7 @@ public:
 				{
 				  UG_LOG(" solve_KKT: could not solve KKT (decomposition failed) at node " << i << "\n");
 				}
-				
+
 				return -2;
 			}
 		}
@@ -700,6 +681,14 @@ public:
 		return solve_KKT(i, indices, bCalcNegatives);
 	}
 
+	/**
+	 * check if interpolation from one parent is possible
+	 * @param i node to be interpolated
+	 * @param j parent
+	 * @param newF interpolation measure F
+	 * @param newQ interpolation (= w_{i,j} )
+	 * @return
+	 */
 	double calc_one_interpolation(size_t i, size_t j, double &newF, smallmat_type &newQ)
 	{
 		newF = 0;
@@ -745,7 +734,7 @@ public:
 		}
 
 	}
-#endif
+
 
 	void printH(size_t i)
 	{
@@ -798,6 +787,23 @@ public:
 		std::cout << "]"<< std::endl;
 	}
 
+	/**
+	 * the bigger, the stronger is the connection
+	 *
+	 * if j was the only node where we would interpolate from, then F would be
+	 * F = H_{ii} - 2 H_{ij} w_j + H_{jj} w_j^2
+	 * this is minimized for w_j = H_{ij}/H_{jj}
+	 *
+	 * @param j index in onlyN1.
+	 * @param b block component
+	 * @return H_{ij} / H_{jj}        (  (b,b) - components  )
+	 */
+	double H_strong_measure(int j, int b)
+	{
+		size_t i_index = onlyN1.size();
+		return BlockRef(H(i_index, j), b,b) / BlockRef(H(j, j), b,b);
+	}
+
 
 	// select only coarse neighbors w/ sufficiently large couplings
 	template<typename TIndices>
@@ -806,57 +812,54 @@ public:
 	{
 
 		UG_DLOG(LIB_ALG_AMG, 3, "markAllStrong with sigma = "<<eps <<" for comp=" << b << std::endl);
-		const size_t i_index = onlyN1.size();
 		const size_t ncoarse= coarseNeighbors.size();
 		strongMarks.resize(ncoarse);
 
-		
+		if(nnodes >= ncoarse)
+		{
+			for (size_t j = 0; j < ncoarse; j++) strongMarks[j] = true;
+			return;
+		}
+
 		// determine maximum of offdiag/diag in i-th row
 		double maxVal = 0.0;
-		
-		if (nnodes == 1) {
-		  for (size_t j = 0; j < ncoarse; j++)
-		    {
-		      const double val = BlockRef(H(i_index, coarseNeighbors[j]), b,b) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b);
-		      maxVal = std::max(maxVal, val);
-		      UG_DLOG(LIB_ALG_AMG, 3, val<< " ")
-			strongMarks[j]=false;
-		    }
-		}
-		else {
 
-		
-
-		// determine maximum of offdiag/diag in i-th row (quick select)
-		
-		std::vector<double> sortVec(ncoarse);
-		for (size_t j = 0; j <ncoarse; j++)
+		if (nnodes == 1)
 		{
-		  double  val= BlockRef(H(i_index, coarseNeighbors[j]), b,b) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b);
-		  sortVec[j] =val;
-			UG_DLOG(LIB_ALG_AMG, 3, val<< " ")
-			strongMarks[j]=false;
-			
+			for (size_t j = 0; j < ncoarse; j++)
+			{
+				const double val = H_strong_measure(coarseNeighbors[j], b);
+				maxVal = std::max(maxVal, val);
+				UG_DLOG(LIB_ALG_AMG, 3, val<< " ")
+				strongMarks[j]=false;
+			}
 		}
-
-		std::sort(sortVec.begin(), sortVec.end());
-		maxVal=sortVec[ncoarse-nnodes];
+		else
+		{
+			// determine maximum of offdiag/diag in i-th row (quick select)
+			std::vector<double> sortVec(ncoarse);
+			for (size_t j = 0; j <ncoarse; j++)
+			{
+				double val= H_strong_measure(coarseNeighbors[j], b);
+				sortVec[j] =val;
+				UG_DLOG(LIB_ALG_AMG, 3, val<< " ")
+				strongMarks[j]=false;
+			}
+			std::sort(sortVec.begin(), sortVec.end());
+			maxVal=sortVec[ncoarse-nnodes];
 		}
 		// eliminate coarse connections with small contributions
 		maxVal *=eps;
-		for (size_t j = 0; j < coarseNeighbors.size(); j++) {
-		  if (BlockRef(H(i_index, coarseNeighbors[j]), b,b)
-		      >= maxVal * BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b))
-		    
-		    strongMarks[j]=true;
-		}
+		for (size_t j = 0; j < coarseNeighbors.size(); j++)
+			if (H_strong_measure(coarseNeighbors[j], b) >= maxVal)
+				strongMarks[j]=true;
+
 		IF_DEBUG(LIB_ALG_AMG, 3) {
 			maple_print(coarseNeighbors, "coarseNghbs");
 			maple_print(strongMarks,     "strongMarks");
 		}
 
 	}
-
 
 
 	// select only coarse neighbors w/ sufficiently large couplings
@@ -873,7 +876,7 @@ public:
 		double maxVal = 0.0;
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
 		{
-			const double val = fabs(BlockRef(H(i_index, coarseNeighbors[j]), b,b) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b));
+			const double val = fabs( H_strong_measure(coarseNeighbors[j], b));
 			maxVal = std::max(maxVal, val);
 			UG_DLOG(LIB_ALG_AMG, 3, val<< " ")
 			strongMarks[j]=false;
@@ -882,10 +885,8 @@ public:
 		// eliminate coarse connections with small contributions
 		maxVal *=eps;
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
-					if (fabs(BlockRef(H(i_index, coarseNeighbors[j]), b,b))
-							>= maxVal * fabs(BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b)))
-
-						strongMarks[j]=true;
+			if (fabs( H_strong_measure(coarseNeighbors[j], b)) >= maxVal)
+				strongMarks[j]=true;
 
 		IF_DEBUG(LIB_ALG_AMG, 3) {
 			maple_print(coarseNeighbors, "coarseNghbs");
@@ -914,9 +915,9 @@ public:
 			strongMeasure[j] = 0;
 			if(b == -1)
 				for(size_t bi=0; bi<blockSize; bi++)
-					strongMeasure[j] -= (fabs(BlockRef(H(i_index, coarseNeighbors[j]), bi,bi))/fabs(BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), bi,bi)) );
+					strongMeasure[j] -= fabs(H_strong_measure(coarseNeighbors[j], bi));
 			else
-				strongMeasure[j] = -(fabs(BlockRef(H(i_index, coarseNeighbors[j]), b,b))/fabs(BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b)) );
+				strongMeasure[j] = -fabs(H_strong_measure(coarseNeighbors[j], b));
 		}
 
 		/*UG_LOG("Strong Measures:\n");
@@ -966,7 +967,7 @@ public:
 		double maxVal = 0.0;
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
 		{
-			const double val = BlockRef(H(i_index, coarseNeighbors[j]), b,b) / BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b);
+			const double val = H_strong_measure(coarseNeighbors[j], b);
 			maxVal = std::max(maxVal, val);
 			UG_DLOG(LIB_ALG_AMG, 3, val<< " ")
 		}
@@ -974,13 +975,8 @@ public:
 		// eliminate coarse connections with small contributions
 		maxVal *=eps;
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
-		{
-			if (BlockRef(H(i_index, coarseNeighbors[j]), b,b)
-							>= maxVal * BlockRef(H(coarseNeighbors[j], coarseNeighbors[j]), b,b))
-			{
+			if (fabs(H_strong_measure(coarseNeighbors[j], b)) >= maxVal )
 				strongNeighbors.push_back(coarseNeighbors[j]);
-			}
-		}
 
 
 		IF_DEBUG(LIB_ALG_AMG, 3) {
@@ -1886,6 +1882,7 @@ private:
 
 	bool testvectorsExtern;
 	bool m_bHAsInverse;
+	double m_threeParentsPenalty;
 	size_t m_iMaxParents;
 };
 

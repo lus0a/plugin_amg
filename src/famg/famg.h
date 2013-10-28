@@ -194,6 +194,18 @@ public:
 		TESTVECTORS_LINEAR
 	} m_iTestvectors;
 
+	const char *testvector_desc() const
+	{
+		switch(m_iTestvectors)
+		{
+		case TESTVECTORS_EXTERNAL: return "external";
+		case TESTVECTORS_DIRICHLET_MATRIX_ROWS: return "[0 on dirichlet rows, else 1]";
+		case TESTVECTORS_LE_2D: return "[Rigid Body Modes of Linear Elasticity 2d: (1, 0), (0, 1), (-y, x)]";
+		case TESTVECTORS_LE_3D: return "[Rigid Body Modes of Linear Elasticity 3d: (1, 0, 0), (0, 1, 0), (0, 0, 1), (0, -z, y), (-z, 0, x), (-y, x, 0)]";
+		case TESTVECTORS_LINEAR: return "[constants and linear functions: 1 and x in each component]";
+		}
+	}
+
 	void set_testvector_from_matrix_rows()
 	{
 		m_iTestvectors = TESTVECTORS_DIRICHLET_MATRIX_ROWS;
@@ -253,6 +265,17 @@ public:
 
 	void	set_strong_connection_submask(int m) 	{ m_iStrongConnectionSubMask = m; }
 	int		get_strong_connection_submask() 		{ return m_iStrongConnectionSubMask; }
+	const char *get_strong_connection_submask_desc() const
+	{
+		switch (m_iStrongConnectionSubMask) {
+		case 0: 	return "submatrix(0)";
+		case 1: 	return "submatrix(1)";
+		case 2: 	return "submatrix(2)";
+		case -2: 	return "full primary matrix (norm based)";
+		default: 	return "standard trace";
+		}
+
+	}
 
 	void	set_prevent_ff_connection_external(int i) 	{ m_iPreventFFConnection = i; }
 	double	get_prevent_ff_connection_external() 		{ return m_iPreventFFConnection; }
@@ -270,6 +293,13 @@ public:
 	bool check_testvector()
 	{
 		return check_testvector(0);
+	}
+
+
+	double m_threeParentsPenalty;
+	void set_three_parents_penalty(double d)
+	{
+		m_threeParentsPenalty = d;
 	}
 
 private:
