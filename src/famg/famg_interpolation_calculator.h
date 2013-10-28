@@ -503,7 +503,7 @@ public:
 		{
 			// fix entries to zero for non-strong
 			if (strong[r]) continue;
-			for(size_t c=0; c < indices.size(); c++)
+			for(size_t c=0; c < KKT.num_rows(); c++)
 				KKT(r, c)= 0.0;
 			KKT(r, r)= 1.0;
 			rhs[r] = 0.0;
