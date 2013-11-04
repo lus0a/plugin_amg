@@ -159,13 +159,13 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	pL->bHasBeenMerged = false;
 	pL->spYConvCheck = spYConvCheck;
 #endif
+	pL->spYConvCheck = spYConvCheck;
 	levels.push_back(pL);
 
 	PROGRESS_START(prog, pOp->num_rows(), "Creating AMG");
 	for(; ; level++)
 	{
 		AMGLevel &L = *levels[level];
-
 		PROGRESS_UPDATE(prog, pOp->num_rows()-L.pA->num_rows());
 
 		L.pAgglomeratedA = L.pA;
@@ -653,6 +653,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 		// W-Cycle: spYConvCheck = FixedConvergenceCheck(2)
 		// Y-Cycle: spYConvCheck = StdConvergenceCheck(20, 1e-24, 0.01)
 		SmartPtr<IConvergenceCheck<vector_type> > pCheck = levels[level]->spYConvCheck;
+		//FixedConvergenceCheck<vector_type> pCheck(m_iYCycle);
 		pCheck->start(dH);
 
 		while(!pCheck->iteration_ended())
