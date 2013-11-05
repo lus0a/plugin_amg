@@ -808,7 +808,7 @@ public:
 	// select only coarse neighbors w/ sufficiently large couplings
 	template<typename TIndices>
 	void markAllStrong(const TIndices &coarseNeighbors,
-			   std::vector<bool> &strongMarks, double eps, int nnodes, int b=0)
+			   std::vector<bool> &strongMarks, double eps, size_t nnodes, int b=0)
 	{
 
 		UG_DLOG(LIB_ALG_AMG, 3, "markAllStrong with sigma = "<<eps <<" for comp=" << b << std::endl);
@@ -869,7 +869,6 @@ public:
 	{
 
 		UG_DLOG(LIB_ALG_AMG, 3, "markAllStrongAbs with sigma = "<<eps <<" for comp=" << b << std::endl);
-		const size_t i_index = onlyN1.size();
 		strongMarks.resize(coarseNeighbors.size());
 
 		// determine maximum of offdiag/diag in i-th row
@@ -903,7 +902,6 @@ public:
 	template<typename TIndices>
 	std::vector<size_t> sortByStrength(const TIndices &coarseNeighbors, int b=-1)
 	{
-		const size_t i_index = onlyN1.size();
 		std::vector<double> strongMeasure(coarseNeighbors.size());
 
 		// determine maximum of offdiag/diag in i-th row
@@ -961,7 +959,6 @@ public:
 		IF_DEBUG(LIB_ALG_AMG, 3) {
 			maple_print(coarseNeighbors, "coarse");
 		}
-		const size_t i_index = onlyN1.size();
 
 		// determine maximum of offdiag/diag in i-th row
 		double maxVal = 0.0;
