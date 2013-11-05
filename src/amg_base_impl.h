@@ -98,9 +98,16 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	update_positions();
 	m_amghelper.parentIndex = &m_parentIndex;
 
-	// init m_amghelper for grid printing
-	if(m_writeMatrices)
+	if(m_writeMatrices && m_amghelper.has_positions() == false)
 	{
+		m_writeMatrices = false;
+		UG_ERR_LOG("ERROR: AMG set to write Matrices, but no position data given. Not writing grid.\n");
+	}
+
+	// init m_amghelper for grid printing
+	if(needs_positions())
+	{
+		UG_COND_THROW(m_amghelper.has_positions(), "AMG method needs positions");
 		if(m_dbgPositions.size() > 0)
 		{
 			m_amghelper.positions.resize(1);
@@ -207,7 +214,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		L.pAgglomeratedA = L.pA;
 #endif
 
-		if(m_writeMatrices && m_amghelper.has_positions())
+		if(m_writeMatrices)
 		{
 			std::string filename = GetAMGFilenamePath(*L.pAgglomeratedA, level, "AMG_A_L", level, ".mat", true);
 			AMGWriteToFile(*L.pAgglomeratedA, level, level, filename, m_amghelper);
@@ -370,7 +377,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 
 		if(pcl::GetProcRank() == pc.get_proc_id(0))
 		{
-			if(m_writeMatrices && m_amghelper.has_positions())
+			if(m_writeMatrices)
 			{
 				m_amghelper.receive_agglomerate_positions(level, A.layouts()->comm(), L.agglomerateMasterLayout, L.collectedA->num_rows());
 
@@ -391,7 +398,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 		}
 		else
 		{
-			if(m_writeMatrices && m_amghelper.has_positions())
+			if(m_writeMatrices)
 				m_amghelper.send_agglomerate_positions(level, A.layouts()->comm(), agglomerateSlaveLayout);
 
 			m_agglomerateLevel = level;

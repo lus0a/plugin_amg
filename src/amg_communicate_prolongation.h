@@ -138,7 +138,7 @@ void AMGBase<TAlgebra>::serial_process_prolongation(prolongation_matrix_type &Po
 	create_new_indices(PoldIndices, PnewIndices, PoldIndices.num_rows(), amgnodes, newIndex, dEpsilonTruncation);
 	create_parent_index(level, newIndex, PnewIndices.num_cols());
 
-	if(m_writeMatrices)
+	if(needs_positions())
 		m_amghelper.make_coarse_level(level+1, m_parentIndex[level+1]);
 	create_fine_marks(level, amgnodes, PoldIndices.num_rows());
 }
@@ -237,7 +237,7 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 
 	create_parent_index(level, newIndex, PnewIndices.num_cols());
 
-	if(m_writeMatrices)
+	if(needs_positions())
 	{
 		m_amghelper.update_overlap_positions(level, PN.communicator(), PN.get_total_master_layout(),
 				PN.get_total_slave_layout(), PN.local_size());

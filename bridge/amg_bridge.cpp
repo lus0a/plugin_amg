@@ -121,6 +121,8 @@ static void Algebra(Registry& reg, string grp)
 		.add_method("set_Y_cycle", &T::set_Y_cycle, "", "maxIterations#reduction#abs", "calls the mg-cycle max maxIterations or when reduction or abs error is achieved.")
 		.add_method("set_Y_check", &T::set_Y_check, "", "convCheck", "")
 		.add_method("check_interpolation", &T::check_interpolation, "", "vector#filename")
+
+		.add_method("level_information_str", &T::level_information_str)
 		;
 	reg.add_class_to_group(string("AMGBase").append(suffix), "AMGBase", tag);
 }

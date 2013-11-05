@@ -178,7 +178,7 @@ protected:
 	 * in detail, this is
 	 * - create the new indices by counting used coarse nodes and creation of PnewIndices @sa create_new_indices
 	 * - create parent index (for debugging) @sa create_parent_index
-	 * - create the coarser level of positions (for debugging) @sa make_coarse_level
+	 * - create the coarser level of positions (not only for debugging) @sa make_coarse_level
 	 * - create fine marks for f-smoothing @sa create_fine_marks
 	 *
 	 * @note this function is the serial version of @sa parallel_process_prolongation
@@ -538,14 +538,17 @@ public:
 	}
 
 	/// print level informations
-	void print_level_information() const {
-		std::cout.setf(std::ios::fixed);
-		UG_LOG(	"Operator Complexity: " << get_operator_complexity() << ", grid complexity: "
-				<< get_grid_complexity() << ".\n");
-		UG_LOG(	"Whole setup took " << get_timing_whole_setup_ms() << " ms, coarse solver setup took "
-				<< get_timing_coarse_solver_setup_ms() << " ms.\n");
-		/*for(int i = 0; i<get_used_levels(); i++)
-		 UG_LOG(get_level_information(i)->tostring() << "\n");*/
+	std::string level_information_str() const
+	{
+		std::stringstream ss;
+		ss.setf(std::ios::fixed);
+		ss << "Operator Complexity: " << get_operator_complexity() << ", grid complexity: "
+				<< get_grid_complexity() << ".\n";
+		ss << "Whole setup took " << get_timing_whole_setup_ms() << " ms, coarse solver setup took "
+				<< get_timing_coarse_solver_setup_ms() << " ms.\n";
+		for(int i = 0; i<get_used_levels(); i++)
+			ss << get_level_information(i)->tostring() << "\n";
+		return ss.str();
 	}
 
 	const LevelInformation *get_level_information(size_t level) const {
@@ -641,6 +644,8 @@ private:
 #endif
 
 protected:
+	/// overwrite this method if your AMG method needs positions somehow
+	virtual bool needs_positions() const { return m_writeMatrices; }
 // data
 	size_t m_numPreSmooth;				///< nu_1 : nr. of pre-smoothing steps
 	size_t m_numPostSmooth;				///< nu_2: nr. of post-smoothing steps

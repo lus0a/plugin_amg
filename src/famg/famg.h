@@ -370,6 +370,22 @@ private:
 #endif
 public:
 	size_t m_iMaxParents;
+
+protected:
+	virtual bool needs_positions() const
+	{
+		if(super::needs_positions()) return true;
+
+		switch(m_iTestvectors)
+		{
+			case TESTVECTORS_EXTERNAL: return false;
+			case TESTVECTORS_DIRICHLET_MATRIX_ROWS: return false;
+			case TESTVECTORS_LE_2D: return true;
+			case TESTVECTORS_LE_3D: return true;
+			case TESTVECTORS_LINEAR: return true;
+			default: UG_THROW("unknown testvector type???"); return false;
+		}
+	}
 };
 
 // end group plugins_amg_famg
