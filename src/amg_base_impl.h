@@ -98,16 +98,17 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	update_positions();
 	m_amghelper.parentIndex = &m_parentIndex;
 
-	if(m_writeMatrices && m_amghelper.has_positions() == false)
+	if(m_writeMatrices && m_dbgDimension == 0)
 	{
 		m_writeMatrices = false;
 		UG_ERR_LOG("ERROR: AMG set to write Matrices, but no position data given. Not writing grid.\n");
+		UG_LOG("ERROR: AMG set to write Matrices, but no position data given. Not writing grid.\n");
 	}
 
 	// init m_amghelper for grid printing
 	if(needs_positions())
 	{
-		UG_COND_THROW(m_amghelper.has_positions(), "AMG method needs positions");
+		UG_COND_THROW(m_dbgDimension == 0, "AMG method needs positions");
 		if(m_dbgPositions.size() > 0)
 		{
 			m_amghelper.positions.resize(1);
