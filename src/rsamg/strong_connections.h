@@ -25,17 +25,17 @@ void FindStrongNegativeConnections(const TRowType &Ci, size_t i, double theta, c
 		if(conn.value() != 0.0 && amg_trace(conn.value()) < dmax)
 			dmax = amg_trace(conn.value());
 	}
-	UG_LOG("Strong negative( = influencing) connections for " << i<< " (" << dmax <<") :" );
+	// UG_LOG("Strong negative( = influencing) connections for " << i<< " (" << dmax <<") :" );
 	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
 	{
 		if(conn.index() == i) continue; // skip diag
 		const double d = amg_trace(conn.value());
 		if( d <= theta * dmax) {
 			graph.set_connection(i, conn.index());
-			UG_LOG(conn.index() << "(" << d << "), ")
+		//	UG_LOG(conn.index() << "(" << d << "), ")
 		}
 	}
-	UG_LOG("\n")
+	//UG_LOG("\n")
 }
 
 
@@ -113,8 +113,10 @@ void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double the
 	{
 
 		// Skip isolated node
-		if(A.is_isolated(i))
+		if(A.is_isolated(i)){
+		//	UG_LOG(i << "is A-isolated!" << std::endl);
 			continue;
+		}
 
 		// Eliminate positive row entries
 		SparseVector<typename matrix_type::value_type> Ri(A.num_cols());
