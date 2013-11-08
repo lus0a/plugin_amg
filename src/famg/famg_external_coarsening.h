@@ -48,7 +48,7 @@ inline void AMGnodeinfoToFAMGnodeinfo(AMGNodes &amgNodes, FAMGNodes<T> &famgNode
 	for(size_t i=0; i<N; i++)
 	{
 		if(graphS.is_isolated(i))
-			famgNodes.set_coarse(i); // was fine???
+			famgNodes.set_fine(i); // was fine???
 		else if(amgNodes[i].is_coarse())
 			famgNodes.external_set_coarse(i);
 		else if(amgNodes[i].is_fine_direct() || amgNodes[i].is_fine())
