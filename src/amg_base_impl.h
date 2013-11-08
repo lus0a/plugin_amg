@@ -165,7 +165,6 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 //	pL->com = mat.layouts()->comm();
 	pL->spLayouts->comm() = mat.layouts()->comm();
 	pL->bHasBeenMerged = false;
-	pL->spYConvCheck = spYConvCheck;
 #endif
 	pL->spYConvCheck = spYConvCheck;
 	levels.push_back(pL);
