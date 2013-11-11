@@ -85,7 +85,7 @@ public:
 	void cleanup();
 
 	virtual const char* name() const {return "FAMGPreconditioner";}
-	virtual void tostring() const;
+	virtual std::string config_string() const;
 
 	void set_aggressive_coarsening(bool bAggressiveCoarsening) { m_bAggressiveCoarsening = bAggressiveCoarsening; }
 	bool get_aggressive_coarsening() const { return m_bAggressiveCoarsening; }

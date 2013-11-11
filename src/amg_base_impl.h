@@ -760,39 +760,40 @@ bool AMGBase<TAlgebra>::get_correction(vector_type &c, const vector_type &const_
 
 
 template<typename TAlgebra>
-void AMGBase<TAlgebra>::tostring() const
+std::string AMGBase<TAlgebra>::config_string() const
 {
-	UG_LOG("AMGBase:\n");
-	UG_LOG(" nr of pre smoothing steps (nu1)  = " << m_numPreSmooth<< std::endl);
-	UG_LOG(" nr of post smoothing steps (nu2) = " << m_numPostSmooth << std::endl);
-	UG_LOG("F-Smoothing is " << (m_bFSmoothing ? "[ON]" : "[OFF]") << std::endl);
+	std::stringstream ss;
+	ss << "AMGBase(";
+	if(m_cycleType == 1) ss << "V-cycle";
+	else if(m_cycleType == 2) ss << "W-cycle";
+	else ss << "gamma = " << m_cycleType;
+	ss << ", max levels = " << m_maxLevels;
+	ss << ", F-Smoothing = " << (m_bFSmoothing ? "[ON]" : "[OFF]") << ")\n";
 
-	UG_LOG(" cycle type = ");
-	if(m_cycleType == 1) { UG_LOG("V-cycle\n"); }
-	else if(m_cycleType == 2) { UG_LOG("W-cycle\n"); }
-	else { UG_LOG("gamma = " << m_cycleType << "\n"); }
+	if(m_presmoother == m_postsmoother)
+		ss << " Smoother (" << m_numPreSmooth << "x pre, " << m_numPostSmooth << "x post): "
+			<< ConfigShift(m_presmoother->config_string());
+	else
+	{
+		ss << " Presmoother (" << m_numPreSmooth << "x): " << ConfigShift(m_presmoother->config_string());
+		ss << " Postsmoother ( " << m_numPostSmooth << "x): " << ConfigShift(m_postsmoother->config_string());
+	}
 
-	UG_LOG(" max levels = " << m_maxLevels << std::endl);
+	ss << "\n";
+	ss << " Basesolver ( maxNodesForBase = " << m_maxNodesForBase << ", maxFillInBeforeBase = " << m_dMaxFillBeforeBase*100 << "%):";
+	ss << ConfigShift(m_basesolver->config_string()) << "\n";
 
-	if(m_presmoother.valid()) 	{UG_LOG(" presmoother is " << m_presmoother->name() << ".\n");}
-	else						{UG_LOG(" no presmoother set!\n");}
-
-	if(m_postsmoother.valid()) 	{UG_LOG(" postsmoother is " << m_postsmoother->name() << ".\n");}
-	else						{UG_LOG(" no postsmoother set!\n");}
-
-	if(m_basesolver.valid())	{UG_LOG(" basesolver set\n");}
-	else				{UG_LOG(" no basesolver set!\n");}
-	UG_LOG("Using base solver for max. " << m_maxNodesForBase << " nodes or " << m_dMaxFillBeforeBase*100 << "% fill in.\n")
-	UG_LOG("Galerkin Truncation: " << m_dGalerkinTruncation << "\n");
+	ss << " Galerkin Truncation: " << m_dGalerkinTruncation << "\n";
 
 	if(m_writeMatrices)
-		UG_LOG("Writing Matrices to \"" << m_writeMatrixPath << "\"\n");
+		ss << "Writing Matrices to \"" << m_writeMatrixPath << "\"\n";
 
 	if(m_bInited)
 	{
-		UG_LOG("AMG is initialized.\n");
-		UG_LOG("Used Levels: " << m_usedLevels << "\n");
+		ss << "AMG is initialized.\n";
+		ss << "Used Levels: " << m_usedLevels << "\n";
 	}
+	return ss.str();
 }
 
 

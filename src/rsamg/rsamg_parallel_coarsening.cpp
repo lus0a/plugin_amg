@@ -83,7 +83,7 @@ public:
 		return 0;
 	}
 
-	const char *tostring()
+	const char *config_string()
 	{
 		return "FullSubdomainBlockingCoarsening";
 	}
@@ -230,7 +230,7 @@ class SimpleParallelCoarsening : public IParallelCoarsening
 		return 0;
 	}
 
-	const char *tostring()
+	const char *config_string()
 	{
 		return "SimpleParallelCoarsening";
 	}
@@ -353,7 +353,7 @@ class RS3Coarsening : public IParallelCoarsening
 		return 0;
 	}
 
-	const char *tostring()
+	const char *config_string()
 	{
 		return "SimpleParallelCoarsening";
 	}
@@ -487,7 +487,7 @@ class ColorCoarsening : public IParallelCoarsening
 		return 0;
 	}
 
-	const char *tostring()
+	const char *config_string()
 	{
 		return "ColorCoarsening";
 	}

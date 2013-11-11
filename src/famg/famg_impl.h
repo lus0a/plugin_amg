@@ -77,42 +77,43 @@ FAMG<TAlgebra>::~FAMG()
 }
 
 template<typename TAlgebra>
-void FAMG<TAlgebra>::tostring() const
+std::string FAMG<TAlgebra>::config_string() const
 {
-	AMGBase<TAlgebra>::tostring();
-	UG_LOG("FAMG Preconditioner:\n");
+	std::stringstream ss;
+	ss << "FAMG Preconditioner:\n";
 
 	// coarsening
-	UG_LOG(" Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF") << "\n");
+	ss << " Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF") << "\n";
 	if(m_bExternalCoarsening)
-		UG_LOG(" External Coarsening: StrongConnection = " << m_dStrongConnectionExternal << ", StrongConnectionSub = " << get_strong_connection_submask_desc() << "\n");
-	if(m_bUsePrecalculate)
-	{ UG_LOG(" precalculate Coarsening\n");}
-	else
-	{ UG_LOG(" std FAMG coarsening.\n"); }
+		ss << " External Coarsening: StrongConnection = " << m_dStrongConnectionExternal << ", StrongConnectionSub = " << get_strong_connection_submask_desc() << "\n";
+	if(m_bUsePrecalculate)	ss << " precalculate Coarsening\n";
+	else					ss << " std FAMG coarsening.\n";
 
-	UG_LOG("Truncation of interpolation = " << m_dProlongationTruncation << "\n");
-	UG_LOG("Prereduce A parameter: " << m_dPrereduceAToStrongParameter << "\n");
+	ss << "Truncation of interpolation = " << m_dProlongationTruncation << "\n";
+	ss << "Prereduce A parameter: " << m_dPrereduceAToStrongParameter << "\n";
 
-	UG_LOG("Injection Restriction " << (m_bInjectionRestriction ? "[ON]" : "OFF") << "\n");
+	ss << "Injection Restriction " << (m_bInjectionRestriction ? "[ON]" : "OFF") << "\n";
 
-	UG_LOG(" Delta: " << mDeltaAll << " (forces interpolation quality measure F < delta.) " << std::endl);
-	UG_LOG(" Theta: " << m_theta << " (with multiple parents pairs, discard pairs with m_theta * F > min F.) " << std::endl);
-	UG_LOG(" Damping for Smoother in interpolation calculation: " << m_dDampingForSmootherInInterpolationCalculation << std::endl);
-	UG_LOG(" max parents: " << m_iMaxParents << ", ");
-	UG_LOG(" H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n");
+	ss << " Delta: " << mDeltaAll << " (forces interpolation quality measure F < delta.) " << std::endl;
+	ss << " Theta: " << m_theta << " (with multiple parents pairs, discard pairs with m_theta * F > min F.) " << std::endl;
+	ss << " Damping for Smoother in interpolation calculation: " << m_dDampingForSmootherInInterpolationCalculation << std::endl;
+	ss << " max parents: " << m_iMaxParents << ", ";
+	ss << " H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n";
 
 	if(m_testvectorsmoother == NULL)
-	{ UG_LOG("No testvectorsmoother set!!!;\n"); }
+		ss << "No testvectorsmoother set!!!;\n";
 	else
-	{ UG_LOG("Testvector Smoother is " << m_testvectorsmoother->name() << ", number of smooths is " << m_iTestvectorDamps << "\n"); }
+		ss << "Testvector Smoother is " << m_testvectorsmoother->name() << ", number of smooths is " << m_iTestvectorDamps << "\n";
 
-	UG_LOG(" \n");
-	UG_LOG("Testvectors: " << testvector_desc() << "\n");
-	UG_LOG(m_testvectors.size() + m_vVectorWriters.size() << " test vectors. Nr. of testvector damps: " << m_iTestvectorDamps << std::endl);
+	ss << " \n";
+	ss << "Testvectors: " << testvector_desc() << "\n";
+	ss << m_testvectors.size() + m_vVectorWriters.size() << " test vectors. Nr. of testvector damps: " << m_iTestvectorDamps << std::endl;
 	if(m_writeMatrices && m_writeTestvectors)
-		UG_LOG(" Write Testvectors is on.\n")
-	UG_LOG(" \n");
+		ss << " Write Testvectors is on.\n";
+	ss << " \n";
+	ss << AMGBase<TAlgebra>::config_string();
+
+	return ss.str();
 }
 
 
@@ -179,7 +180,6 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 		else if(m_iTestvectors == TESTVECTORS_LE_2D)
 		{
 			UG_LOG("USING TESTVECTORS_LE_2D\n");
-			UG_ASSERT(m_writeMatrices, "needs position data");
 			UG_ASSERT(m_amghelper.dimension == 2, "dimension needs to be 2");
 			GetTestvectorsLE_2d(*levels[level]->pAgglomeratedA, testvectors, omega,
 					m_amghelper.positions[0], m_weightC, m_weightZ);
@@ -187,7 +187,6 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 		else if(m_iTestvectors == TESTVECTORS_LE_3D)
 		{
 			UG_LOG("USING TESTVECTORS_LE_3D\n");
-			UG_ASSERT(m_writeMatrices, "needs position data");
 			UG_ASSERT(m_amghelper.dimension == 3, "dimension needs to be 3");
 			GetTestvectorsLE_3d(*levels[level]->pAgglomeratedA, testvectors, omega,
 					m_amghelper.positions[0], m_weightC, m_weightX, m_weightY, m_weightZ);
@@ -195,7 +194,6 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 		else if(m_iTestvectors == TESTVECTORS_LINEAR)
 		{
 			UG_LOG("USING TESTVECTORS_LINEAR\n");
-			UG_ASSERT(m_writeMatrices, "needs position data");
 			UG_ASSERT(m_amghelper.dimension == 2 || m_amghelper.dimension == 3, "dimension " << m_amghelper.dimension << " not supported");
 			if(m_amghelper.dimension == 3)
 				GetTestvectorsLinear_3d(*levels[level]->pAgglomeratedA, testvectors, omega,

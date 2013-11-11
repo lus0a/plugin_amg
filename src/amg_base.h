@@ -486,8 +486,8 @@ public:
 		m_bDebugWriteAllVectors=b;
 	}
 
-
-	virtual void tostring() const;
+	///	returns information about configuration parameters
+	virtual std::string config_string() const;
 
 	/// if true, do not re-create AMG we preprocess is called
 	void set_one_init(bool b) {
@@ -546,7 +546,7 @@ public:
 				<< get_grid_complexity() << ".\n";
 		ss << "Whole setup took " << get_timing_whole_setup_ms() << " ms, coarse solver setup took "
 				<< get_timing_coarse_solver_setup_ms() << " ms.\n";
-		for(int i = 0; i<get_used_levels(); i++)
+		for(size_t i = 0; i<get_used_levels(); i++)
 			ss << get_level_information(i)->tostring() << "\n";
 		return ss.str();
 	}

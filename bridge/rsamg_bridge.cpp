@@ -63,7 +63,6 @@ static void Algebra(Registry& reg, string grp)
 		.add_method("set_prolongation_truncation", &RSAMG<algebra_type>::set_prolongation_truncation, "", "prolongation_tr", "sets the truncation of interpolation")
 		.add_method("get_prolongation_truncation", &RSAMG<algebra_type>::get_prolongation_truncation, "prolongation_tr")
 
-		.add_method("tostring", &RSAMG<algebra_type>::tostring)
 		.add_method("enable_aggressive_coarsening_A", &RSAMG<algebra_type>::enable_aggressive_coarsening_A, "", "nrOfPaths", "enables aggressive coarsening (A1 or A2) on the first level.")
 		.add_method("disable_aggressive_coarsening", &RSAMG<algebra_type>::disable_aggressive_coarsening, "", "", "disables aggressive coarsening")
 		.add_method("is_aggressive_coarsening", &RSAMG<algebra_type>::is_aggressive_coarsening)

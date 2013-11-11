@@ -60,7 +60,6 @@ static void Algebra(Registry& reg, string grp)
 
 		reg.add_class_<T, TBase> (string("FAMGPreconditioner").append(suffix), grp, "Filtering Algebraic Multigrid")
 			.add_constructor()
-			.add_method("tostring", &T::tostring)
 			.add_method("set_aggressive_coarsening", &T::set_aggressive_coarsening)
 			.add_method("set_delta", (void(T::*)(double delta))&T::set_delta, "", "delta", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
 			.add_method("set_delta", (void(T::*)(double delta, size_t level))&T::set_delta, "", "delta#level", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")

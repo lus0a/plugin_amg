@@ -117,7 +117,7 @@ public:
 	bool is_aggressive_coarsening() const 	{ return m_bAggressiveCoarsening; }
 	bool is_aggressive_coarsening_A(int nrOfPaths) const { return m_bAggressiveCoarsening && m_iAggressiveCoarseningNrOfPaths == nrOfPaths; }
 
-	void tostring() const;
+	std::string config_string() const;
 
 protected:
 //  functions

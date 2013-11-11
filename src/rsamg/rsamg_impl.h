@@ -425,25 +425,25 @@ RSAMG<TAlgebra>::RSAMG() :
 
 
 template<typename TAlgebra>
-void RSAMG<TAlgebra>::tostring() const
+std::string RSAMG<TAlgebra>::config_string() const
 {
-	AMGBase<TAlgebra>::tostring();
+	std::stringstream ss;
+	ss << "Ruge/Stueben AMG Preconditioner:\n";
+	ss << " theta = " << m_dTheta << " (epsilon_strong, strong connectivity)" << std::endl;
+	//ss << " sigma = " << m_dSigma << std::endl);
+	ss << " prolongation_tr = " << m_dProlongationTr << " (truncation of interpolation)" << std::endl;
 
-	UG_LOG("Ruge/Stueben AMG Preconditioner:\n");
-	UG_LOG(" theta (epsilon_strong, strong connectivity) = " << m_dTheta << std::endl);
-	//UG_LOG(" sigma = " << m_dSigma << std::endl);
-	UG_LOG(" prolongation_tr (truncation of interpolation) = " << m_dProlongationTr << std::endl);
-
-	if(m_bAggressiveCoarsening)	{UG_LOG(" Aggressive Coarsening is on, A" << m_iAggressiveCoarseningNrOfPaths << "-mode." << std::endl);}
-	else						{UG_LOG(" no Aggressive Coarsening" << std::endl);}
+	if(m_bAggressiveCoarsening)	ss << " Aggressive Coarsening is on, A" << m_iAggressiveCoarseningNrOfPaths << "-mode." << std::endl;
+	else						ss << " no Aggressive Coarsening" << std::endl;
+	ss << AMGBase<TAlgebra>::config_string();
 
 #ifdef UG_PARALLEL
 	if(m_pParallelCoarsening)
-	{	UG_LOG("Parallel Coarsening: " << m_pParallelCoarsening->tostring() << "\n"); }
+		ss << "Parallel Coarsening: " << m_pParallelCoarsening->config_string() << "\n";
 	else
-	{	UG_LOG("Parallel Coarsening not set.\n"); }
+		ss << "Parallel Coarsening not set.\n";
 #endif
-
+	return ss.str();
 }
 
 // end group plugins_amg_rsamg

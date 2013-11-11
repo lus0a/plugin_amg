@@ -80,7 +80,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 #ifdef UG_PARALLEL
 	AMGNodes nodes(N, PN);
 	UG_ASSERT(m_famg.m_pParallelCoarsening != NULL, "please set_parallel_coarsening !");
-	UG_DLOG(LIB_ALG_AMG, 0, m_famg.m_pParallelCoarsening->tostring() << "\n");
+	UG_DLOG(LIB_ALG_AMG, 0, m_famg.m_pParallelCoarsening->config_string() << "\n");
 #else
 	AMGNodes nodes(N);
 #endif
