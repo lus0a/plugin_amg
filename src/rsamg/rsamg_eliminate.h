@@ -7,6 +7,8 @@
 
 #ifndef RSAMG_ELIMINATE_H_
 #define RSAMG_ELIMINATE_H_
+
+#include "rsamg_blockvalues.h"
 namespace ug
 {
 
