@@ -152,6 +152,8 @@ private:
 	// interpolation/restriction matrices to be filled
 	prolongation_matrix_type &R, &PnewIndices;
 
+	int m_verbose;
+
 	size_t level; // current amg level
 
 #ifdef UG_PARALLEL
@@ -181,7 +183,7 @@ private:
 	// the calculator which calculates our interpolation weighs
 	FAMGInterpolationCalculator<matrix_type, prolongation_matrix_type, vector_type> calculator;
 
-	bool bTiming; //< if true, timing will be outputed
+	bool m_bTiming; //< if true, timing will be outputed
 
 	// this structure holds coarse/fine information as well as
 	// master/slave. it tries to replace the missing "node" object here
@@ -210,7 +212,7 @@ private:
 	{
 		AMG_PROFILE_FUNC();
 		Stopwatch SW;
-		UG_DLOG(LIB_ALG_AMG, 0, std::endl << "restriction... "); if(bTiming) SW.start();
+		if(m_bTiming) {UG_LOG("\nrestriction... "); SW.start();}
 		// construct restriction R = I_{h -> 2h}
 
 		if(m_famg.m_bInjectionRestriction==false)
@@ -235,7 +237,7 @@ private:
 
 
 		// R is already defragmented
-		if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms.");
+		if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms");}
 
 	#ifdef UG_PARALLEL
 		R.set_storage_type(PST_CONSISTENT);
@@ -254,7 +256,7 @@ private:
 	{
 		AMG_PROFILE_FUNC();
 		Stopwatch SW;
-		UG_DLOG(LIB_ALG_AMG, 0, "\ngalerkin product... "); if(bTiming) SW.start();
+		if(m_bTiming) { UG_LOG("Galerkin Product..."); SW.start(); }
 		// AH = R A P
 
 		/* matrix_type AH2;
@@ -267,12 +269,12 @@ private:
 		// PnewIndices.print("P");
 		CreateAsMultiplyOf(AH, R, Aorig, PnewIndices, m_famg.get_galerkin_truncation());
 		// AH.print();
-		if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+		if(m_bTiming) {UG_LOG("took " << SW.ms() << " ms");}
 
 		// finalize
-		if(bTiming) { UG_DLOG(LIB_ALG_AMG, 0, std::endl << "Finalizing.."); SW.start(); }
+		if(m_bTiming) { UG_LOG("\nFinalizing.."); SW.start(); }
 		AH.defragment();
-		if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, " took " << SW.ms() << " ms\n");
+		if(m_bTiming) {UG_LOG("took " << SW.ms() << " ms");}
 
 
 		PROFILE_END();
@@ -283,7 +285,6 @@ private:
 			UG_DLOG(LIB_ALG_AMG, 0, "AH level " << level << std::endl);
 			AH.print();
 		}
-
 	#endif
 	}
 public:
@@ -305,6 +306,7 @@ public:
 			m_testvectors(testvectors),
 			calculator(A, A_OL2, m_famg, testvectors, omega, fvalues)
 	{
+		m_verbose = f.m_verbose;
 	}
 
 
@@ -314,10 +316,7 @@ public:
 	void do_calculation()
 	{
 		AMG_PROFILE_FUNC();
-
-		UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, 1);
-		UG_DLOG(LIB_ALG_AMG, 0, "Creating level " << level << ". (" << A.num_rows() << " nodes)" << std::fixed);
-		bTiming=true;
+		m_bTiming=false;
 		Stopwatch SW, SWwhole; SWwhole.start();
 
 		// 1. Overlap calculation
@@ -351,19 +350,12 @@ public:
 			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelPhase3);
 			heap.create(rating.nodes);
 
-			IF_DEBUG(LIB_ALG_AMG, 3)
-			{
-				UG_DLOG(LIB_ALG_AMG, 1, "\bThe Matrix A:\n\n");
-				A.print();
-				UG_DLOG(LIB_ALG_AMG, 1, "\n\n");
-			}
-
-			UG_DLOG(LIB_ALG_AMG, 0, "\nCreate P, SymmNeighGraph... "); if(bTiming) SW.start();
+			if(m_bTiming) { UG_LOG("\nCreate P, SymmNeighGraph... "); SW.start(); }
 			PoldIndices.resize_and_clear(N, N);
 			// get neighboring information
 			SymmNeighGraph.resize(N);
 			CreateSymmConnectivityGraph(A_OL2, SymmNeighGraph);
-			if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+			if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 
 			if(bUsePrecalculate)
 				// get possible parent nodes
@@ -383,10 +375,9 @@ public:
 			{
 				// calculate ratings (not precalculateable because of coarse/uninterpolateable)
 				UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelGetRatings);
-				UG_DLOG(LIB_ALG_AMG, 0, std::endl << "calculate ratings... "); if(bTiming) SW.start();
+				if(m_bTiming) { UG_LOG("\ncalculate ratings... "); SW.start(); }
 				GetRatings(possible_parents, rating, heap);
-				if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
-
+				if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms");}
 				//heap.print();
 
 				// do coarsening
@@ -402,12 +393,12 @@ public:
 			//
 
 			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelAggressiveCoarsening);
-			UG_DLOG(LIB_ALG_AMG, 0, std::endl << "second coarsening... "); if(bTiming) SW.start();
+			if(m_bTiming) {UG_LOG("\nsecond coarsening... "); SW.start();}
 			if(m_famg.get_aggressive_coarsening() == true)
 				get_aggressive_coarsening_interpolation();
 			else
 				set_uninterpolateable_as_coarse();
-			if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms.");
+			if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 
 
 
@@ -426,7 +417,7 @@ public:
 
 			// resize P, output statistics & debug stuff
 
-			UG_DLOG(LIB_ALG_AMG, 0, std::endl << N - rating.get_unassigned() << " nodes assigned, " << rating.get_nr_of_coarse() << " coarse, "
+			UG_DLOG(LIB_ALG_AMG, 1, std::endl << N - rating.get_unassigned() << " nodes assigned, " << rating.get_nr_of_coarse() << " coarse, "
 					<< N - rating.get_unassigned() - rating.get_nr_of_coarse() << " fine, " << rating.get_unassigned() << " unassigned.");
 
 			// set P to real size
@@ -448,13 +439,13 @@ public:
 			PoldIndices.resize_and_clear(N, N);
 			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
 
-			UG_LOG("XC\n");
+			UG_DLOG(LIB_ALG_AMG, 1, "XC\n");
 			if(m_famg.m_fileCoarsening == m_famg.READ_COARSENING)
 				read_coarsening();
 			else
 				rs_amg_external_coarsening();
 
-			UG_LOG("external_coarsening_calculate_prolongation...\n");
+			UG_DLOG(LIB_ALG_AMG, 1, "external_coarsening_calculate_prolongation...\n");
 
 			external_coarsening_calculate_prolongation();
 		}

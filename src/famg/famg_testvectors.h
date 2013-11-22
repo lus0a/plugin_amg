@@ -67,9 +67,9 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelTestvectorCalc);
 
 	// todo: all global?
-	UG_DLOG(LIB_ALG_AMG, 1, "\ncalculating testvector... ");
+
 	Stopwatch SW;
-	if(bTiming) SW.start();
+	if(m_bTiming) { UG_LOG("\ncalculating testvector... "); SW.start(); }
 
 	vector_type d; d.resize(A.num_rows());
 	vector_type c; c.resize(A.num_rows());
@@ -113,8 +113,8 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 
 		}
 
-		double e=EnergyProd(m_testvectors[i], A, m_testvectors[i]);;
-		UG_LOG("EnergyProd " << i << " = " << e << "\n");
+		//double e=EnergyProd(m_testvectors[i], A, m_testvectors[i]);;
+		//UG_LOG("EnergyProd " << i << " = " << e << "\n");
 //		m_testvectors[i] *= 1/e;
 
 		//VecScaleAdd(m_testvectors[i], 1.0, m_testvectors[i], -1.0, d);
@@ -126,7 +126,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 					m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
 
 
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
+	if(m_bTiming) {UG_LOG(" took " << SW.ms() << " ms"); }
 }
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::get_testvectors_on_OL2()

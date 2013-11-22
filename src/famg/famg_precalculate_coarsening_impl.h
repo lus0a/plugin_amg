@@ -27,7 +27,7 @@ template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 {
 	Stopwatch SW;;
-	UG_DLOG(LIB_ALG_AMG, 1, "\ncreating possible parent list... "); if(bTiming) SW.start();
+	if(m_bTiming) { UG_LOG("\ncreating possible parent list... "); SW.start(); }
 	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelCalculateParentPairs);
 	AMG_PROFILE_FUNC();
 
@@ -59,7 +59,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 
 
 //	UG_LOG(HistogrammString(fvalues));
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
+	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms");
 }
 
 
@@ -69,7 +69,7 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 	AMG_PROFILE_FUNC();
 	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelPrecalculateCoarsening);
 	Stopwatch SW;
-	UG_DLOG(LIB_ALG_AMG, 1, std::endl << "coarsening... "); if(bTiming) SW.start();
+	if(m_bTiming) { UG_LOG("\ncoarsening... "); SW.start(); }
 
 	size_t N = rating.size();
 	for(size_t j=0; j<N; j++)
@@ -123,7 +123,7 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 				PoldIndices(i, node) = n.parents[j].value;
 		}
 	}
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms.");
+	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms.");
 }
 
 /*

@@ -137,7 +137,6 @@ public:
 	template<typename matrix_type>
 	void calculate(matrix_type &A, int _level, double dCreationTime, LevelInformation *previousLevel)
 	{
-
 		level = _level;
 		m_dCreationTimeMS = dCreationTime;
 		m_iNNZs = GetNNZs(A); // A.total_num_connections();
@@ -149,7 +148,7 @@ public:
 		size_t localInterfaceElements = A.layouts()->master().num_interface_elements();
 		m_iInterfaceElements = pc.allreduce(localInterfaceElements, PCL_RO_SUM);
 		m_iParticipating=pc.size();
-		calc_parallel_data(A.layouts()->proc_comm());
+		calc_parallel_data(pc);
 #else
 		m_iNrOfNodes = A.num_rows();
 		m_iInterfaceElements = 0;

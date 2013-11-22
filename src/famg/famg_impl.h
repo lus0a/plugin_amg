@@ -89,10 +89,10 @@ std::string FAMG<TAlgebra>::config_string() const
 	if(m_bUsePrecalculate)	ss << " precalculate Coarsening\n";
 	else					ss << " std FAMG coarsening.\n";
 
-	ss << "Truncation of interpolation = " << m_dProlongationTruncation << "\n";
-	ss << "Prereduce A parameter: " << m_dPrereduceAToStrongParameter << "\n";
+	ss << " Truncation of interpolation = " << m_dProlongationTruncation << "\n";
+	ss << " Prereduce A parameter: " << m_dPrereduceAToStrongParameter << "\n";
 
-	ss << "Injection Restriction " << (m_bInjectionRestriction ? "[ON]" : "OFF") << "\n";
+	ss << " Injection Restriction " << (m_bInjectionRestriction ? "[ON]" : "OFF") << "\n";
 
 	ss << " Delta: " << mDeltaAll << " (forces interpolation quality measure F < delta.) " << std::endl;
 	ss << " Theta: " << m_theta << " (with multiple parents pairs, discard pairs with m_theta * F > min F.) " << std::endl;
@@ -101,17 +101,16 @@ std::string FAMG<TAlgebra>::config_string() const
 	ss << " H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n";
 
 	if(m_testvectorsmoother == NULL)
-		ss << "No testvectorsmoother set!!!;\n";
+		ss << " No testvectorsmoother set!!!;\n";
 	else
-		ss << "Testvector Smoother is " << m_testvectorsmoother->name() << ", number of smooths is " << m_iTestvectorDamps << "\n";
+		ss << " Testvector Smoother (" << m_iTestvectorDamps << "x): " << m_testvectorsmoother->config_string() << "\n";
 
-	ss << " \n";
-	ss << "Testvectors: " << testvector_desc() << "\n";
-	ss << m_testvectors.size() + m_vVectorWriters.size() << " test vectors. Nr. of testvector damps: " << m_iTestvectorDamps << std::endl;
+	ss << " Testvectors: " << testvector_desc() << "\n";
+//	ss << m_testvectors.size() + m_vVectorWriters.size() << " test vectors" << std::endl; ?
 	if(m_writeMatrices && m_writeTestvectors)
 		ss << " Write Testvectors is on.\n";
 	ss << " \n";
-	ss << AMGBase<TAlgebra>::config_string();
+	ss << " AMGBase:\n" << ConfigShift(AMGBase<TAlgebra>::config_string());
 
 	return ss.str();
 }

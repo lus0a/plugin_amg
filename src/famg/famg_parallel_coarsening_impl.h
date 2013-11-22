@@ -55,7 +55,7 @@ FAMGLevelCalculator<TAlgebra>::
 	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelColoring)
 	Stopwatch SW;
 
-	UG_DLOG(LIB_ALG_AMG, 0, "\ncoloring processor OL graph..."); if(bTiming) SW.start();
+	if(m_bTiming) { UG_LOG("\ncoloring processor OL graph..."); SW.start(); }
 	// add processors of overlap 1 to pidsOL
 	std::set<int> pidsOL;
 	for(IndexLayout::iterator iter = OLCoarseningSendLayout.begin(); iter != OLCoarseningSendLayout.end(); ++iter)
@@ -70,8 +70,9 @@ FAMGLevelCalculator<TAlgebra>::
 	}
 
 	m_myColor = ColorProcessorGraph(PN.communicator(), pidsOL, processesWithLowerColor, processesWithHigherColor);
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
-	UG_DLOG(LIB_ALG_AMG, 0, "\nmy color is " << m_myColor);
+	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
+
+	UG_DLOG(LIB_ALG_AMG, 1, "\nmy color is " << m_myColor);
 	UG_DLOG(LIB_ALG_AMG, 1, "i am connected to");
 	for(std::set<int>::iterator it = pidsOL.begin(); it != pidsOL.end(); ++it)
 		UG_DLOG(LIB_ALG_AMG, 1, (*it) << " ");
@@ -81,7 +82,7 @@ FAMGLevelCalculator<TAlgebra>::
 	UG_DLOG(LIB_ALG_AMG, 1, "\nprocesses with higher color:");
 	for(size_t i=0; i<processesWithHigherColor.size(); i++)
 		UG_DLOG(LIB_ALG_AMG, 1, processesWithHigherColor[i] << " ");
-	UG_DLOG(LIB_ALG_AMG, 0, "\n");
+	UG_DLOG(LIB_ALG_AMG, 1, "\n");
 }
 
 
@@ -159,12 +160,12 @@ FAMGLevelCalculator<TAlgebra>::receive_coarsening_from_processes_with_lower_colo
 	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelRecvCoarsening);
 
 	Stopwatch SW;
-	if(bTiming) SW.start();
+	if(m_bTiming) { UG_LOG("\nreceive coarsening data from processes with lower color"); }
 
-	UG_DLOG(LIB_ALG_AMG, 0, "\nreceive coarsening data from processes with lower color");
+
 	if(processesWithLowerColor.size() == 0)
 	{
-		UG_DLOG(LIB_ALG_AMG, 0, "no processes with lower color.");
+		AMG_LOG(1, "no processes with lower color.");
 		return;
 	}
 
@@ -178,7 +179,7 @@ FAMGLevelCalculator<TAlgebra>::receive_coarsening_from_processes_with_lower_colo
 		communicator.enable_communication_debugging(lowerPC);
 	}*/
 
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 }
 
 // FAMGLevelCalculator::send_coarsening_data_to_processes_with_higher_color
@@ -195,11 +196,12 @@ FAMGLevelCalculator<TAlgebra>::
 	AMG_PROFILE_FUNC();
 	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelSendCoarsening);
 
-	Stopwatch SW; if(bTiming) SW.start();
-	UG_DLOG(LIB_ALG_AMG, 0, "\nsend coarsening data to processes...");
+	Stopwatch SW;
+	if(m_bTiming) { UG_LOG("\nsend coarsening data to processes..."); SW.start(); }
+
 	if(processesWithHigherColor.size() == 0)
 	{
-		UG_DLOG(LIB_ALG_AMG, 0, "no processes with higher color.");
+		AMG_LOG(1, "no processes with higher color.");
 		return;
 	}
 
@@ -207,7 +209,7 @@ FAMGLevelCalculator<TAlgebra>::
 	FAMGCoarseningCommunicationScheme<prolongation_matrix_type> scheme(rating);
 	SendOnInterfaces(PN.communicator(), processesWithHigherColor, OLCoarseningSendLayout, scheme);
 
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 
 	/*IF_DEBUG(LIB_ALG_AMG, 11)
 	{
@@ -250,7 +252,7 @@ bool GenerateOverlap2(const ParallelMatrix<matrix_type> &_mat, ParallelMatrix<ma
 template<typename TAlgebra>
 void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 {
-	UG_DLOG(LIB_ALG_AMG, 0, "\ncreate OL2 matrix...\n");
+	AMG_LOG(1, "\ncreate OL2 matrix...\n");
 #ifdef UG_DEBUG
 	//int iDebugLevelMatrixPre = GET_DEBUG_LEVEL(LIB_ALG_MATRIX);
 	UG_SET_DEBUG_LEVEL(LIB_ALG_MATRIX, m_famg.iDebugLevelOverlapMatrix);
@@ -405,7 +407,7 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 		}
 	}
 
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 
 //	UG_SET_DEBUG_LEVEL(LIB_ALG_MATRIX, iDebugLevelMatrixPre);
 }
@@ -438,7 +440,7 @@ FAMGLevelCalculator<TAlgebra>::
 			PoldIndices(i, node) = n.parents[j].value;
 		}
 	}
-	UG_LOG("calculated " << iNrOfUncalculated << " of uncalculated nodes.\n");
+	UG_DLOG(LIB_ALG_AMG, 1, "calculated " << iNrOfUncalculated << " of uncalculated nodes.\n");
 }
 
 // end group plugins_amg_famg

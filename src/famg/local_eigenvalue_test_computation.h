@@ -45,7 +45,7 @@ void print_matlab_positions(std::vector<size_t> indices)
 }
 
 template<typename TMatrix>
-void ToDouble(DenseMatrix<VariableArray2<double> > &Ad, TMatrix &d)
+inline void ToDouble(DenseMatrix<VariableArray2<double> > &Ad, TMatrix &d)
 {
 	size_t blockSize = GetRows(A(0,0));
 	A2.resize(blockSize*A.num_rows(), blockSize*A.num_cols());

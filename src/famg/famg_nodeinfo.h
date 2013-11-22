@@ -18,10 +18,11 @@ namespace ug {
 
 //  structs
 // fine is the smallest (see is_fine)
-#define FAMG_SMALLEST_FINE_RATING		(-30)
+#define FAMG_BIGGEST_FINE_RATING		(-30)
 #define FAMG_AGGRESSIVE_FINE_RATING		(-31)
 #define FAMG_UNCALCULATED_FINE_RATING	(-32)
 #define FAMG_FINE_RATING				(-33)
+//      FAMG_INDIRECT_LEVEL[i]          (-33-i)
 
 
 #define FAMG_UNINTERPOLATEABLE			(-10)
@@ -30,55 +31,106 @@ namespace ug {
 // those are border-nodes which are fine on another processor. we need to calculate ratings for them
 
 
+//#define FAMG_COARSENING_USE_F_FOR_SORT
 
+/**
+ * this class contains the rating and the state of a node
+ * rating is set to  min_{possible parents} (number of nodes which have to set coarse additionally)  + (F-value of this pair) / delta
+ * depending on FAMG_COARSENING_USE_F_FOR_SORT, the additional F-value is ignore or not
+ */
 class FAMGNode
 {
 	template<typename> friend class FAMGNodes;
+private:
+	/// rating is set to  min_{possible parents} (number of nodes which have to set coarse additionally)  + (F-value of this pair) / delta
+	/// depending on FAMG_COARSENING_USE_F_FOR_SORT, the additional F-value is ignore or not
+	double rating;
 
 private:
+	/// set this node to fine
 	inline void set_fine(){rating = FAMG_FINE_RATING;}
-	inline void set_fine_indirect_level(int level){rating = FAMG_FINE_RATING-level;}
-	inline void set_aggressive_fine(){rating = FAMG_AGGRESSIVE_FINE_RATING;}
-	inline void set_uncalculated_fine() { rating = FAMG_UNCALCULATED_FINE_RATING; }
 
+	/// set this node to fine indirect level
+	inline void set_fine_indirect_level(int level){rating = FAMG_FINE_RATING-level;}
+
+	/// set this node to aggressive fine (a pre-step before fine indirect)
+	inline void set_aggressive_fine(){rating = FAMG_AGGRESSIVE_FINE_RATING;}
+
+	/// set this node to coarse
 	inline void set_coarse(){rating = FAMG_COARSE_RATING;}
+
+	/// set this node to uninterpolateable
 	inline void set_uninterpolateable()	{ rating = FAMG_UNINTERPOLATEABLE;	}
+
+	/// set this node to dirichlet (dirichlet nodes are nodes with A_{ij} = { 1 iff i=j else 0)
 	inline void set_dirichlet() { rating = FAMG_DIRICHLET_RATING; }
 
+	// uncalculated: only used for on_demand_coarsening
+	inline void set_uncalculated_fine() { rating = FAMG_UNCALCULATED_FINE_RATING; }
 
 public:
 	FAMGNode() { rating = 0.0; }
-	double rating;
-	
+	double get_rating() { return rating; }
+
+
 	// is_fine is true if node is fine OR uncalculated_fine OR aggressive_fine
-	inline bool is_fine() const { return rating <= FAMG_SMALLEST_FINE_RATING; }
+
+	/// \return true if node is fine (fine, aggressive fine or uncalculated fine)
+	inline bool is_fine() const { return rating <= FAMG_BIGGEST_FINE_RATING; }
+
+	/// \return true if node is 'direct' fine, that is a node which is fine and interpolates only from coarse
 	inline bool is_fine_direct() const { return rating == FAMG_FINE_RATING; }
+
+	/// \return true if aggressive fine, that is a node which should be interpolated by fine nodes.
 	inline bool is_aggressive_fine() const { return rating == FAMG_AGGRESSIVE_FINE_RATING; }
-	inline bool is_uncalculated_fine() const { return rating == FAMG_UNCALCULATED_FINE_RATING; }
+
+
+	/// \return true if node is coarse
 	inline bool is_coarse() const { return rating == FAMG_COARSE_RATING; }
+
+	/// \return true if node is uninterpolateable (-> coarse)
 	inline bool is_uninterpolateable() const { return rating == FAMG_UNINTERPOLATEABLE; }
+
+	/// \return true if nodes are 'dirichlet' nodes, that means A_{ij} = { 1 iff i=j else 0
 	inline bool is_dirichlet() const { return rating == FAMG_DIRICHLET_RATING; }
-	
+
+	/// uncalculated: only used for on_demand_coarsening
+	inline bool is_uncalculated_fine() const { return rating == FAMG_UNCALCULATED_FINE_RATING; }
+
+
+public:
+	/// \true if we could set this node coarse
 	inline bool could_be_coarse() const
 	{
 		return is_valid_rating() || is_coarse() || is_uninterpolateable(); // is_dirichlet ??
 	}
+
+	/// \return true if node has a lambda rating which means it is not assigned
 	inline bool is_valid_rating() const
 	{
 		return rating >= 0;
 	}
+	/// \return true if node is assigned (assigned coarse/fine or similar)
+	inline bool is_assigned()
+	{
+		return rating < 0;
+	}
+
+
+	/// used in the heap operation to construct the coarse grid
 	inline bool operator > (const FAMGNode &other) const
 	{
-		return floor(rating) < floor(other.rating);
-
+#ifdef FAMG_COARSENING_USE_F_FOR_SORT
 		if(rating == other.rating)
 			return this < &other;
 		else
 			return rating < other.rating;
-
-
+#else
+		return floor(rating) < floor(other.rating);
+#endif
 	}
 
+	// this returns the state as a char for use in parallelization algorithms
 	inline char get_state() const
 	{
 		UG_ASSERT(rating <= 0 && rating == floor(rating), "rating is " << rating << ", but needs to be <= 0 and integer");
@@ -110,20 +162,16 @@ template<typename TProlongationMatrix>
 class FAMGNodes
 {
 public:
-#ifdef UG_PARALLEL
+
 	FAMGNodes(TProlongationMatrix &_P, size_t level, ug::cAMG_helper &amghelper,
 			ParallelNodes &pn)
-	: m_level(level), P(_P), PN(pn), m_amghelper(amghelper)
+	: m_level(level), P(_P), m_amghelper(amghelper)
+#ifdef UG_PARALLEL
+		, PN(pn)
+#endif
 	{
 		m_iNrOfCoarse = 0;
 	}
-#else
-	FAMGNodes(TProlongationMatrix &_P, size_t level, ug::cAMG_helper &amghelper)
-		: m_level(level), P(_P), m_amghelper(amghelper)
-		{
-			m_iNrOfCoarse = 0;
-		}
-#endif
 
 	void create(size_t size)
 	{
@@ -153,8 +201,9 @@ public:
 	FAMGNode &operator [] (size_t i) { return nodes[i]; }
 	const FAMGNode &operator [] (size_t i) const { return nodes[i]; }
 
-	template<typename vec_type>
-	int get_rating(const vec_type &M)
+	/// calculates the rating of this nodes for a list of parent nodes
+	template<typename parent_nodes_vec_type>
+	int get_rating(const parent_nodes_vec_type &M)
 	{
 		//AMG_PROFILE_FUNC();
 		size_t rating = 0;
@@ -174,14 +223,18 @@ public:
 		return rating;
 	}
 
-	// updates the rating of node <node>
-	// and writes it to rating
-	// possible neighbors are always stored as follows:
-	//	- possible_neighbors[i][0] is the best currently known pair for interpolating i
-	//	- this can change
-	//	a) if a parent node gets fine -> removal of this pair
-	//	b) if a parent node gets coarse
-	//	returns true if value has been updated, otherwise false
+	/**
+	 * updates the rating of node <node>
+	 * and writes it to rating
+	 * possible neighbors are always stored as follows:
+	 * - possible_neighbors[i][0] is the best currently known pair for interpolating i
+	 * - this can change
+	 * a) if a parent node gets fine -> removal of this pair
+	 * b) if a parent node gets coarse
+	 * @param node
+	 * @param PN parent nodes
+	 * @return true if value has been updated, otherwise false
+	 */
 	template<typename neighborstruct>
 	bool update_rating(size_t node, stdvector<neighborstruct> &PN)
 	{
@@ -259,21 +312,26 @@ public:
 
 #ifdef UG_PARALLEL
 public:
+	/// \return true if node is a 'inner' node, i.e. nodes not lying on the boundary
 	bool is_inner_node(size_t i) const
 	{
 		return PN.is_inner(i);
 	}
 
+	/// \return true if node is on boundary and master
 	bool is_master(size_t i) const
 	{
 		return PN.is_master(i);
 	}
 
+	/// \return true if node is on boundary and slave
 	bool is_slave(size_t i) const
 	{
 		return PN.is_slave(i);
 	}
 
+	/// \return 0 for master/inner nodes, else the distance
+	/// to master/inner nodes. this is != 0 for overlap nodes
 	size_t distance_to_master_or_inner(size_t i) const
 	{
 		return PN.distance_to_master_or_inner(i);
@@ -287,16 +345,22 @@ public:
 			return false;
 	}*/
 
+	/// \return true if we must assign this node:
+	/// this is true if it is an inner node or it is master
 	bool i_must_assign(size_t i) const
 	{
 		return is_inner_node(i) || is_master(i);
 	}
 
+	/// \return true if this process can set this node coarse on its on
+	/// this is true if we can set it coarse (i.e. not already fine)
+	/// and it is master/inner or has distance one to a master or inner
 	bool i_can_set_coarse(size_t i) const
 	{
 		return nodes[i].could_be_coarse() && distance_to_master_or_inner(i) <= 1;
 	}
 
+	/// returns the overlap type (inner, master, slave or distanceToMasterOrInner=X)
 	std::string OL_type(size_t i) const
 	{
 		std::stringstream  ss;
@@ -304,6 +368,7 @@ public:
 		return ss.str();
 	}
 
+	/// returns some info about the node i
 	std::string info(size_t i)
 	{
 		std::stringstream ss;
@@ -311,6 +376,7 @@ public:
 		return ss.str();
 	}
 
+	/// calculate the number of unassigned nodes
 	void calculate_unassigned()
 	{
 		m_iUnassigned = 0;
@@ -320,8 +386,7 @@ public:
 				m_iUnassigned++;
 		}
 	}
-	stdvector<int> OLtype;
-	std::map<size_t, int> m_masterOn;
+
 #else
 public:
 	std::string info(size_t i)
@@ -372,6 +437,14 @@ public:
 			UG_LOG(info(i) << "\n");
 		UG_LOG("\n");
 	}
+
+	/**
+	 * this sets the node i fine.
+	 * if it wasn't fine before and i_must_assign(i) is true,
+	 * this reduces the number of unassigned nodes.
+	 * asserts that i was not set coarse
+	 * @param i
+	 */
 	void set_fine(size_t index)
 	{
 		UG_ASSERT(nodes[index].is_coarse() == false, "try to set node " << index << " fine, but is coarse???");
@@ -384,6 +457,13 @@ public:
 		nodes[index].set_fine();
 	}
 
+	/**
+	 * this sets the node i aggressive fine.
+	 * if i_must_assign(i) is true,
+	 * this reduces the number of unassigned nodes.
+	 * asserts that i was not set coarse
+	 * @param i
+	 */
 	void set_aggressive_fine(size_t index)
 	{
 		//UG_ASSERT(nodes[index].is_fine() == false, "node " << index << " is already fine");
@@ -393,6 +473,10 @@ public:
 		nodes[index].set_aggressive_fine();
 	}
 
+	/**
+	 * set node to uncalculated fine
+	 * @param index
+	 */
 	void external_set_uncalculated_fine(size_t index)
 	{
 		UG_ASSERT(!is_inner_node(index), "node " << index << " can not be set uncalculated_fine, since it is an inner node");
@@ -403,6 +487,12 @@ public:
 		m_iUnassigned--;
 	}
 
+	/**
+	 * set node i coarse
+	 * this function does not check whether we can
+	 * set this node coarse
+	 * @param i
+	 */
 	void external_set_coarse(size_t index)
 	{
 		if(nodes[index].is_coarse() == false)
@@ -416,18 +506,25 @@ public:
 		}
 	}
 
-	void set_dirichlet(size_t index)
-	{
-		set_coarse(index);
-		/*if(nodes[index].is_dirichlet() == false && i_must_assign(index))
-			m_iUnassigned--;
-		nodes[index].set_dirichlet();*/
-	}
 
+	/**
+	 * asserts that we can set this node coarse in a parallel sense.
+	 * calls external_set_coarse
+	 * @param index
+	 */
 	void set_coarse(size_t index)
 	{
 		UG_ASSERT(i_can_set_coarse(index), "Index " << index << " can not be coarse.\n");
 		external_set_coarse(index);
+	}
+
+
+	void set_dirichlet(size_t index)
+	{
+		//set_coarse(index); return;
+		if(nodes[index].is_dirichlet() == false && i_must_assign(index))
+			m_iUnassigned--;
+		nodes[index].set_dirichlet();
 	}
 
 	void set_uninterpolateable(size_t index)
@@ -468,7 +565,6 @@ public:
 	stdvector<FAMGNode> nodes; // !!! this HAS to be a consecutive array, because it is used in the heap
 
 private:
-
 	size_t m_iNrOfCoarse;			// number of coarse nodes so far
 	size_t m_iUnassigned;			// number of still unassigned nodes
 	size_t m_iNrOfAggressiveFine; 	// number of aggressive fine nodes
@@ -477,10 +573,13 @@ private:
 	size_t m_level;
 
 	TProlongationMatrix &P;
+	ug::cAMG_helper &m_amghelper;
+
 #ifdef UG_PARALLEL
+	stdvector<int> OLtype;
+	std::map<size_t, int> m_masterOn;
 	ParallelNodes &PN;
 #endif
-	ug::cAMG_helper &m_amghelper;
 };
 
 
@@ -525,7 +624,7 @@ void GetRatings(stdvector<stdvector<neighborstruct> > &possible_neighbors,
 			if(nodes[i].is_valid_rating())
 				heap.insert_item(i);
 		}
-		UG_DLOG(LIB_ALG_AMG, 4, "rating = " << nodes[i].rating << "\n");
+		UG_DLOG(LIB_ALG_AMG, 4, "rating = " << nodes[i].get_rating() << "\n");
 	}
 }
 

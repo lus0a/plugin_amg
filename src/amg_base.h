@@ -643,6 +643,9 @@ private:
 			size_t level, ParallelNodes &PN);
 #endif
 
+public:
+	int m_verbose;							///< verbose level. 0 = no output.
+
 protected:
 	/// overwrite this method if your AMG method needs positions somehow
 	virtual bool needs_positions() const { return m_writeMatrices; }
@@ -660,8 +663,6 @@ protected:
 	size_t m_minNodesOnOneProcessor;///< min nr of nodes on one processor (for agglomeration)
 	size_t m_preferredNodesOnOneProcessor;///< preferred nr of nodes on one processor (for agglomeration)
 	bool m_bUseCollectedSolver;
-
-	int m_verbose;							///< verbose level. 0 = no output.
 
 	bool m_bFSmoothing;						///< if true, use F-Smoothing
 	bool m_bOneInit;///< if true, do not re-create AMG we preprocess is called
@@ -795,6 +796,9 @@ protected:
 #endif
 
 	void calculate_level_information(size_t level, double createAMGlevelTiming);
+
+protected:
+
 };
 
 // end group plugins_amg

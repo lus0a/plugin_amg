@@ -119,7 +119,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 {
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
-	UG_DLOG(LIB_ALG_AMG, 1, std::endl << "other coarsening... "); if(bTiming) SW.start();
+	if(m_bTiming) { UG_LOG("\nother coarsening... "); SW.start(); }
 
 	AMG_PROFILE_BEGIN(AMG_on_demand_Init)
 	size_t N = rating.size();
@@ -300,12 +300,12 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 
 	for(size_t i=0; i<N; i++)
 	{
-		UG_ASSERT(rating.i_must_assign(i) == false || rating[i].rating != 0.0, i);
+		UG_ASSERT(rating.i_must_assign(i) == false || rating[i].get_rating() != 0.0, i);
 	}
 
 	UG_DLOG(LIB_ALG_AMG, 2, "\nDone!\n");
 
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms.");
+	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms.");
 }
 
 // end group plugins_amg_famg

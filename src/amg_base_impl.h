@@ -84,12 +84,15 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_type> > pOp)
 {
 	matrix_operator_type& mat = *pOp;
+
 	AMG_PROFILE_FUNC();
 
 	if(m_bOneInit && m_bInited)
 		return true;
 
 #ifdef UG_PARALLEL
+	if(mat.num_rows() == 0 && mat.layouts()->proc_comm().empty())
+		return true;
 //	SetMPIErrHandler();
 #endif
 
@@ -172,6 +175,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	PROGRESS_START(prog, pOp->num_rows(), "Creating AMG");
 	for(; ; level++)
 	{
+
 		AMGLevel &L = *levels[level];
 		PROGRESS_UPDATE(prog, pOp->num_rows()-L.pA->num_rows());
 
@@ -216,8 +220,8 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 		if(m_writeMatrices)
 		{
-			std::string filename = GetAMGFilenamePath(*L.pAgglomeratedA, level, "AMG_A_L", level, ".mat", true);
-			AMGWriteToFile(*L.pAgglomeratedA, level, level, filename, m_amghelper);
+			AMGWriteToFile(*L.pAgglomeratedA, level, level,
+					GetAMGFilenamePath(*L.pAgglomeratedA, level, "A", level, ".mat", true), m_amghelper);
 			//PRINTPC(L.pAgglomeratedA->get_process_communicator());
 		}
 
@@ -258,6 +262,8 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 #endif
 
 		Stopwatch SW; SW.start();
+
+		AMG_LOG(1, "===== Creating level " << level << ". (" << L.pAgglomeratedA->num_rows() << " nodes =====\n");
 
 		create_AMG_level(AH, R, *L.pAgglomeratedA, P, level, *nextL.spLayouts);
 
@@ -769,6 +775,8 @@ std::string AMGBase<TAlgebra>::config_string() const
 	else ss << "gamma = " << m_cycleType;
 	ss << ", max levels = " << m_maxLevels;
 	ss << ", F-Smoothing = " << (m_bFSmoothing ? "[ON]" : "[OFF]") << ")\n";
+	ss << " Agglomeration: minNodesOnOneProcessor = " << m_minNodesOnOneProcessor << ", preferredNodesOnOneProcessor = " <<
+			m_preferredNodesOnOneProcessor << "\n";
 
 	if(m_presmoother == m_postsmoother)
 		ss << " Smoother (" << m_numPreSmooth << "x pre, " << m_numPostSmooth << "x post): "
@@ -786,12 +794,12 @@ std::string AMGBase<TAlgebra>::config_string() const
 	ss << " Galerkin Truncation: " << m_dGalerkinTruncation << "\n";
 
 	if(m_writeMatrices)
-		ss << "Writing Matrices to \"" << m_writeMatrixPath << "\"\n";
+		ss << " Writing Matrices to \"" << m_writeMatrixPath << "\"\n";
 
 	if(m_bInited)
 	{
-		ss << "AMG is initialized.\n";
-		ss << "Used Levels: " << m_usedLevels << "\n";
+		ss << " AMG is initialized.\n";
+		ss << " Used Levels: " << m_usedLevels << "\n";
 	}
 	return ss.str();
 }
@@ -825,9 +833,9 @@ template<typename TAlgebra>
 std::string AMGBase<TAlgebra>::GetAMGFilenamePath(const matrix_type &m, int levelDir, std::string name, int level, std::string extension, bool bWriteHeader)
 {
 #ifdef UG_PARALLEL
-	return ConnectionViewer::GetParallelName(get_output_directory(levelDir) + std::string("AMG_") + name + "_L" + ToString(level) + extension, m.layouts()->proc_comm(), bWriteHeader);
+	return ConnectionViewer::GetParallelName(get_output_directory(levelDir) + name + "_L" + ToString(level) + extension, m.layouts()->proc_comm(), bWriteHeader);
 #else
-	return get_output_directory(levelDir) + std::string("AMG_") + name + "_L" + ToString(level) + extension;
+	return get_output_directory(levelDir) + name + "_L" + ToString(level) + extension;
 #endif
 }
 
@@ -835,9 +843,9 @@ template<typename TAlgebra>
 std::string AMGBase<TAlgebra>::GetAMGFilename(const matrix_type &m, std::string name, int level, std::string extension, bool bWriteHeader)
 {
 #ifdef UG_PARALLEL
-	return ConnectionViewer::GetParallelName(std::string("AMG_") + name + "_L" + ToString(level) + extension, m.layouts()->proc_comm(), bWriteHeader);
+	return ConnectionViewer::GetParallelName(name + "_L" + ToString(level) + extension, m.layouts()->proc_comm(), bWriteHeader);
 #else
-	return std::string("AMG_") + name + "_L" + ToString(level) + extension;
+	return name + "_L" + ToString(level) + extension;
 #endif
 }
 
@@ -853,15 +861,15 @@ void AMGBase<TAlgebra>::write_debug_matrix_markers
 	std::string path = get_output_directory(level);
 
 	AMG_PROFILE_FUNC();
-	std::fstream ffine((path + GetAMGFilename(A, "fine", level, ".marks")).c_str(), std::ios::out);
+	std::fstream ffine((path + GetAMGFilename(A, "_fine", level, ".marks")).c_str(), std::ios::out);
 	ffine << "1 0 0 1 0\n";
-	std::fstream ffine2((path + GetAMGFilename(A, "aggfine", level, ".marks")).c_str(), std::ios::out);
+	std::fstream ffine2((path + GetAMGFilename(A, "_aggfine", level, ".marks")).c_str(), std::ios::out);
 	ffine2 << "1 0.2 1 1 0\n";
-	std::fstream fcoarse((path + GetAMGFilename(A, "coarse", level, ".marks")).c_str(), std::ios::out);
+	std::fstream fcoarse((path + GetAMGFilename(A, "_coarse", level, ".marks")).c_str(), std::ios::out);
 	fcoarse << "0 0 1 1 2\n";
-	std::fstream fother((path + GetAMGFilename(A, "other", level, ".marks")).c_str(), std::ios::out);
+	std::fstream fother((path + GetAMGFilename(A, "_other", level, ".marks")).c_str(), std::ios::out);
 	fother << "1 1 0 1 0\n";
-	std::fstream fdirichlet((path + GetAMGFilename(A, "dirichlet", level, ".marks")).c_str(), std::ios::out);
+	std::fstream fdirichlet((path + GetAMGFilename(A, "_dirichlet", level, ".marks")).c_str(), std::ios::out);
 	fdirichlet << "0 1 1 1 0\n";
 	for(size_t i=0; i < nodes.size(); i++)
 	{
@@ -891,10 +899,10 @@ void AMGBase<TAlgebra>::
 
 		std::string filename = GetAMGFilenamePath(mat, level, name, fromlevel, ".mat", true);
 		AMGWriteToFile(mat, fromlevel, tolevel, filename, m_amghelper);
-		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "fine", level, ".marks"));
-		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "coarse", level, ".marks"));
-		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "other", level, ".marks"));
-		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "dirichlet", level, ".marks"));
+		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_fine", level, ".marks"));
+		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_coarse", level, ".marks"));
+		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_other", level, ".marks"));
+		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_dirichlet", level, ".marks"));
 	}
 }
 
@@ -943,14 +951,13 @@ void AMGBase<TAlgebra>::write_debug_matrices(matrix_type &AH, prolongation_matri
 
 	//if(A.num_rows() < AMG_WRITE_MATRICES_MAX)
 	{
-		write_debug_matrix(A, level, level, "AMG_A_L");		AMG_LOG(1, "P ");
-		write_debug_matrix(P, level+1, level, "AMG_P_L");	AMG_LOG(1, "R ");
-		write_debug_matrix(R, level, level+1, "AMG_R_L");	AMG_LOG(1, "AH ");
+		write_debug_matrix(A, level, level, "A");		AMG_LOG(1, "P ");
+		write_debug_matrix(P, level+1, level, "P");	AMG_LOG(1, "R ");
+		write_debug_matrix(R, level, level+1, "R");	AMG_LOG(1, "AH ");
 	}
 
-	std::string filename = GetAMGFilenamePath(AH, level, "AMG_Au_L", level+1, ".mat");
-
-	AMGWriteToFile(AH, level+1, level+1, filename.c_str(), m_amghelper);
+	AMGWriteToFile(AH, level+1, level+1,
+			GetAMGFilenamePath(AH, level, "AH", level+1, ".mat", true), m_amghelper);
 
 	AMG_LOG(1, " done.\n");
 }

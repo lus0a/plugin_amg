@@ -365,6 +365,12 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 
 	L.bLevelHasMergers=true;
 
+	// write unagglomerated matrix
+	AMGWriteToFile(A, level, level,
+			GetAMGFilenamePath(A, level, "A_unagglomerated", level, ".mat", true),
+			m_amghelper);
+
+
 	// 1. create global Algebra IDs
 
 	pcl::InterfaceCommunicator<IndexLayout> &communicator = A.layouts()->comm();
@@ -544,6 +550,8 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 		else
 			agglomerate_to(merge, mergeTo, level, PN);
 	}
+
+
 	return true;
 }
 #endif

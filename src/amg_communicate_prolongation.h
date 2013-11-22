@@ -214,6 +214,7 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 {
 
 	AMG_PROFILE_FUNC();
+	nextLevelLayouts.proc_comm() = PoldIndices.layouts()->proc_comm();
 	//PRINTPC(PoldIndices.layouts()->proc_comm());
 	//PRINTPC(PnewIndices.layouts()->proc_comm());
 
@@ -390,7 +391,6 @@ void AMGBase<TAlgebra>::create_minimal_layout_for_prolongation(ParallelNodes &PN
 	{
 		UG_LOG(i << " used = " << bUsedSlave[i] << "\n");
 	}*/
-
 	CreateMinimalLayoutCommunicationScheme cmlcs(bUsedSlave);
 	CommunicateOnInterfaces(PN.communicator(), PN.get_total_slave_layout(), PN.get_total_master_layout(), cmlcs);
 	cmlcs.get_new_layouts(newLayouts.master(), newLayouts.slave());

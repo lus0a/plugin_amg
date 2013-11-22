@@ -35,6 +35,10 @@
 #define AMG_LOG(lvl, msg) { if(m_verbose >= lvl) UG_LOG(msg); }
 #define AMG_LOGN(lvl, msg) AMG_LOG(lvl, msg << "\n");
 
+
+#define AMG_START_TIMING(msg) Stopwatch AMG_TIMING_SW; if(bTiming) { m_ssTiming << msg; SW.start(); }
+#define AMG_END_TIMING(msg) if(bTiming) { m_ssTiming << " took " << AMG_TIMING_SW.ms() << " ms\n"; }
+
 // end group plugins_amg
 /// \}
 

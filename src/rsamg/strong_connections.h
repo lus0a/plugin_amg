@@ -7,7 +7,11 @@
 
 #ifndef STRONG_CONNECTIONS_H_
 #define STRONG_CONNECTIONS_H_
-
+#include "lib_algebra/common/graph/graph.h"
+#include "rsamg_nodeinfo.h"
+#include "lib_algebra/algebra_common/sparse_vector.h"
+#include "rsamg_eliminate.h"
+#include "rsamg_blockvalues.h"
 
 namespace ug{
 

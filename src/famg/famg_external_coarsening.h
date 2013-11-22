@@ -27,7 +27,7 @@ void FAMGLevelCalculator<algebra_type>::external_coarsening_calculate_prolongati
 	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
 
 	Stopwatch SW;
-	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "calculate prolongation... "); if(bTiming) SW.start();
+	if(m_bTiming) { UG_LOG("\ncalculate prolongation... "); SW.start(); }
 	size_t N = A.num_rows();
 	PROGRESS_START(prog, N, "FAMG::external_coarsening_calculate_prolongation " << N);
 	for(size_t i=0; i<N; i++)
@@ -36,7 +36,7 @@ void FAMGLevelCalculator<algebra_type>::external_coarsening_calculate_prolongati
 		if(rating[i].is_fine_direct() && rating.i_must_assign(i))
 			calculator.get_all_neighbors_interpolation(i, PoldIndices, rating);
 	}
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms");
 
 
 }
@@ -72,7 +72,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 #if 1
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
-	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "external coarsening... " ); if(bTiming) SW.start();
+	if(m_bTiming) { UG_LOG("\nexternal coarsening... " );  SW.start(); }
 	nodeinfo_pq_type PQ;
 	size_t N = A_OL2.num_rows();
 
@@ -88,8 +88,6 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 
 	const int submask=m_famg.get_strong_connection_submask();
 	const double sigma = m_famg.get_strong_connection_external();
-
-	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "FAMG strong connections ("<< sigma <<") based on comp="<< submask << " (comp=-1 indicates full)."<< std::endl);
 
 	switch (submask) {
 	case 0: // primary sub 0
@@ -144,17 +142,17 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 		size_t m_iAggressiveCoarseningNrOfPaths = 2;
 		CreateAggressiveCoarseningGraph(graphST, graphAC, nodes, m_iAggressiveCoarseningNrOfPaths);
 		CreateMeasureOfImportanceAggressiveCoarseningPQ(graphAC, PQ, nodes);
-		if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+		if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 		// coarsen 2
 		//------------------
 
 		if(nodes.get_unassigned() == 0)
 		{
-			UG_DLOG(LIB_ALG_AMG, 2, std::endl << "skipping coarsening2: no unassigned nodes.");
+			if(m_bTiming) { UG_LOG("\nskipping coarsening2: no unassigned nodes... " );  SW.start(); }
 		}
 		else
 		{
-			UG_DLOG(LIB_ALG_AMG, 2, std::endl << "coarsening2... ");
+			if(m_bTiming) { UG_LOG("\ncoarsening2... " );  SW.start(); }
 			Coarsen(graphAC, graphAC, PQ, nodes, true, true);
 			//PreventFFConnections(graphS, graphST, nodes);
 		}
@@ -163,7 +161,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	// coarsening done. transfer AMG nodeinfo -> FAMG nodeinfo
 	AMGnodeinfoToFAMGnodeinfo(nodes, rating, graphS);
 
-	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 	//if(nodes[i].is_unassigned_fine_indirect())
 	//	rating.set_aggressive_fine(i);
 #else
@@ -187,7 +185,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::write_coarsening()
 {
-	PROFILE_FUNC_GROUP("debug");
+	/*PROFILE_FUNC_GROUP("debug");
 
 	stdvector<MathVector<3> > &vec = m_famg.m_amghelper.positions[level];
 
@@ -220,6 +218,7 @@ void FAMGLevelCalculator<algebra_type>::write_coarsening()
 	for(int i=pcl::GetProcRank(); i<pcl::GetNumProcesses(); i++)
 		pcl::AllProcsTrue(true);
 #endif
+*/
 }
 
 template<int Ti>
@@ -235,7 +234,8 @@ struct MathVectorComp {
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::read_coarsening()
 {
-	PROFILE_FUNC_GROUP("debug");
+	/*
+	 PROFILE_FUNC_GROUP("debug");
 
 	stdvector<MathVector<3> > &vec = m_famg.m_amghelper.positions[level];
 	typedef std::map<MathVector<3>, size_t, MathVectorComp<3> > MathVecMap;
@@ -258,6 +258,7 @@ void FAMGLevelCalculator<algebra_type>::read_coarsening()
 			UG_LOG("Setting node " << it->second << " to " << rating[it->second]);
 		}
 	}
+	*/
 }
 
 // end group plugins_amg_famg

@@ -343,7 +343,7 @@ public:
 					"node " << i << " [" << rating.get_original_index(i) << "]\n");
 
 		UG_ASSERT(rating[i].is_valid_rating(),
-				"node " << i << " has no valid rating " << rating[i].rating);
+				"node " << i << " has no valid rating " << rating[i].get_rating());
 
 		if (testvectorsExtern && BlockNorm2(m_testvectors[0][i]) < 1e-12)
 		{
