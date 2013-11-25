@@ -163,15 +163,21 @@ class FAMGNodes
 {
 public:
 
+#ifdef UG_PARALLEL
 	FAMGNodes(TProlongationMatrix &_P, size_t level, ug::cAMG_helper &amghelper,
 			ParallelNodes &pn)
-	: m_level(level), P(_P), m_amghelper(amghelper)
-#ifdef UG_PARALLEL
-		, PN(pn)
-#endif
+	: m_level(level), P(_P), m_amghelper(amghelper), PN(pn)
 	{
 		m_iNrOfCoarse = 0;
 	}
+#else
+	FAMGNodes(TProlongationMatrix &_P, size_t level, ug::cAMG_helper &amghelper)
+		: m_level(level), P(_P), m_amghelper(amghelper)
+		{
+			m_iNrOfCoarse = 0;
+		}
+#endif
+
 
 	void create(size_t size)
 	{
