@@ -21,7 +21,6 @@
 #include "lib_algebra/parallelization/parallel_storage_type.h"
 #include "lib_algebra/parallelization/consistency_check.h"
 #include "lib_algebra/parallelization/serialization.h"
-#include "pcl/pcl_errhandler.h"
 #include "pcl/pcl_tostring.h"
 #endif
 #include "common/util/file_util.h"
@@ -93,7 +92,6 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 #ifdef UG_PARALLEL
 	if(mat.num_rows() == 0 && mat.layouts()->proc_comm().empty())
 		return true;
-//	SetMPIErrHandler();
 #endif
 
 	cleanup();
