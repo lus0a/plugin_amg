@@ -100,6 +100,7 @@ public:
 
 protected:
 	virtual const char* name() const = 0;
+	virtual bool supports_parallel() const { return true; }
 
 	/**
 	 * creates MG Hierachy for with matrix_operator_type A and temporary vectors for higher levels
