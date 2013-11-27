@@ -159,7 +159,7 @@ void AMGBase<TAlgebra>::serial_process_prolongation(prolongation_matrix_type &Po
  * @param layouts	used layouts
  */
 template<typename TMatrix>
-void CheckMatrixLayouts(ParallelNodes &PN, const TMatrix &mat, HorizontalAlgebraLayouts &layouts)
+void CheckMatrixLayouts(ParallelNodes &PN, const TMatrix &mat, AlgebraLayouts &layouts)
 {
 #ifndef NDEBUG
 	AMG_PROFILE_FUNC();
@@ -210,7 +210,7 @@ template<typename TAMGNodes>
 void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &PoldIndices,
 		prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level,
 		TAMGNodes &amgnodes, ParallelNodes &PN, bool bCreateNewNodes,
-		HorizontalAlgebraLayouts &nextLevelLayouts, stdvector<int> &newIndex)
+		AlgebraLayouts &nextLevelLayouts, stdvector<int> &newIndex)
 {
 
 	AMG_PROFILE_FUNC();
@@ -371,7 +371,7 @@ private:
 // docu see amg_base.h
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::create_minimal_layout_for_prolongation(ParallelNodes &PN, prolongation_matrix_type &P,
-		HorizontalAlgebraLayouts &newLayouts)
+		AlgebraLayouts &newLayouts)
 {
 	AMG_PROFILE_FUNC();
 	stdvector<bool> bUsedSlave(P.num_cols(), false);

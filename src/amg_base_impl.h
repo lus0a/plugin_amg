@@ -394,7 +394,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 
 			L.spAgglomeratedLayouts->proc_comm() = pc.create_sub_communicator(true);
 			// setting empty layouts to collectedA
-			L.collectedA->set_layouts(SmartPtr<HorizontalAlgebraLayouts>(new HorizontalAlgebraLayouts));
+			L.collectedA->set_layouts(SmartPtr<AlgebraLayouts>(new AlgebraLayouts));
 			m_basesolver->init(L.collectedA);
 
 			L.collC.resize(L.collectedA->num_rows());

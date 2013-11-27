@@ -46,7 +46,7 @@ namespace ug {
  */
 
 #ifdef UG_PARALLEL
-typedef HorizontalAlgebraLayouts AMGLayouts;
+typedef AlgebraLayouts AMGLayouts;
 #else
 typedef int AMGLayouts;
 #endif
@@ -228,7 +228,7 @@ protected:
 	void parallel_process_prolongation(prolongation_matrix_type &PoldIndices,
 			prolongation_matrix_type &PnewIndices, double dEpsilonTruncation,
 			int level, TAMGNodes &amgnodes, ParallelNodes &PN,
-			bool bCreateNewNodes, HorizontalAlgebraLayouts &nextLevelLayout, stdvector<int> &newIndex);
+			bool bCreateNewNodes, AlgebraLayouts &nextLevelLayout, stdvector<int> &newIndex);
 
 	/** since we calculate the prolongation only in the master/inner nodes, we need to send this communication to the slave nodes
 	 *  (so we get additive AH=RAP again)
@@ -273,7 +273,7 @@ protected:
 	 * @param newLayouts	new layouts for P, condensed from PN.get_total_master_layout() and PN.get_total_slave_layout();
 	 */
 	void create_minimal_layout_for_prolongation(ParallelNodes &PN,
-			prolongation_matrix_type &P, HorizontalAlgebraLayouts &newLayouts);
+			prolongation_matrix_type &P, AlgebraLayouts &newLayouts);
 
 	/**
 	 * since we can turn off cores, we need to collect the data from them
@@ -717,7 +717,7 @@ protected:
 		AMGLevel(int level) :
 				pA(NULL), presmoother(NULL), postsmoother(NULL)
 #ifdef UG_PARALLEL
-						, spLayouts(new HorizontalAlgebraLayouts), spAgglomeratedLayouts(new HorizontalAlgebraLayouts)
+						, spLayouts(new AlgebraLayouts), spAgglomeratedLayouts(new AlgebraLayouts)
 						, collectedA(new matrix_operator_type)
 #endif
 		{
@@ -746,11 +746,11 @@ protected:
 		stdvector<typename block_traits<typename matrix_type::value_type>::inverse_type> m_diagInv;
 
 #ifdef UG_PARALLEL
-		SmartPtr<HorizontalAlgebraLayouts> spLayouts;
+		SmartPtr<AlgebraLayouts> spLayouts;
 		//pcl::InterfaceCommunicator<IndexLayout> com; 						///< the communicator object on this level
 		//IndexLayout slaveLayout, masterLayout;							///< layouts
 
-		SmartPtr<HorizontalAlgebraLayouts> spAgglomeratedLayouts;
+		SmartPtr<AlgebraLayouts> spAgglomeratedLayouts;
 		//IndexLayout slaveLayoutAfterAgglomeration, masterLayoutAfterAgglomeration;	//< since layouts can change due to neighbors merging, these are the new layouts
 		//pcl::ProcessCommunicator agglomeratedPC;			///< process Communicator if level contains mergers
 
