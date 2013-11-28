@@ -240,8 +240,6 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 	PROGRESS_START(prog, nodes.size(), "Coarsening graph size " << nodes.size());
 	UG_ASSERT(S.size() == nodes.size() && S.size() == PQ.arr_size() && S.size() == ST.size(), "");
 
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, 3);
-
 #ifdef UG_DEBUG
 	size_t n=0;
 	for(size_t i=0; i<nodes.size(); i++)
