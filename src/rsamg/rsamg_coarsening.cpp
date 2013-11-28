@@ -30,11 +30,10 @@ using namespace std;
 namespace ug
 {
 
+extern DebugID RSAMGCoarseningDebug; // SetDebug(debugId.RSAMG.Coarsening, 3)
+
 /// \addtogroup plugins_amg_rsamg
 /// \{
-
-//DebugID DebugRSAMGCoarsening("DebugRSAMGCoarsening");
-#define DebugRSAMGCoarsening LIB_ALG_AMG
 
 time_t global_t=0;
 
@@ -200,7 +199,7 @@ void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_
 	{
 		int indexN = (*conn);
 
-		IF_DEBUG(DebugRSAMGCoarsening, 3)
+		IF_DEBUG(RSAMGCoarseningDebug, 3)
 		{
 			UG_LOG(indexN << " ");
 			if(nodes[indexN].is_assigned())
@@ -261,7 +260,7 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 		// get Node with best rating
 		int best = PQ.remove_max();
 
-		UG_DLOG(LIB_ALG_AMG, 3, endl << "set coarse: " << best << " rating " << nodes[best].rating  << ". then fine: ");
+		UG_DLOG(RSAMGCoarseningDebug, 3, endl << "set coarse: " << best << " rating " << nodes[best].rating  << ". then fine: ");
 		UG_ASSERT(!nodes[best].is_assigned(), "node " << best << " is already assigned??? (rating = " << nodes[best].rating << ", unassigend = " << nodes.get_unassigned() << ")");
 
 		nodes.set_coarse(best);					// mark as coarse/assigned
@@ -278,7 +277,7 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 	//cout << endl;
 
 	UG_ASSERT(nodes.get_nr_of_coarse() > 0, "no coarse nodes???");
-	UG_DLOG(LIB_ALG_AMG, 1, nodes.get_nr_of_coarse() << " Coarse Nodes. ");
+	UG_DLOG(RSAMGCoarseningDebug, 1, nodes.get_nr_of_coarse() << " Coarse Nodes. ");
 	return nodes.get_nr_of_coarse();
 }
 
@@ -359,7 +358,7 @@ void PreventFFConnections(const cgraph &graphS, const cgraph &graphST, AMGNodes 
 	}
 
 	if(nrOfFFCoarseNodes)
-		UG_DLOG(LIB_ALG_AMG, 0, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
+		UG_DLOG(RSAMGCoarseningDebug, 0, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
 }
 
 /*
@@ -407,7 +406,7 @@ void PreventFFConnectionsMetsch(const matrix_type &mat, const cgraph &graphS, co
 	}
 
 	if(nrOfFFCoarseNodes)
-		UG_DLOG(LIB_ALG_AMG, 1, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
+		UG_DLOG(RSAMGCoarseningDebug, 1, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
 }
 
 
@@ -513,7 +512,7 @@ void PreventFFConnectionsMinimal(const cgraph &graphS, const cgraph &graphST, AM
 		}
 	}
 	if(nrOfFFCoarseNodes)
-		UG_DLOG(LIB_ALG_AMG, 1, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
+		UG_DLOG(RSAMGCoarseningDebug, 1, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
 }
 
 
