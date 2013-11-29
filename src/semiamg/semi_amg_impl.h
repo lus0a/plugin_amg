@@ -118,7 +118,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const matrix_type &A, prol
 	cAMG_helper &helper= m_amghelper;
 
 	AMG_PROFILE_FUNC();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
+//	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
 
 	Stopwatch SW;
 	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "Computing prolongation... ");
