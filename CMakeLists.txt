@@ -2,7 +2,7 @@
 # AMG
 #
 # The algebraic multigrid plugin.
-# Ruge-Stüben AMG and Filtering AMG
+# Ruge-Stueben AMG and Filtering AMG
 ################################################################################
 
 cmake_minimum_required(VERSION 2.6)
@@ -16,6 +16,7 @@ include("../../../cmake/ug_plugin_includes.cmake")
 # sources
 set(srcAMGBridge 	bridge/amg_bridge.cpp
 					bridge/famg_bridge.cpp
+					bridge/semiamg_bridge.cpp
 					bridge/rsamg_bridge.cpp)
 
 if(PARALLEL)
@@ -26,7 +27,8 @@ endif(PARALLEL)
 	set(srcAMG ${srcAMG}
 		src/rsamg/rsamg_coarsening.cpp	
 		src/agglomeration.cpp
-		src/famg/debug_ids.cpp		
+		src/famg/debug_ids.cpp	
+		src/semiamg/tensor_positions.cc	
 		)								
 
 
