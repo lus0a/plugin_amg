@@ -214,7 +214,6 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 {
 
 	AMG_PROFILE_FUNC();
-	nextLevelLayouts.proc_comm() = PoldIndices.layouts()->proc_comm();
 	//PRINTPC(PoldIndices.layouts()->proc_comm());
 	//PRINTPC(PnewIndices.layouts()->proc_comm());
 
