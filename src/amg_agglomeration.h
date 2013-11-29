@@ -18,6 +18,7 @@
 namespace ug
 {
 
+extern DebugID AMGAgglomerationDebug; // SetDebugLevel(debugID.RSAMG.Agglomeration, 0)
 /// \addtogroup plugins_amg
 /// \{
 
@@ -43,38 +44,9 @@ bool AMGBase<TAlgebra>::gather_vertical(vector_type &vec, vector_type &collected
 	}
 	else
 	{
-		if(m_agglomerateLevel == level)
-		{
-			//UG_LOG("gather_vertical: sending data at level " << level << "\n");
-			ComPol_VecAdd<vector_type > compolAdd(&collectedVec, &vec);
-			com.send_data(agglomerateSlaveLayout, compolAdd);
-			com.communicate();
-		}
-		else
-		{
-			//UG_LOG("gather_vertical: receiving data at level " << level << "\n");
-			UG_ASSERT(&vec != &collectedVec, "");
-			collectedVec.set(0.0);
-			for(size_t i=0; i<vec.size(); i++)
-				collectedVec[i] = vec[i];
-
-			UG_ASSERT(vec.has_storage_type(type), "");
-			if(type == PST_ADDITIVE)
-			{
-				ComPol_VecAdd<vector_type > compolAdd(&collectedVec, &vec);
-				com.receive_data(L.agglomerateMasterLayout, compolAdd);
-				com.communicate();
-				collectedVec.set_storage_type(PST_ADDITIVE);
-			}
-			else if(type == PST_CONSISTENT)
-			{
-				ComPol_VecCopy<vector_type > compolCopy(&collectedVec, &vec);
-				com.receive_data(L.agglomerateMasterLayout, compolCopy);
-				com.communicate();
-				collectedVec.set_storage_type(PST_CONSISTENT);
-			}
-			else { UG_ASSERT(0, "unsupported."); }
-		}
+		bool bRoot = m_agglomerateLevel != level;
+		GatherVectorOnOne(L.agglomerateMasterLayout, agglomerateSlaveLayout, com,
+				collectedVec, vec, type, bRoot);
 	}
 	return true;
 }
@@ -100,36 +72,10 @@ bool AMGBase<TAlgebra>::broadcast_vertical(vector_type &vec, vector_type &collec
 	}
 	else
 	{
-		if(m_agglomerateLevel == level)
-		{
 
-			//UG_LOG("broadcast_vertical: receiving data at level " << level << "\n");
-			ComPol_VecCopy<vector_type> compolCopy(&vec, &collectedVec);
-			com.receive_data(agglomerateSlaveLayout, compolCopy);
-			com.communicate();
-			vec.set_storage_type(type);
-			if(type == PST_ADDITIVE)
-			{
-				vec.set_storage_type(PST_ADDITIVE);
-				SetLayoutValues(&vec, vec.layouts()->slave(), 0.0); //!!!
-			}
-			else if(type == PST_CONSISTENT) {	}
-			else { UG_ASSERT(0, "unsupported."); }
-		}
-		else
-		{
-
-			//UG_LOG("broadcast_vertical: sending data at level " << level << "\n");
-			UG_ASSERT(&vec != &collectedVec, "");
-			for(size_t i=0; i<vec.size(); i++)
-				vec[i] = collectedVec[i];
-			UG_ASSERT(collectedVec.has_storage_type(type), "");
-			vec.set_storage_type(type);
-
-			ComPol_VecAdd<vector_type > compolCopy(&vec, &collectedVec);
-			com.send_data(L.agglomerateMasterLayout, compolCopy);
-			com.communicate();
-		}
+		bool bRoot = m_agglomerateLevel != level;
+		BroadcastVectorFromOne(L.agglomerateMasterLayout, agglomerateSlaveLayout, com,
+				vec, collectedVec, type, bRoot);
 	}
 	return true;
 }
