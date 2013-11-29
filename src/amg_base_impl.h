@@ -136,6 +136,14 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		return false;
 	}
 
+#ifdef UG_PARALLEL
+	if(pcl::GetNumProcesses() > 1)
+	{
+		UG_COND_THROW(!m_presmoother->supports_parallel(), "presmoother has to support parallel!");
+		UG_COND_THROW(!m_postsmoother->supports_parallel(), "postsmoother has to support parallel!");
+	}
+#endif
+
 	UG_DLOG(LIB_ALG_AMG, 1, "Starting AMG Setup." << std::endl << std::endl);
 
 	Stopwatch SWwhole;
@@ -184,9 +192,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 				|| m_levelInformation[level].get_fill_in() > m_dMaxFillBeforeBase
 				|| level >= m_maxLevels-1)
 		{
-			AMG_PROFILE_BEGIN(amg_createDirectSolver);
 			create_direct_solver(level);
-			AMG_PROFILE_END();
 			L.pAgglomeratedA = L.pA;
 			break;
 		}
@@ -250,6 +256,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 #ifdef UG_PARALLEL
 		nextL.spLayouts->proc_comm() = L.spAgglomeratedLayouts->proc_comm();
+		nextL.spLayouts->comm() = L.spAgglomeratedLayouts->comm();
 		AH.set_storage_type(PST_ADDITIVE);
 		R.set_storage_type(PST_ADDITIVE);
 		P.set_storage_type(PST_CONSISTENT);
@@ -358,6 +365,8 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 {
+	AMG_PROFILE_BEGIN(amg_createDirectSolver);
+
 	UG_ASSERT(block_traits< typename vector_type::value_type >::is_static, "dynamic not yet implemented");
 
 	AMGLevel &L = *levels[level];
@@ -371,14 +380,12 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 
 #ifdef UG_PARALLEL
 	const pcl::ProcessCommunicator &pc = A.layouts()->proc_comm(); //!
-	if(pc.size()>1)
+	if(m_basesolver->supports_parallel() == false && pc.size()>1)
 	{
 		L.bHasBeenMerged = true;
 		L.bLevelHasMergers=true;
 		// create basesolver
-		collect_matrix(A, *L.collectedA, L.agglomerateMasterLayout, agglomerateSlaveLayout);
-
-
+		CollectMatrixOnOneProc(A, *L.collectedA, L.agglomerateMasterLayout, agglomerateSlaveLayout);
 		if(pcl::GetProcRank() == pc.get_proc_id(0))
 		{
 			if(m_writeMatrices)
