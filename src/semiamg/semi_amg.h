@@ -88,7 +88,7 @@ public:
 	virtual bool needs_positions() const { return true; }
 
 	/// set tensor axis
-	void set_tensor_axis(unsigned int axis, const stdvector<double> &coord0, const stdvector<size_t> &level)
+	void set_tensor_axis(unsigned int axis, const stdvector<double> &coord0, const stdvector<int> &level)
 	{ m_tli.set_axis_level(axis, level, coord0);}
 
 	static const bool bTiming =true;

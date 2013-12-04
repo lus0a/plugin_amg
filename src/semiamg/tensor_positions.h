@@ -123,19 +123,19 @@ class TensorLevelInformation
 : protected TensorPositionInformation
 {
 public:
-	typedef std::vector<size_t> level_vec_type;
+	typedef std::vector<int> level_vec_type;
 
 	template <unsigned int dim>
-	size_t get_node_level(const MathVector<dim> &coord) const
+	int get_node_level(const MathVector<dim> &coord) const
 	{
-		size_t level = m_level[0][get_axis_index(0, coord[0])];
+		int level = m_level[0][get_axis_index(0, coord[0])];
 		for (unsigned int i=1; i<dim; i++)
 		{ level = std::min(level, m_level[i][get_axis_index(i, coord[i])]); }
 		return level;
 	}
 
 	template <unsigned int dim>
-	void get_node_levels(const MathVector<dim> &coord, size_t *level) const
+	void get_node_levels(const MathVector<dim> &coord, int *level) const
 	{
 		for (unsigned int i=0; i<dim; i++)
 		{ level[i] = m_level[i][get_axis_index(i, coord[i])]; }
@@ -183,7 +183,21 @@ public:
 	SimpleTensorPositionProvider(size_t I, size_t J, size_t K,
 			double hI=1.0, double hJ=1.0, double hK=1.0) :
 	m_nvec(I*J*K), m_I(I), m_J(J), m_K(K)
-	{m_h[0]=hI; m_h[1]=hJ; m_h[2]=hK; }
+	{
+		m_h[0]=hI; m_h[1]=hJ; m_h[2]=hK;
+		set_coord_offset(0.0, 0.0, 0.0);
+	}
+
+	SimpleTensorPositionProvider(size_t I, size_t J, size_t K,
+				double hI, double hJ, double hK,
+				double cx, double cy, double cz) :
+		m_nvec(I*J*K), m_I(I), m_J(J), m_K(K)
+		{
+			m_h[0]=hI; m_h[1]=hJ; m_h[2]=hK;
+			set_coord_offset(cx, cy, cz);
+		}
+
+
 
 	virtual ~SimpleTensorPositionProvider() {};
 
@@ -193,9 +207,13 @@ public:
 	virtual bool get_positions(std::vector<MathVector<3> >&vec);
 
 private:
+	void set_coord_offset(double cx, double cy, double cz)
+	{m_coord_offset[0] = cx; m_coord_offset[1] = cy; m_coord_offset[2] = cz;}
+
 	size_t m_nvec;
 	size_t m_I, m_J, m_K;
 	double m_h[3];
+	double m_coord_offset[3];
 };
 
 

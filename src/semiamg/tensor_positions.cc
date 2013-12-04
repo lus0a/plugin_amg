@@ -51,9 +51,9 @@ bool SimpleTensorPositionProvider::get_positions(std::vector<MathVector<2> >&vec
 	for (size_t j=0; j<m_J; j++)
 		for (size_t i=0; i<m_I; i++)
 					{
-						vec[ind][0] = i*m_h[0];
-						vec[ind][1] = j*m_h[1];
-						vec[ind][2] = 0;
+						vec[ind][0] = i*m_h[0] + m_coord_offset[0];
+						vec[ind][1] = j*m_h[1] + m_coord_offset[1];
+						vec[ind][2] = m_coord_offset[2];
 						ind++;
 					}
 	return (ind==m_nvec);
@@ -67,9 +67,9 @@ bool SimpleTensorPositionProvider::get_positions(std::vector<MathVector<3> >&vec
 		for (size_t j=0; j<m_J; j++)
 			for (size_t i=0; i<m_I; i++)
 			{
-					vec[ind][0] = i*m_h[0];
-					vec[ind][1] = j*m_h[1];
-					vec[ind][2] = k*m_h[2];
+					vec[ind][0] = i*m_h[0] + m_coord_offset[0];
+					vec[ind][1] = j*m_h[1] + m_coord_offset[1];
+					vec[ind][2] = k*m_h[2] + m_coord_offset[2];
 					ind++;
 			}
 	return (ind==m_nvec);

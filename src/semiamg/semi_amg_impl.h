@@ -159,7 +159,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const matrix_type &A, prol
 
 		// determine interpolation weight
 		MathVector<3> &coord =  helper.positions[level][i];
-		size_t flevels[3];
+		int flevels[3];
 		m_tli.template get_node_levels<3>(coord, flevels);
 
 		double weight = 1.0;
@@ -253,15 +253,15 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	//UG_ASSERT(pcl::GetNumProcesses()==1, "not implemented for procs > 1");
 
 
-	matrix_type AOL1;
+	//matrix_type AOL1;
 	matrix_type &A_ = const_cast<matrix_type&> (A);
 	ParallelNodes PN(A_.layouts(), A_.num_rows());
 	//UG_ASSERT(m_pParallelCoarsening!=NULL, "please set the Parallel Coarsening type");
 
-	stdvector<IndexLayout> vMasterLayouts, vSlaveLayouts;
-	MakeFullRowsMatrix(A, AOL1, PN, /*m_pParallelCoarsening,*/ vMasterLayouts, vSlaveLayouts);
+	//stdvector<IndexLayout> vMasterLayouts, vSlaveLayouts;
+	//MakeFullRowsMatrix(A, AOL1, PN, /*m_pParallelCoarsening,*/ vMasterLayouts, vSlaveLayouts);
 	
-	
+	const matrix_type &AOL1 = A;
 	/* vereinfachung der matrix
 	 * AOL1.resize(A.num_rows(), A.num_rows());
 	
