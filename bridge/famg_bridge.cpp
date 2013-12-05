@@ -16,6 +16,7 @@
 #include "bridge/bridge.h"
 #include "bridge/util.h"
 #include "bridge/util_algebra_dependent.h"
+#include "bridge/util_overloaded.h"
 
 #include "lib_algebra/lib_algebra.h"
 
@@ -61,8 +62,10 @@ static void Algebra(Registry& reg, string grp)
 		reg.add_class_<T, TBase> (string("FAMGPreconditioner").append(suffix), grp, "Filtering Algebraic Multigrid")
 			.add_constructor()
 			.add_method("set_aggressive_coarsening", &T::set_aggressive_coarsening)
-			.add_method("set_delta", (void(T::*)(double delta))&T::set_delta, "", "delta", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
-			.add_method("set_delta", (void(T::*)(double delta, size_t level))&T::set_delta, "", "delta#level", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
+			.add_method("set_delta", OVERLOADED_METHOD_PTR(void, T, set_delta, (double delta)),
+					"", "delta", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
+			.add_method("set_delta", OVERLOADED_METHOD_PTR(void, T, set_delta, (double delta, size_t level)),
+					"", "delta#level", "\"Interpolation quality\" F may not be worse than this (F < m_delta). e.g. 0.5")
 			.add_method("get_delta", &T::get_delta, "delta")
 			.add_method("set_theta", &T::set_theta, "" , "theta", "with multiple parents pairs, discard pairs with m_theta * F > min F. e.g. 0.9")
 			.add_method("get_theta", &T::get_theta, "theta")
@@ -70,10 +73,11 @@ static void Algebra(Registry& reg, string grp)
 
 			.add_method("set_damping_for_smoother_in_interpolation_calculation",&T::set_damping_for_smoother_in_interpolation_calculation)
 
-			.add_method("add_testvector", (void(T::*)(vector_type& c, double weight))&T::add_testvector, "", "testVector#weight",
+			.add_method("add_testvector", OVERLOADED_METHOD_PTR(void, T, add_testvector, (vector_type& c, double weight)),
+					"", "testVector#weight",
 					"adds a testvector with weight")
-			.add_method("add_testvector", (void(T::*)(IVectorWriter<vector_type> *vw, double weight))&T::add_testvector, "", "testVector#weight",
-					"adds a testvector with weight by using the IVectorWriter interface")
+			.add_method("add_testvector", OVERLOADED_METHOD_PTR(void, T, add_testvector, (IVectorWriter<vector_type> *vw, double weight)),
+					"", "testVector#weight", "adds a testvector with weight by using the IVectorWriter interface")
 			.add_method("set_write_testvectors", &T::set_write_testvectors, "", "bWrite", "if true, write testvectors to path specified in set_matrix_write_path")
 			.add_method("set_testvector_smoother", &T::set_testvector_smoother, "", "smoother", "sets the smoother to smooth testvectors")
 			.add_method("set_testvector_smooths", &T::set_testvector_smooths, "", "n", "number of smoothing steps to smooth testvectors")
@@ -136,9 +140,9 @@ static void Algebra(Registry& reg, string grp)
 
 			.add_method("set_write_f_values", &T::set_write_f_values)
 
-			.add_method("check_testvector",	static_cast<bool(T::*)()>(&T::check_testvector))
-			.add_method("check_testvector",	static_cast<bool(T::*)(size_t fromlevel)>(&T::check_testvector), "", "fromlevel")
-			.add_method("check_testvector",	static_cast<bool(T::*)(size_t fromlevel, size_t tolevel)>(&T::check_testvector), "", "fromlevel#tolevel")
+			.add_method("check_testvector",	OVERLOADED_METHOD_PTR(bool, T, check_testvector, ()) )
+			.add_method("check_testvector",	OVERLOADED_METHOD_PTR(bool, T, check_testvector, (size_t fromlevel)) , "", "fromlevel")
+			.add_method("check_testvector",	OVERLOADED_METHOD_PTR(bool, T, check_testvector, (size_t, size_t)) , "", "fromlevel#tolevel")
 
 			.set_construct_as_smart_pointer(true)
 			;
