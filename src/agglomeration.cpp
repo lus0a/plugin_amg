@@ -12,6 +12,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include "common/error.h"
 
 namespace ug
 {
@@ -62,6 +63,7 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 		std::vector<std::vector<int> > &mergeWith,
 		size_t minimalSize, size_t preferredSize)
 {
+	try{
 	// while(there are processors which have not enough elements)
 	// get the smallest of them and merge it with a neighbor so that the least amount of new interface is produced
 
@@ -197,6 +199,8 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 			mergeWith[i] = supernodes[i].components;
 		}
 	}
+
+	}UG_CATCH_THROW_FUNC();
 }
 
 // end group plugins_amg
