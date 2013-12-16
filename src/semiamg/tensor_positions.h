@@ -123,19 +123,19 @@ class TensorLevelInformation
 : protected TensorPositionInformation
 {
 public:
-	typedef std::vector<int> level_vec_type;
+	typedef std::vector<size_t> level_vec_type;
 
 	template <unsigned int dim>
-	int get_node_level(const MathVector<dim> &coord) const
+	size_t get_node_level(const MathVector<dim> &coord) const
 	{
-		int level = m_level[0][get_axis_index(0, coord[0])];
+		size_t level = m_level[0][get_axis_index(0, coord[0])];
 		for (unsigned int i=1; i<dim; i++)
 		{ level = std::min(level, m_level[i][get_axis_index(i, coord[i])]); }
 		return level;
 	}
 
 	template <unsigned int dim>
-	void get_node_levels(const MathVector<dim> &coord, int *level) const
+	void get_node_levels(const MathVector<dim> &coord, size_t *level) const
 	{
 		for (unsigned int i=0; i<dim; i++)
 		{ level[i] = m_level[i][get_axis_index(i, coord[i])]; }

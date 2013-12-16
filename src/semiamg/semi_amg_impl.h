@@ -159,7 +159,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const matrix_type &A, prol
 
 		// determine interpolation weight
 		MathVector<3> &coord =  helper.positions[level][i];
-		int flevels[3];
+		size_t flevels[3];
 		m_tli.template get_node_levels<3>(coord, flevels);
 
 		double weight = 1.0;
