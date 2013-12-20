@@ -16,6 +16,7 @@
 #include "bridge/bridge.h"
 #include "bridge/util.h"
 #include "bridge/util_algebra_dependent.h"
+#include "bridge/util_overloaded.h"
 
 #include "lib_algebra/lib_algebra.h"
 
@@ -93,11 +94,13 @@ static void Algebra(Registry& reg, string grp)
 
 		.add_method("get_level_information", &T::get_level_information, "information about the level L", "L")
 		.add_method("set_verbose", &T::set_verbose)
+		.add_method("set_galerkin_truncation", &T::set_galerkin_truncation)
 
 		.add_method("set_presmoother", &T::set_presmoother, "", "presmoother")
 		.add_method("set_postsmoother", &T::set_postsmoother, "", "postsmoother")
 		.add_method("set_base_solver", &T::set_base_solver, "", "basesmoother")
-		.add_method("check", &T::check, "", "x#b", "performs a check of convergence on all levels")
+		.add_method("check", OVERLOADED_METHOD_PTR(bool, T, check, (const vector_type &c, const vector_type &d)), "", "x#b", "performs a check of convergence on all levels")
+		.add_method("check", OVERLOADED_METHOD_PTR(bool, T, check, ()), "", "", "performs a check of convergence on all levels with random vectors")
 		.add_method("check2", &T::check2, "", "x#b", "performs a check of convergence on all levels")
 		.add_method("check_fsmoothing", &T::check_fsmoothing, "", "", "")
 		.add_method("set_nr_of_preiterations_at_check", &T::set_nr_of_preiterations_at_check,
@@ -109,16 +112,18 @@ static void Algebra(Registry& reg, string grp)
 		.add_method("get_fsmoothing", &T::get_fsmoothing, "f smoothing enabled", "")
 		.add_method("set_one_init", &T::set_one_init, "", "b")
 
-		.add_method("set_position_provider",
-				(void(T::*)(IPositionProvider<2> *))&T::set_position_provider, "", "prov", "needed for connectionviewer output")
-		.add_method("set_position_provider",
-				(void(T::*)(IPositionProvider<3> *))&T::set_position_provider, "", "prov", "needed for connectionviewer output")
+		.add_method("set_position_provider", OVERLOADED_METHOD_PTR
+				(void, T, set_position_provider, (SmartPtr<IPositionProvider<2> >)),
+				"", "prov", "needed for connectionviewer output")
+		.add_method("set_position_provider", OVERLOADED_METHOD_PTR
+				(void, T, set_position_provider, (SmartPtr<IPositionProvider<3> >)),
+				"", "prov", "needed for connectionviewer output")
 		.add_method("write_interfaces", &T::write_interfaces)
 		.add_method("set_debug_write_all_vectors", &T::set_debug_write_all_vectors, "", "bEnable", "if true, write defect/correct at all points in the mg cycle (a lot of files!)")
 		.add_method("set_matrix_write_path", &T::set_matrix_write_path, "", "matrixWritePath", "set the path where connectionviewer matrices/vectors of the levels are written")
 
 		.add_method("set_checkLevel_post_iterations", &T::set_checkLevel_post_iterations)
-		.add_method("set_Y_cycle", &T::set_Y_cycle, "", "maxIterations#reduction#abs", "calls the mg-cycle max maxIterations or when reduction or abs error is achieved.")
+		.add_method("set_Y_cycle", &T::set_Y_cycle, "", "maxIterations#dYminAbsDefect#dYrelReduction", "calls the mg-cycle max maxIterations or when reduction or abs error is achieved.")
 		.add_method("set_Y_check", &T::set_Y_check, "", "convCheck", "")
 		.add_method("check_interpolation", &T::check_interpolation, "", "vector#filename")
 

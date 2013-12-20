@@ -1,6 +1,8 @@
 #include "common/log.h"
+#ifdef UG_PARALLEL
 #include "pcl/pcl_layout_tests.h"
 #include "lib_algebra/parallelization/parallel_index_layout.h"
+#endif
 
 namespace ug
 {

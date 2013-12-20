@@ -19,6 +19,7 @@
 #include "lib_algebra/operator/interface/matrix_operator.h"
 #include "lib_algebra/operator/interface/linear_operator_inverse.h"
 #include "lib_algebra/operator/vector_writer.h"
+#include "common/util/string_util.h"
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -32,6 +33,7 @@
 #endif
 
 #include "lib_algebra/operator/fixed_convergence_check.h"
+#include "lib_algebra/operator/convergence_check.h"
 
 #include "common/util/string_util.h"
 
@@ -361,6 +363,8 @@ public:
 			size_t level, checkResult &res, const vector_type *solution = NULL);
 //	bool check(IMatrixOperator const vector_type &const_c, const vector_type &const_d);
 	bool check(const vector_type &const_c, const vector_type &const_d);
+	bool check();
+	bool check(vector_type &c, vector_type &d, bool bRandom);
 //  data
 
 	void set_num_presmooth(size_t new_presmooth) {
@@ -380,10 +384,15 @@ public:
 	void set_cycle_type(size_t new_cycletype) {
 		UG_ASSERT(new_cycletype > 0,
 				"cannot set cycle type " << new_cycletype << ", has to be > 0");
-		m_cycleType = new_cycletype;
-		spYConvCheck = new FixedConvergenceCheck<vector_type>(m_cycleType);
+		if(new_cycletype == 1)
+			m_cycleType = "V-Cycle";
+		else if(new_cycletype == 2)
+			m_cycleType = "W-Cycle";
+		else
+			m_cycleType = "Gamma=" + ToString(new_cycletype) + "-Cycle";
+		spYConvCheck = new FixedConvergenceCheck<vector_type>(new_cycletype);
 	}
-	size_t get_cycle_type() const {
+	std::string get_cycle_type() const {
 		return m_cycleType;
 	}
 
@@ -454,11 +463,11 @@ public:
 		m_basesolver = basesolver;
 	}
 
-	void set_position_provider(IPositionProvider<2> *ppp2d) {
+	void set_position_provider(SmartPtr<IPositionProvider<2> > ppp2d) {
 		m_pPositionProvider2d = ppp2d;
 	}
 
-	void set_position_provider(IPositionProvider<3> *ppp3d) {
+	void set_position_provider(SmartPtr<IPositionProvider<3> > ppp3d) {
 		m_pPositionProvider3d = ppp3d;
 	}
 
@@ -503,15 +512,14 @@ public:
 		m_dPreiterationsMimumDefect = d;
 	}
 
-	void set_Y_cycle(int maxIterations, double dYreduce, double dYabs) {
-		m_dYreduce = dYreduce;
-		m_dYabs = dYabs;
-		m_iYCycle = maxIterations;
+	void set_Y_cycle(int maxIterations, double dYminAbsDefect, double dYrelReduction) {
+		set_Y_check(new StdConvCheck<vector_type>(maxIterations, dYminAbsDefect, dYrelReduction, false, false));
 	}
 
 	void set_Y_check(SmartPtr<IConvergenceCheck<vector_type> > spCC)
 	{
 		spYConvCheck = spCC;
+		m_cycleType = std::string("YCycle (ConvCheck = ") + spCC->config_string() + std::string(")");
 	}
 
 	void	set_galerkin_truncation(double d)	{ m_dGalerkinTruncation = d; }
@@ -549,6 +557,18 @@ public:
 				<< get_timing_coarse_solver_setup_ms() << " ms.\n";
 		for(size_t i = 0; i<get_used_levels(); i++)
 			ss << get_level_information(i)->tostring() << "\n";
+
+		if(!is_fixed_conv_check())
+		{
+			double totalCalls = m_vLvlConvRates[0].calls;
+			for(size_t i = 1; i<get_used_levels()-1; i++)
+			{
+				double wSteps = pow(2, i);
+				ss << "Level " << i <<
+						" avg gamma: " << m_vLvlConvRates[i].totalSteps/((double)m_vLvlConvRates[i].calls) <<
+						" avg reduction: " << m_vLvlConvRates[i].avgReduction << "\n";
+			}
+		}
 		return ss.str();
 	}
 
@@ -610,6 +630,10 @@ protected:
 	std::string get_output_directory(int level);
 
 private:
+	bool is_fixed_conv_check() const
+	{
+		return spYConvCheck. template cast_dynamic<FixedConvergenceCheck<vector_type> > () .valid();
+	}
 #ifdef UG_PARALLEL
 	/// starts the agglomeration process
 	bool agglomerate(size_t level);
@@ -653,7 +677,7 @@ protected:
 // data
 	size_t m_numPreSmooth;				///< nu_1 : nr. of pre-smoothing steps
 	size_t m_numPostSmooth;				///< nu_2: nr. of post-smoothing steps
-	int m_cycleType;		///< gamma: cycle type (1 = V-Cycle, 2 = W-Cycle)
+	std::string m_cycleType;			///< gamma: cycle type (1 = V-Cycle, 2 = W-Cycle)
 
 	size_t m_maxLevels;						///< max. nr of levels used for FAMG
 	size_t m_usedLevels;						///< nr of FAMG levels used
@@ -695,14 +719,10 @@ protected:
 	double m_dTimingWholeSetupMS;
 	double m_dTimingCoarseSolverSetupMS;
 
-	size_t m_iYCycle;
-	double m_dYreduce;
-	double m_dYabs;
-
 	double m_dGalerkinTruncation;
 
-	IPositionProvider<2> *m_pPositionProvider2d;
-	IPositionProvider<3> *m_pPositionProvider3d;
+	SmartPtr<IPositionProvider<2> > m_pPositionProvider2d;
+	SmartPtr<IPositionProvider<3> > m_pPositionProvider3d;
 
 	stdvector<stdvector<int> > m_parentIndex;///< parentIndex[i] is the index of i on the finer level
 	stdvector<LevelInformation> m_levelInformation;
@@ -793,8 +813,23 @@ protected:
 	bool isMergingMaster(size_t level);
 	/// return true if we are neither horizontal master nor slave on this level
 	bool isNotMerging(size_t level);
-
 #endif
+
+	void calc_level_conv_rates(SmartPtr<IConvergenceCheck<vector_type> > pCheck, size_t level);
+	struct LevelConvergenceRates
+	{
+		LevelConvergenceRates()
+		{
+			totalSteps = 0;
+			calls = 0;
+			avgReduction = 1.0;
+		}
+		size_t totalSteps;
+		size_t calls;
+		double avgReduction;
+	};
+
+	std::vector<LevelConvergenceRates> m_vLvlConvRates;
 
 	void calculate_level_information(size_t level, double createAMGlevelTiming);
 

@@ -29,6 +29,10 @@
 #include "additional_math.h"
 #include "lib_algebra/common/connection_viewer_output.h"
 
+#include "lib_algebra/operator/preconditioner/gauss_seidel.h"
+#include "lib_algebra/operator/linear_solver/lu.h"
+
+
 //#define UG_DLOGN(tag, level, msg)			UG_DLOG(tag, level, msg << "\n");
 
 std::string GetProcFilename(std::string path, std::string name, std::string extension);
@@ -82,6 +86,7 @@ void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createA
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_type> > pOp)
 {
+	try{
 	matrix_operator_type& mat = *pOp;
 
 	AMG_PROFILE_FUNC();
@@ -118,7 +123,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		m_amghelper.dimension = m_dbgDimension;
 	}
 
-	UG_ASSERT(m_writeMatrices == false || m_dbgDimension != 0, "you need to provide position information for writing matrices");
+	UG_COND_THROW(m_writeMatrices && m_dbgDimension == 0, "you need to provide position information for writing matrices");
 
 	if(m_basesolver.invalid())
 	{
@@ -356,6 +361,15 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 			<< m_dGridComplexity << std::endl << std::endl);
 
 	m_bInited = true;
+
+	m_vLvlConvRates.clear();
+	m_vLvlConvRates.resize(m_totalUsedLevels);
+
+	}UG_CATCH_THROW("AMGBase::" << __FUNCTION__ << " failed")
+	catch(...)
+	{
+		UG_THROW("unknown error");
+	}
 	return true;
 }
 
@@ -365,6 +379,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 {
+	try{
 	AMG_PROFILE_BEGIN(amg_createDirectSolver);
 
 	UG_ASSERT(block_traits< typename vector_type::value_type >::is_static, "dynamic not yet implemented");
@@ -427,48 +442,49 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 
 	m_dTimingCoarseSolverSetupMS = SW.ms();
 	UG_DLOG(LIB_ALG_AMG, 1, "Coarse Solver Setup took " << m_dTimingCoarseSolverSetupMS << "ms." << std::endl);
+
+	}UG_CATCH_THROW("AMGBase::" << __FUNCTION__ << " failed");
 }
 
 //!
 //! amg constructor
 template<typename TAlgebra>
 AMGBase<TAlgebra>::AMGBase() :
-	m_numPreSmooth(2),
-	m_numPostSmooth(2),
+	m_numPreSmooth(3),
+	m_numPostSmooth(3),
 
 	m_maxLevels(100),
 	m_usedLevels(0),
 
-	m_presmoother(NULL),
-	m_postsmoother(NULL),
-	m_basesolver(NULL),
-
 	m_pPositionProvider2d(NULL),
 	m_pPositionProvider3d(NULL)
 {
+
+	m_presmoother = m_postsmoother = new SymmetricGaussSeidel<TAlgebra>;
+	m_basesolver = new LU<TAlgebra>;
+	set_Y_cycle(4, 1e-30, 0.1);
+
 	m_vec4 = NULL;
 	m_bInited = false;
 
-	m_maxNodesForBase = 100;
-	m_minNodesOnOneProcessor = 1;
+	m_maxNodesForBase = 1000;
+	m_minNodesOnOneProcessor = 100;
 	m_preferredNodesOnOneProcessor = 10000;
 	m_dMaxFillBeforeBase = 0.5;
 
 	m_writeMatrices = false;
-	m_bFSmoothing = false;
+	m_bFSmoothing = true;
 
 	m_dbgDimension = 0;
 	iteration_glboal=0;
 	m_checkLevelPostIterations = 10;
 	m_iNrOfPreiterationsCheck = 8;
 	m_dPreiterationsMimumDefect = 1e-8;
-	m_iYCycle = 0;
 	m_bOneInit = false;
 	m_verbose = 0;
+
 	m_dGalerkinTruncation = 1e-12;
 	m_bDebugWriteAllVectors = false;
-
-	set_cycle_type(1);
 }
 
 
@@ -563,7 +579,20 @@ bool AMGBase<TAlgebra>::solve_on_base(vector_type &c, vector_type &d, size_t lev
 	return true;
 }
 
+template<typename TAlgebra>
+void AMGBase<TAlgebra>::calc_level_conv_rates(SmartPtr<IConvergenceCheck<vector_type> > pCheck, size_t level)
+{
+	if(is_fixed_conv_check()) return;
 
+	LevelConvergenceRates &s = m_vLvlConvRates[level];
+
+	size_t steps = pCheck->step();
+	s.avgReduction = pow(s.avgReduction, s.totalSteps/((double)s.totalSteps+steps))
+		* pow(pCheck->avg_rate(), 1.0/((double)s.totalSteps+steps));
+
+	s.totalSteps += steps;
+	s.calls ++;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // add_correction_and_update_defect:
@@ -573,6 +602,8 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector_type &d,
 		matrix_operator_type &A, size_t level)
 {
+	THROW_IF_NOT_EQUAL_3(c.size(), d.size(), A.num_rows());
+
 	AMG_PROFILE_FUNC();
 	//PRINTPC(A.get_process_communicator());
 	// c = consistent, d = additiv
@@ -584,10 +615,6 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 	}
 
 	AMGLevel &L = *levels[level];
-
-	UG_ASSERT(c.size() == d.size() && c.size() == A.num_rows(),
-			"c.size = " << c.size() << ", d.size = " << d.size() << ", A.size = " << A.num_rows() << ": not matching");
-
 
 
 #ifdef UG_PARALLEL
@@ -679,6 +706,8 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 			add_correction_and_update_defect(cH, dH, level+1);
 			pCheck->update(dH);
 		}
+
+		calc_level_conv_rates(pCheck, level+1);
 	}
 
 	corr.set(0.0);
@@ -739,10 +768,9 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::get_correction(vector_type &c, const vector_type &const_d)
 {
 	AMG_PROFILE_FUNC();
-	UG_ASSERT(c.size() == const_d.size() && c.size() == levels[0]->pA->num_rows(),
-				"c.size = " << c.size() << ", d.size = " << const_d.size() << ", A.size = " <<
-					levels[0]->pA->num_rows() << ": not matching");
+	THROW_IF_NOT_EQUAL_3(c.size(), const_d.size(), levels[0]->pA->num_rows());
 
+	m_vLvlConvRates[0].calls ++;
 	if(m_vec4 == NULL)
 		m_vec4 = new vector_type;
 
@@ -774,10 +802,7 @@ template<typename TAlgebra>
 std::string AMGBase<TAlgebra>::config_string() const
 {
 	std::stringstream ss;
-	ss << "AMGBase(";
-	if(m_cycleType == 1) ss << "V-cycle";
-	else if(m_cycleType == 2) ss << "W-cycle";
-	else ss << "gamma = " << m_cycleType;
+	ss << "AMGBase( " << m_cycleType;
 	ss << ", max levels = " << m_maxLevels;
 	ss << ", F-Smoothing = " << (m_bFSmoothing ? "[ON]" : "[OFF]") << ")\n";
 	ss << " Agglomeration: minNodesOnOneProcessor = " << m_minNodesOnOneProcessor << ", preferredNodesOnOneProcessor = " <<
@@ -814,17 +839,16 @@ template<typename TAlgebra>
 void AMGBase<TAlgebra>::update_positions()
 {
 	AMG_PROFILE_FUNC();
-	UG_ASSERT(m_dbgDimension != 0 || m_pPositionProvider2d == NULL
-			|| m_pPositionProvider3d == NULL, "specify EITHER positions 2d or 3d");
+	UG_COND_THROW(m_pPositionProvider2d.valid() && m_pPositionProvider3d.valid(), "specify EITHER positions 2d or 3d");
 	if(m_pPositionProvider2d == NULL && m_pPositionProvider3d == NULL)
 		return;
-	if(m_pPositionProvider2d)
+	if(m_pPositionProvider2d.valid())
 	{
 		std::vector<MathVector<2> > pos;
 		m_pPositionProvider2d->get_positions(pos);
 		set_positions(&pos[0], pos.size());
 	}
-	if(m_pPositionProvider3d)
+	if(m_pPositionProvider3d.valid())
 	{
 		std::vector<MathVector<3> > pos;
 		m_pPositionProvider3d->get_positions(pos);
@@ -859,6 +883,7 @@ template<typename TNodeType>
 void AMGBase<TAlgebra>::write_debug_matrix_markers
 	(size_t level, const TNodeType &nodes)
 {
+	try{
 	matrix_type &A = *levels[level]->pA;
 	// todo: replace some day with something like nodes.get_mark_count(), nodes.mark_name(i), nodes.is_marked(i)
 
@@ -886,6 +911,7 @@ void AMGBase<TAlgebra>::write_debug_matrix_markers
 		else if(nodes[i].is_dirichlet()) fdirichlet << o << "\n";
 		else fother << o << "\n";
 	}
+	}UG_CATCH_THROW("AMGBase::write_debug_matrix_markers failed, level = " << level);
 }
 
 
@@ -896,6 +922,7 @@ template<typename TMatrix>
 void AMGBase<TAlgebra>::
 	write_debug_matrix(TMatrix &mat, size_t fromlevel, size_t tolevel, const char *name)
 {
+	try{
 	if(m_writeMatrices)
 	{
 		AMG_PROFILE_FUNC();
@@ -909,6 +936,8 @@ void AMGBase<TAlgebra>::
 		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_other", level, ".marks"));
 		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_dirichlet", level, ".marks"));
 	}
+	}UG_CATCH_THROW("AMGBase::write_debug_matrix failed, fromlevel = " << fromlevel << " tolevel = " << tolevel <<
+			" name = " << name);
 }
 
 /*template<typename TAlgebra>
@@ -951,6 +980,7 @@ template<typename TAlgebra>
 void AMGBase<TAlgebra>::write_debug_matrices(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
 		prolongation_matrix_type &P, size_t level)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	AMG_LOG(1, "writing 4 matrices to " << m_writeMatrixPath << ": A ");
 
@@ -965,6 +995,7 @@ void AMGBase<TAlgebra>::write_debug_matrices(matrix_type &AH, prolongation_matri
 			GetAMGFilenamePath(AH, level, "AH", level+1, ".mat", true), m_amghelper);
 
 	AMG_LOG(1, " done.\n");
+	}UG_CATCH_THROW("AMGBase::write_debug_matrices failed, level = " << level);
 }
 
 template<typename TAlgebra>
@@ -972,7 +1003,8 @@ bool AMGBase<TAlgebra>::injection(vector_type &vH, const vector_type &v, size_t 
 {
 	size_t nH = levels[level]->P.num_cols(); (void) nH;
 	size_t n = levels[level]->P.num_rows(); (void) n;
-	UG_ASSERT(nH == vH.size() && n <= v.size(), nH << " != " << vH.size() << " or " << n << " > " << v.size())
+	UG_COND_THROW(nH != vH.size() || n > v.size(), nH << " != " << vH.size() << " or " << n << " > " << v.size());
+
 	for(size_t j=0; j < nH; j++)
 		vH[j] = v[m_parentIndex[level+1][j]];
 	return true;

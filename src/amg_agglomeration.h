@@ -106,8 +106,10 @@ bool AMGBase<TAlgebra>::isNotMerging(size_t level)
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_type &d, size_t level)
 {
+	try{
 	AMGLevel &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
+	THROW_IF_NOT_EQUAL_3(c.size(), d.size(), A.num_rows());
 #ifdef UG_PARALLEL
 	if(levels[level]->bLevelHasMergers)
 	{
@@ -134,6 +136,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 #else
 	return add_correction_and_update_defect2(c, d, A, level);
 #endif
+	}UG_CATCH_THROW("AMGBase::add_correction_and_update_defect failed, level = " << level << " hasMergers = " << (levels[level]->bLevelHasMergers ? "true" : "false"));
 
 }
 
@@ -142,6 +145,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::agglomerate_from(const std::map<int, int> &merge, const std::vector<int> &mergeWith, size_t level, ParallelNodes &PN)
 {
+	try{
 	AMGLevel &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 
@@ -196,12 +200,14 @@ bool AMGBase<TAlgebra>::agglomerate_from(const std::map<int, int> &merge, const 
 	if(m_amghelper.has_positions())
 		m_amghelper.receive_agglomerate_positions(level, A.layouts()->comm(), L.agglomerateMasterLayout, L.collectedA->num_rows());
 	//merging_as_master(L);
+	}UG_CATCH_THROW("AMGBase::agglomerate_from failed, level = " << level);
 	return true;
 }
 
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::agglomerate_to(const std::map<int, int> &merge, int mergeTo, size_t level, ParallelNodes &PN)
 {
+	try{
 	AMGLevel &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 
@@ -241,12 +247,14 @@ bool AMGBase<TAlgebra>::agglomerate_to(const std::map<int, int> &merge, int merg
 	if(m_amghelper.has_positions())
 		m_amghelper.send_agglomerate_positions(level, A.layouts()->comm(), agglomerateSlaveLayout);
 	//merging_as_slave(L);
+	}UG_CATCH_THROW("AMGBase::agglomerate_to failed, mergeTo = " << mergeTo << ", level = " << level);
 	return true;
 }
 
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::agglomerate_adjust_interfaces(const std::map<int, int> &merge, size_t level, ParallelNodes &PN)
 {
+	try{
 	AMGLevel &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 
@@ -283,6 +291,7 @@ bool AMGBase<TAlgebra>::agglomerate_adjust_interfaces(const std::map<int, int> &
 	SetParallelVectorAsMatrix(L.collC, *L.collectedA, PST_CONSISTENT);
 	L.collD.resize(L.collectedA->num_rows());
 	SetParallelVectorAsMatrix(L.collD, *L.collectedA, PST_ADDITIVE);
+	}UG_CATCH_THROW("AMGBase::agglomerate_adjust_interfaces failed, level = " << level);
 	return true;
 }
 
@@ -290,6 +299,7 @@ bool AMGBase<TAlgebra>::agglomerate_adjust_interfaces(const std::map<int, int> &
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::agglomerate(size_t level)
 {
+	try{
 	//UG_ASSERT(0, "not working");
 	AMGLevel &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
@@ -497,7 +507,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 			agglomerate_to(merge, mergeTo, level, PN);
 	}
 
-
+	}UG_CATCH_THROW("AMGBase::agglomerate failed, level = " << level);
 	return true;
 }
 #endif

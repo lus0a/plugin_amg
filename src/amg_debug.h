@@ -64,7 +64,7 @@ void AMGWriteToFile(const T &A, int fromlevel, int tolevel, std::string filename
 //--------------------------------------------------
 //! writes to a file in somewhat SparseMatrix-market format (for connection viewer)
 template<typename T>
-void AMGWriteVecToFile(const T &v, int level, std::string filename, const cAMG_helper &h)
+void AMGWriteVecToFile(const T &v, int level, std::string filename, const cAMG_helper &h, const T *pCompare=NULL)
 {
 	PROFILE_FUNC_GROUP("debug");
 	if(h.has_positions() == false)
@@ -74,8 +74,12 @@ void AMGWriteVecToFile(const T &v, int level, std::string filename, const cAMG_h
 	}
 	std::fstream file(filename.c_str(), std::ios::out);
 	ConnectionViewer::WriteGridHeader(file, h.positions[level], h.dimension);
-	for(size_t i=0; i<v.size(); i++)
-		file << i << " " << i << " " << v[i] << "\n";
+	if(pCompare == NULL)
+		for(size_t i=0; i<v.size(); i++)
+			file << i << " " << i << " " << v[i] << "\n";
+	else
+		for(size_t i=0; i<v.size(); i++)
+			file << i << " " << i << " " << v[i] - (*pCompare)[i] << "\n";
 }
 
 
@@ -215,11 +219,12 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 {
 	AMG_PROFILE_FUNC();
 	UG_ASSERT(m_writeMatrices, "");
-	vector_type solution2;
+
 
 	bool bDrawConnections=false;
 
 #ifdef UG_PARALLEL
+	vector_type solution2;
 	vector_type d;
 	CloneVector(d, const_d);
 	d = const_d;
@@ -233,6 +238,7 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 		solution2.change_storage_type(PST_CONSISTENT);
 	}
 #else
+	vector_type solution2= *solution;
 	const vector_type &d = const_d;
 	size_t pid = 0;
 #endif
@@ -269,7 +275,12 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 				file << i << " " << d[i] << std::endl;
 	}
 	else
-		AMGWriteVecToFile(d, level, name, m_amghelper);
+	{
+		if(solution)
+			AMGWriteVecToFile(d, level, name, m_amghelper, &solution2);
+		else
+			AMGWriteVecToFile(d, level, name, m_amghelper);
+	}
 	return true;
 }
 

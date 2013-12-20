@@ -21,13 +21,14 @@ set(srcAMGBridge 	bridge/amg_bridge.cpp
 
 if(PARALLEL)
 	set(srcAMG src/rsamg/rsamg_parallel_coarsening.cpp
-	            src/amg_debug.cpp)
+	            )
 endif(PARALLEL)
 	
 	set(srcAMG ${srcAMG}
 		src/rsamg/rsamg_coarsening.cpp	
 		src/agglomeration.cpp
 		src/famg/debug_ids.cpp	
+		src/amg_debug.cpp
 		src/semiamg/tensor_positions.cc	
 		)								
 

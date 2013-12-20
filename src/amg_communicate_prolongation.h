@@ -65,6 +65,7 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 		size_t N, TAMGNodes &amgnodes, stdvector<int> &newIndex, double dEpsilonTruncation)
 
 {
+	try{
 	AMG_PROFILE_FUNC();
 //	create new indices
 	newIndex.clear();
@@ -119,6 +120,7 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 #ifdef UG_PARALLEL
 	PnewIndices.set_storage_type(PST_CONSISTENT);
 #endif
+	}UG_CATCH_THROW("AMGBase::create_new_indices failed");
 }
 
 
@@ -133,6 +135,7 @@ template<typename TAMGNodes>
 void AMGBase<TAlgebra>::serial_process_prolongation(prolongation_matrix_type &PoldIndices,
 		prolongation_matrix_type &PnewIndices, double dEpsilonTruncation, int level, TAMGNodes &amgnodes, stdvector<int> &newIndex)
 {
+	try{
 	AMG_PROFILE_FUNC();
 
 	create_new_indices(PoldIndices, PnewIndices, PoldIndices.num_rows(), amgnodes, newIndex, dEpsilonTruncation);
@@ -141,6 +144,8 @@ void AMGBase<TAlgebra>::serial_process_prolongation(prolongation_matrix_type &Po
 	if(needs_positions())
 		m_amghelper.make_coarse_level(level+1, m_parentIndex[level+1]);
 	create_fine_marks(level, amgnodes, PoldIndices.num_rows());
+
+	}UG_CATCH_THROW("AMGBase::serial_process_prolongation failed, level = " << level);
 }
 
 #else
@@ -212,7 +217,7 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 		TAMGNodes &amgnodes, ParallelNodes &PN, bool bCreateNewNodes,
 		AlgebraLayouts &nextLevelLayouts, stdvector<int> &newIndex)
 {
-
+	try{
 	AMG_PROFILE_FUNC();
 	//PRINTPC(PoldIndices.layouts()->proc_comm());
 	//PRINTPC(PnewIndices.layouts()->proc_comm());
@@ -244,6 +249,8 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 		m_amghelper.make_coarse_level(level+1, m_parentIndex[level+1]);
 	}
 	create_fine_marks(level, amgnodes, PN.get_original_size());
+
+	}UG_CATCH_THROW("AMGBase::parallel_process_prolongation failed, level = " << level);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,6 +260,7 @@ void AMGBase<TAlgebra>::parallel_process_prolongation(prolongation_matrix_type &
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::communicate_prolongation_additive_to_consistent(ParallelNodes &PN, prolongation_matrix_type &PoldIndices, bool bCreateNewNodes)
 {
+	try{
 	AMG_PROFILE_FUNC();
 
 	RowSendingScheme<prolongation_matrix_type> rowSendingScheme(PoldIndices, PN);
@@ -267,6 +275,8 @@ void AMGBase<TAlgebra>::communicate_prolongation_additive_to_consistent(Parallel
 	// we then have a consistent PoldIndices
 	PoldIndices.set_storage_type(PST_CONSISTENT);
 
+	}UG_CATCH_THROW("AMGBase::communicate_prolongation_additive_to_consistent failed");
+
 }
 
 
@@ -278,6 +288,7 @@ template<typename TAlgebra>
 template<typename TAMGNodes>
 void AMGBase<TAlgebra>::postset_coarse(ParallelNodes &PN, prolongation_matrix_type &PoldIndices, TAMGNodes &amgnodes)
 {
+	try{
 	AMG_PROFILE_FUNC();
 
 	amgnodes.resize(PoldIndices.num_cols());
@@ -312,6 +323,8 @@ void AMGBase<TAlgebra>::postset_coarse(ParallelNodes &PN, prolongation_matrix_ty
 			}
 		}
 	}
+
+	}UG_CATCH_THROW("AMGBase::postset_coarse failed");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -372,6 +385,7 @@ template<typename TAlgebra>
 void AMGBase<TAlgebra>::create_minimal_layout_for_prolongation(ParallelNodes &PN, prolongation_matrix_type &P,
 		AlgebraLayouts &newLayouts)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	stdvector<bool> bUsedSlave(P.num_cols(), false);
 
@@ -393,6 +407,8 @@ void AMGBase<TAlgebra>::create_minimal_layout_for_prolongation(ParallelNodes &PN
 	CreateMinimalLayoutCommunicationScheme cmlcs(bUsedSlave);
 	CommunicateOnInterfaces(PN.communicator(), PN.get_total_slave_layout(), PN.get_total_master_layout(), cmlcs);
 	cmlcs.get_new_layouts(newLayouts.master(), newLayouts.slave());
+
+	}UG_CATCH_THROW("AMGBase::create_minimal_layout_for_prolongation failed");
 
 }
 
