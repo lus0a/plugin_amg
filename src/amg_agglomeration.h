@@ -133,10 +133,12 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 	}
 	else
 		return add_correction_and_update_defect2(c, d, A, level);
+	}UG_CATCH_THROW("AMGBase::add_correction_and_update_defect failed, level = " << level << " hasMergers = " << (levels[level]->bLevelHasMergers ? "true" : "false"));
 #else
 	return add_correction_and_update_defect2(c, d, A, level);
+}UG_CATCH_THROW("AMGBase::add_correction_and_update_defect failed, level = " << level);
 #endif
-	}UG_CATCH_THROW("AMGBase::add_correction_and_update_defect failed, level = " << level << " hasMergers = " << (levels[level]->bLevelHasMergers ? "true" : "false"));
+
 
 }
 
@@ -334,8 +336,8 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 
 	ParallelNodes PN(A.layouts(), A.num_rows());
 
-	// 1. ein prozessor erh�lt alle daten
-	// 2. ein ma� definiert, wie leicht man agglomerieren kann:
+	// 1. ein prozessor erhaelt alle daten
+	// 2. ein mass definiert, wie leicht man agglomerieren kann:
 	// - reduktion des interfaces
 
 	BinaryBuffer rstream;

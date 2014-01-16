@@ -173,8 +173,10 @@ bool AMGBase<TAlgebra>::check(vector_type &c, vector_type &d, bool bRandom)
 			pC->set_random(-1.0, 1.0);
 			// d = 0 - Ac
 			pA->matmul_minus(*pD, *pC);
+#ifdef UG_PARALLEL
 			pC->change_storage_type(PST_CONSISTENT);
 			pD->change_storage_type(PST_ADDITIVE);
+#endif
 		}
 		check_level(*pC, *pD, *pA, level, checkRes[level]);
 
@@ -305,8 +307,11 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		UG_LOG("\tpreIter " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
 				"    " << std::scientific << n2/n1 << "\n");
 
-
+#ifdef UG_PARALLEL
 		if(level+1 < levels.size() && !levels[level]->bLevelHasMergers && levels[level+1]->bLevelHasMergers)
+#else
+			if(level+1 < levels.size())
+#endif
 		{
 			vector_type vH;
 			CloneVector(vH, L.cH);
