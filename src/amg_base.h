@@ -390,7 +390,7 @@ public:
 			m_cycleType = "W-Cycle";
 		else
 			m_cycleType = "Gamma=" + ToString(new_cycletype) + "-Cycle";
-		spYConvCheck = make_sp(new FixedConvergenceCheck<vector_type>(new_cycletype));
+		spYConvCheck = new FixedConvergenceCheck<vector_type>(new_cycletype);
 	}
 	std::string get_cycle_type() const {
 		return m_cycleType;
@@ -513,7 +513,7 @@ public:
 	}
 
 	void set_Y_cycle(int maxIterations, double dYminAbsDefect, double dYrelReduction) {
-		set_Y_check(make_sp(new StdConvCheck<vector_type>(maxIterations, dYminAbsDefect, dYrelReduction, false, false)));
+		set_Y_check(new StdConvCheck<vector_type>(maxIterations, dYminAbsDefect, dYrelReduction, false, false));
 	}
 
 	void set_Y_check(SmartPtr<IConvergenceCheck<vector_type> > spCC)
