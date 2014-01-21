@@ -245,7 +245,7 @@ bool AMGBase<TAlgebra>::agglomerate_to(const std::map<int, int> &merge, int merg
 	A.set_process_communicator(L.spAgglomeratedLayouts->proc_comm());*/
 	m_agglomerateLevel = level;
 
-	L.pAgglomeratedA  = NULL;
+	L.pAgglomeratedA  = SPNULL;
 	if(m_amghelper.has_positions())
 		m_amghelper.send_agglomerate_positions(level, A.layouts()->comm(), agglomerateSlaveLayout);
 	//merging_as_slave(L);
