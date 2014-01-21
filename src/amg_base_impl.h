@@ -181,7 +181,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	pL->bHasBeenMerged = false;
 #endif
 	pL->spYConvCheck = spYConvCheck;
-	levels.push_back(pL);
+	levels.push_back(make_sp(pL));
 
 	PROGRESS_START(prog, pOp->num_rows(), "Creating AMG");
 	for(; ; level++)
@@ -236,7 +236,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 		//smoothem_R[level].init(*m_A[level]);
 
-		levels.push_back(new AMGLevel(level+1));
+		levels.push_back(make_sp(new AMGLevel(level+1)));
 		AMGLevel &nextL = *levels[level+1];
 		nextL.spYConvCheck = spYConvCheck->clone();
 
@@ -254,7 +254,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 			L.postsmoother->init(L.pAgglomeratedA);
 		}
 
-		nextL.pA = new matrix_operator_type;
+		nextL.pA = make_sp(new matrix_operator_type);
 		matrix_operator_type &AH = *nextL.pA;
 		prolongation_matrix_type &R = L.R;
 		prolongation_matrix_type &P = L.P;
@@ -460,8 +460,8 @@ AMGBase<TAlgebra>::AMGBase() :
 	m_pPositionProvider3d(NULL)
 {
 
-	m_presmoother = m_postsmoother = new SymmetricGaussSeidel<TAlgebra>;
-	m_basesolver = new LU<TAlgebra>;
+	m_presmoother = m_postsmoother = make_sp(new SymmetricGaussSeidel<TAlgebra>);
+	m_basesolver = make_sp(new LU<TAlgebra>);
 	set_Y_cycle(4, 1e-30, 0.1);
 
 	m_vec4 = NULL;
@@ -840,7 +840,7 @@ void AMGBase<TAlgebra>::update_positions()
 {
 	AMG_PROFILE_FUNC();
 	UG_COND_THROW(m_pPositionProvider2d.valid() && m_pPositionProvider3d.valid(), "specify EITHER positions 2d or 3d");
-	if(m_pPositionProvider2d == NULL && m_pPositionProvider3d == NULL)
+	if(m_pPositionProvider2d.invalid() && m_pPositionProvider3d.invalid())
 		return;
 	if(m_pPositionProvider2d.valid())
 	{

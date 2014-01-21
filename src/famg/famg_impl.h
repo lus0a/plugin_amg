@@ -100,7 +100,7 @@ std::string FAMG<TAlgebra>::config_string() const
 	ss << " max parents: " << m_iMaxParents << ", ";
 	ss << " H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n";
 
-	if(m_testvectorsmoother == NULL)
+	if(m_testvectorsmoother.invalid())
 		ss << " No testvectorsmoother set!!!;\n";
 	else
 		ss << " Testvector Smoother (" << m_iTestvectorDamps << "x): " << m_testvectorsmoother->config_string() << "\n";
