@@ -166,7 +166,7 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 
 	AMG_PROFILE_FUNC();
 	//UG_LOG("\n\n\nprecalc!\n\n\n");
-	UG_ASSERT(m_testvectorsmoother != NULL, "please provide a testvector smoother.");
+	UG_ASSERT(m_testvectorsmoother != SPNULL, "please provide a testvector smoother.");
 
 	if(level == 0)
 	{
@@ -253,7 +253,7 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 	else
 		m_delta = mDeltaAll;
 
-	UG_ASSERT(m_testvectorsmoother != NULL, "please provide a testvector smoother.");
+	UG_ASSERT(m_testvectorsmoother != SPNULL, "please provide a testvector smoother.");
 
 	if(m_bProjectedEVP && level == 0)
 	{

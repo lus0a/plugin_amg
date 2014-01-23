@@ -397,13 +397,13 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 		UG_LOG("\n");
 		for(size_t i=0; i<slaveLayouts.size(); i++)
 		{
-			UG_LOG("Slave OL Level " << i << ":\n");
-			PrintLayout(slaveLayouts[i]);
+			UG_LOG("Slave OL Level " << i << ":\n" << slaveLayouts[i] << "\n");
+
 		}
 		for(size_t i=0; i<masterLayouts.size(); i++)
 		{
-			UG_LOG("Master OL Level " << i << ": ");
-			PrintLayout(masterLayouts[i]);
+			UG_LOG("Master OL Level " << i << ":\n");
+			UG_LOG(masterLayouts[i] << std::endl);
 		}
 	}
 
