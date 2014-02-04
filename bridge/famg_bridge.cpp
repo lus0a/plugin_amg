@@ -86,6 +86,7 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_testvectors_LE_3d", &T::set_testvectors_LE_3d)
 			.add_method("set_testvectors_linear_2d", &T::set_testvectors_linear_2d)
 			.add_method("set_testvectors_linear_3d", &T::set_testvectors_linear_3d)
+			.add_method("set_testvectors_linear_component", &T::set_testvectors_linear_component)
 
 			.add_method("reset_testvectors", &T::reset_testvectors, "", "removes all added testvectors")
 
@@ -116,6 +117,7 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_max_parents", &T::set_max_parents)
 			.add_method("set_H_as_inverse", &T::set_H_as_inverse)
 			.add_method("set_three_parents_penalty", &T::set_three_parents_penalty)
+			.add_method("testvector_desc", &T::testvector_desc)
 
 
 
