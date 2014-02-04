@@ -79,6 +79,41 @@ void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createA
 			std::endl << std::endl);
 }
 
+template<typename TAlgebra>
+void AMGBase<TAlgebra>::init_smoother(size_t level)
+{
+	AMGLevel &L = *levels[level];
+	L.presmoother = m_presmoother->clone();
+	L.presmoother->init(L.pAgglomeratedA);
+
+	if(m_presmoother == m_postsmoother)
+		L.postsmoother = L.presmoother;
+	else
+	{
+		L.postsmoother = m_postsmoother->clone();
+		L.postsmoother->init(L.pAgglomeratedA);
+	}
+}
+
+template<typename TAlgebra>
+bool AMGBase<TAlgebra>::init_smoothers()
+{
+	try{
+
+		size_t N0 = levels[0]->pA->num_rows();
+		PROGRESS_START(prog, N0, "Creating AMG - Init Smoothers");
+
+		for(size_t level=0; level < my_multigrid_levels(); level++)
+		{
+			AMGLevel &L = *levels[level];
+			PROGRESS_UPDATE(prog, N0-L.pA->num_rows());
+			init_smoother(level);
+		}
+		return true;
+	}UG_CATCH_THROW("AMGBase::" << __FUNCTION__ << " failed")
+
+	return false;
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -242,17 +277,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 		//UG_LOG(ToString(nextL.spLayouts->proc_comm()) << "\n" << ToString(L.spAgglomeratedLayouts->proc_comm()));
 
-		L.presmoother = m_presmoother->clone();
-
-		//PRINTPC(L.pAgglomeratedA->get_process_communicator());
-		L.presmoother->init(L.pAgglomeratedA);
-		if(m_presmoother == m_postsmoother)
-			L.postsmoother = L.presmoother;
-		else
-		{
-			L.postsmoother = m_postsmoother->clone();
-			L.postsmoother->init(L.pAgglomeratedA);
-		}
+		init_smoother(level);
 
 		nextL.pA = make_sp(new matrix_operator_type);
 		matrix_operator_type &AH = *nextL.pA;

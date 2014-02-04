@@ -549,6 +549,7 @@ public:
 	/// print level informations
 	std::string level_information_str() const
 	{
+		if(m_bInited==false) return "no level information: not initialized.";
 		std::stringstream ss;
 		ss.setf(std::ios::fixed);
 		ss << "Operator Complexity: " << get_operator_complexity() << ", grid complexity: "
@@ -560,10 +561,10 @@ public:
 
 		if(!is_fixed_conv_check())
 		{
-			double totalCalls = m_vLvlConvRates[0].calls;
+//			double totalCalls = m_vLvlConvRates[0].calls;
 			for(size_t i = 1; i<get_used_levels()-1; i++)
 			{
-				double wSteps = pow(2, i);
+//				double wSteps = pow(2, i);
 				ss << "Level " << i <<
 						" avg gamma: " << m_vLvlConvRates[i].totalSteps/((double)m_vLvlConvRates[i].calls) <<
 						" avg reduction: " << m_vLvlConvRates[i].avgReduction << "\n";
@@ -581,6 +582,21 @@ public:
 
 public:
 	void check_interpolation(vector_type &v, const char *filename);
+
+	bool init_smoothers();
+	void init_smoother(size_t level);
+
+	size_t my_multigrid_levels()
+	{
+#ifdef UG_PARALLEL
+		if(m_agglomerateLevel == (size_t)-1)
+			return m_usedLevels-1;
+		else
+			return m_agglomerateLevel;
+#else
+		return m_usedLevels-1;
+#endif
+	}
 protected:
 
 	double Dnorm(vector_type &t, size_t level);

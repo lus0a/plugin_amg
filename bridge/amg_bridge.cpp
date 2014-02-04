@@ -128,6 +128,8 @@ static void Algebra(Registry& reg, string grp)
 		.add_method("check_interpolation", &T::check_interpolation, "", "vector#filename")
 
 		.add_method("level_information_str", &T::level_information_str)
+
+		.add_method("init_smoothers", &T::init_smoothers)
 		;
 	reg.add_class_to_group(string("AMGBase").append(suffix), "AMGBase", tag);
 }
