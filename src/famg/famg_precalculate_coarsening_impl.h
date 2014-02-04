@@ -44,7 +44,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 			continue;
 		}
 
-	PROGRESS_START(prog, A.num_rows(), "FAMG::Calculate all prossible parent pairs");
+	PROGRESS_START(prog, A.num_rows(), "FAMG::Calculate all prossible parent pairs, " << A.num_rows() << " nodes, Level " << level);
 	for(size_t i=0; i<A.num_rows(); i++)
 	{
 		if(rating.i_must_assign(i) == false) continue;
