@@ -41,7 +41,25 @@ struct neighborstruct_var
 	}
 	stdvector<s_interpolation<value_type, size_t> > parents;
 	double F;
+	std::vector<double> Fb ;
 };
+
+template<typename value_type>
+std::ostream &operator <<(std::ostream &out, const neighborstruct_var<value_type> &n)
+{
+	out << n.parents.size() << " parents, F = " << n.F << ": [";
+	for(size_t i=0; i<n.Fb.size(); i++)
+		out << (i>0 ? "," : "")  << n.Fb[i];
+	out << "]. P: ";
+	for(size_t i=0; i<n.parents.size(); i++)
+	{
+		if(BlockNorm(n.parents[i].value) > 1e-8)
+			out << " p" << i << ": " << n.parents[i].from << " -> " << n.parents[i].value;
+	}
+	out << ". ";
+	return out;
+
+}
 
 //typedef neighborstruct2_t<double, size_t> neighborstruct2;
 //typedef neighborstruct_var_t<double, size_t> neighborstruct_var;
