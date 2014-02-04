@@ -19,6 +19,7 @@
 #include "common/stopwatch.h"
 #include "common/assert.h"
 #include "famg_testvectors.h"
+#include "lib_algebra/operator/preconditioner/jacobi.h"
 //#include "maxheap.h"
 
 namespace ug{
@@ -32,7 +33,6 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 	m_theta = 0.9;
 	m_delta = 0.1;
 
-	m_dDampingForSmootherInInterpolationCalculation = 0.8;
 	m_bAggressiveCoarsening = false;
 	m_writeTestvectors = false;
 	m_bWriteFValues = false;
@@ -65,8 +65,13 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 	m_fileCoarsening = NONE;
 	m_iMaxParents = 2;
 	m_threeParentsPenalty = 1.1;
+
+	set_testvector_smooths(2);
+	set_damping_for_smoother_in_interpolation_calculation(0.8);
+	set_testvector_smoother(make_sp(new Jacobi<TAlgebra>()));
+
 #ifdef UG_PARALLEL
-	m_pParallelCoarsening = NULL;
+	set_parallel_coarsening(GetColorCoarsening());
 #endif
 }
 
@@ -109,8 +114,7 @@ std::string FAMG<TAlgebra>::config_string() const
 //	ss << m_testvectors.size() + m_vVectorWriters.size() << " test vectors" << std::endl; ?
 	if(m_writeMatrices && m_writeTestvectors)
 		ss << " Write Testvectors is on.\n";
-	ss << " \n";
-	ss << " AMGBase:\n" << ConfigShift(AMGBase<TAlgebra>::config_string());
+	ss << " AMGBase: " << ConfigShift(AMGBase<TAlgebra>::config_string());
 
 	return ss.str();
 }
@@ -163,7 +167,7 @@ void FAMG<TAlgebra>::get_testvectors_from_matrix_rows
 template<typename TAlgebra>
 void FAMG<TAlgebra>::precalc_level(size_t level)
 {
-
+	try{
 	AMG_PROFILE_FUNC();
 	//UG_LOG("\n\n\nprecalc!\n\n\n");
 	UG_ASSERT(m_testvectorsmoother != SPNULL, "please provide a testvector smoother.");
@@ -189,6 +193,13 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 			UG_ASSERT(m_amghelper.dimension == 3, "dimension needs to be 3");
 			GetTestvectorsLE_3d(*levels[level]->pAgglomeratedA, testvectors, omega,
 					m_amghelper.positions[0], m_weightC, m_weightX, m_weightY, m_weightZ);
+		}
+		else if(m_iTestvectors == TESTVECTORS_LINEAR_COMPONENT)
+		{
+			UG_LOG("USING TESTVECTORS_LINEAR_COMPONENT\n");
+			UG_ASSERT(m_amghelper.dimension == 2 || m_amghelper.dimension == 3, "dimension " << m_amghelper.dimension << " not supported");
+			GetTestvectorsLinearComponent(*levels[level]->pAgglomeratedA, testvectors, omega,
+							m_amghelper.positions[0]);
 		}
 		else if(m_iTestvectors == TESTVECTORS_LINEAR)
 		{
@@ -228,6 +239,7 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 		}
 	}
 #endif
+	}UG_CATCH_THROW("FAMG::precalc_level failed, level = " << level);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -245,6 +257,7 @@ template<typename TAlgebra>
 void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
 		prolongation_matrix_type &P, size_t level, AMGLayouts &nextLevelLayouts)
 {
+	try{
 	AMG_PROFILE_FUNC();
 
 
@@ -290,6 +303,8 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 		FAMGLevelCalculator<algebra_type> dummy(*this, AH, R, A, A, P, level, testvectors, omega, nextLevelLayouts);
 		dummy.do_calculation();
 	}
+
+	}UG_CATCH_THROW("FAMG::create_AMG_level failed, level = " << level);
 
 }
 

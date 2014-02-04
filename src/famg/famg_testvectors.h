@@ -199,33 +199,73 @@ inline void SetAlgVector3d(T &v, MathVector<3> mv)
 	BlockRef(v, 1) = mv.y();
 	BlockRef(v, 2) = mv.z();
 }
-
+class Polymorphic {virtual void Member(){}};
 
 template<typename TMatrix, typename TVector>
 void GetTestvectorsLE_2d	(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
 		double weightC, double weightZ)
 {
-	testvectors.resize(3);
-	for(size_t i=0; i<testvectors.size(); i++)
-		testvectors[i].resize(A.num_rows());
-
-	omega.resize(3);
-	omega[0] = weightC;
-	omega[1] = weightC;
-	omega[2] = weightZ;
-
-	for(size_t i=0; i<A.num_rows(); i++)
+	if(true)
 	{
-		testvectors[0][i] = 0.0;
-		testvectors[1][i] = 0.0;
-		testvectors[2][i] = 0.0;
+		testvectors.resize(3);
+		for(size_t i=0; i<testvectors.size(); i++)
+			testvectors[i].resize(A.num_rows());
 
-		if(!A.is_isolated(i))
+		omega.resize(2);
+		omega[0] = weightC;
+		omega[1] = weightZ;
+
+		for(size_t i=0; i<A.num_rows(); i++)
 		{
-			BlockRef(testvectors[0][i], 0) = 1.0;
-			BlockRef(testvectors[1][i], 1) = 1.0;
-			SetAlgVector2d(testvectors[2][i], GetRotZ(pos[i]));
+			testvectors[0][i] = 0.0;
+			testvectors[1][i] = 0.0;
+
+			if(!A.is_isolated(i))
+			{
+				testvectors[0][i] = 1.0;
+				SetAlgVector2d(testvectors[1][i], GetRotZ(pos[i]));
+			}
 		}
+	}
+	else
+	{
+		testvectors.resize(6);
+		for(size_t i=0; i<testvectors.size(); i++)
+			testvectors[i].resize(A.num_rows());
+
+		omega.resize(5);
+		omega[0] = weightC;
+		omega[1] = weightC;
+		omega[2] = weightZ;
+		omega[3] = weightZ;
+		omega[4] = weightZ;
+
+		for(size_t i=0; i<A.num_rows(); i++)
+		{
+			testvectors[0][i] = 0.0;
+			testvectors[1][i] = 0.0;
+			testvectors[2][i] = 0.0;
+			testvectors[3][i] = 0.0;
+			testvectors[4][i] = 0.0;
+			testvectors[5][i] = 0.0;
+
+			if(!A.is_isolated(i))
+			{
+				testvectors[0][i] = 1.0;
+//				SetAlgVector2d(testvectors[2][i], GetRotZ(pos[i]));
+
+//				BlockRef(testvectors[2][i], 0) = pos[i].y();
+//				BlockRef(testvectors[2][i], 1) = pos[i].x();
+
+				testvectors[2][i] = pos[i].x();
+				testvectors[3][i] = pos[i].y();
+
+				//testvectors[4][i] = pos[i].y();
+
+			}
+		}
+		testvectors.resize(4);
+		omega.resize(testvectors.size());
 	}
 }
 
@@ -320,6 +360,35 @@ void GetTestvectorsLinear_2d(const TMatrix &A, stdvector<TVector> &testvectors, 
 			testvectors[0][i] = 1.0;
 			testvectors[1][i] = pos[i].x();
 			testvectors[2][i] = pos[i].y();
+		}
+	}
+}
+
+
+
+template<typename TMatrix, typename TVector>
+void GetTestvectorsLinearComponent(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega,
+		stdvector<MathVector<3> > &pos)
+
+{
+	testvectors.resize(2);
+	for(size_t i=0; i<testvectors.size(); i++)
+		testvectors[i].resize(A.num_rows());
+	omega.resize(2);
+	omega[0] = 1;
+	omega[1] = 1;
+
+	bool b3 = GetSize(testvectors[0][0]) == 3;
+	for(size_t i=0; i<A.num_rows(); i++)
+	{
+		testvectors[0][i] = 0.0;
+		if(!A.is_isolated(i))
+		{
+			testvectors[0][i] = 1.0;
+			BlockRef(testvectors[1][i], 0) = pos[i].x();
+			BlockRef(testvectors[1][i], 1) = pos[i].y();
+			if(b3)
+				BlockRef(testvectors[1][i], 2) = pos[i].z();
 		}
 	}
 }

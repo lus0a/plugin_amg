@@ -191,7 +191,8 @@ public:
 		TESTVECTORS_DIRICHLET_MATRIX_ROWS,
 		TESTVECTORS_LE_2D,
 		TESTVECTORS_LE_3D,
-		TESTVECTORS_LINEAR
+		TESTVECTORS_LINEAR,
+		TESTVECTORS_LINEAR_COMPONENT
 	} m_iTestvectors;
 
 	const char *testvector_desc() const
@@ -202,7 +203,8 @@ public:
 		case TESTVECTORS_DIRICHLET_MATRIX_ROWS: return "[0 on dirichlet rows, else 1]";
 		case TESTVECTORS_LE_2D: return "[Rigid Body Modes of Linear Elasticity 2d: (1, 0), (0, 1), (-y, x)]";
 		case TESTVECTORS_LE_3D: return "[Rigid Body Modes of Linear Elasticity 3d: (1, 0, 0), (0, 1, 0), (0, 0, 1), (0, -z, y), (-z, 0, x), (-y, x, 0)]";
-		case TESTVECTORS_LINEAR: return "[constants and linear functions: 1 and x in each component]";
+		case TESTVECTORS_LINEAR: return "[constants and linear functions: 1, x, y, [z] in each component]";
+		case TESTVECTORS_LINEAR_COMPONENT: return "[constants and linear functions: 1 and x_i in each component i]";
 		}
 	}
 
@@ -239,6 +241,11 @@ public:
 		m_weightY=weightY;
 		m_weightZ=weightZ;
 		m_iTestvectors = TESTVECTORS_LINEAR;
+	}
+
+	void set_testvectors_linear_component()
+	{
+		m_iTestvectors = TESTVECTORS_LINEAR_COMPONENT;
 	}
 
 	void init_for_EVP(const vector_type &u, const vector_type &b);
