@@ -23,7 +23,7 @@ namespace ug
  *
  * @param sizes 		the sizes of the processing units
  * @param connections 	connections[i][j] = connection size between unit i and unit j
- * @param mergeWith		(returned) : if mergeWith[i].size() == 1, the processor to send matrix to (if == pcl::GetProcRank, no mergin),
+ * @param mergeWith		(returned) : if mergeWith[i].size() == 1, the processor to send matrix to (if == pcl::ProcRank, no mergin),
  * 						otherwise, list of nodes which are merged, with mergeWith[i][0] = i.
  * @param minimalSize	force all merged nodes to be greater than minimalSize
  * @param preferredSize

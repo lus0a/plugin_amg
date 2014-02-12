@@ -261,7 +261,7 @@ bool PreventFFConnectionPar(const cgraph &graphS, const cgraph &graphST, AMGNode
 		if(nodes[*it].is_coarse()) //  || graphS.is_isolated(*it))
 			continue;
 		const AlgebraID &id = PN.local_to_global(*it);
-		if(id.master_proc() > pcl::GetProcRank())
+		if(id.master_proc() > pcl::ProcRank())
 			continue;
 
 		cgraph::const_row_iterator it2 = graphST.begin_row(*it);

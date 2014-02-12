@@ -376,7 +376,7 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 	//-------------------------------
 	AMG_PROFILE_NEXT(AMG_get_famg_helper_pos);
 
-	if(pcl::GetNumProcesses() > 1 && m_famg.m_amghelper.has_positions())
+	if(pcl::NumProcs() > 1 && m_famg.m_amghelper.has_positions())
 	{
 		m_famg.m_amghelper.update_overlap_positions(level, PN.communicator(), OL2MasterLayout, OL2SlaveLayout, A_OL2.num_rows());
 

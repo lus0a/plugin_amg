@@ -33,7 +33,7 @@ void AMGBase<TAlgebra>::write_interfaces()
 	cAMG_helper &h = m_amghelper;
 	for(size_t level=0; level<m_usedLevels; level++)
 	{
-		const char *filename = (get_output_directory(level) + std::string("AMG_interface") + "_" + ToString(pcl::GetProcRank()) + std::string(".mat")).c_str();
+		const char *filename = (get_output_directory(level) + std::string("AMG_interface") + "_" + ToString(pcl::ProcRank()) + std::string(".mat")).c_str();
 		std::fstream file(filename, std::ios::out);
 
 		ConnectionViewer::WriteGridHeader(file, h.positions[level], h.dimension);

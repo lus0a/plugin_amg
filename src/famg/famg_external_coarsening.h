@@ -191,7 +191,7 @@ void FAMGLevelCalculator<algebra_type>::write_coarsening()
 
 	std::ios_base::openmode mode;
 #ifdef UG_PARALLEL
-	if(pcl::GetProcRank()!=0)
+	if(pcl::ProcRank()!=0)
 		mode = std::ios::out | std::ios::app | std::ios::binary;
 	else
 #endif
@@ -203,7 +203,7 @@ void FAMGLevelCalculator<algebra_type>::write_coarsening()
 
 
 #ifdef UG_PARALLEL
-	for(int i=0; i<pcl::GetProcRank(); i++)
+	for(int i=0; i<pcl::ProcRank(); i++)
 		pcl::AllProcsTrue(true);
 	{
 #endif
@@ -215,7 +215,7 @@ void FAMGLevelCalculator<algebra_type>::write_coarsening()
 		}
 #ifdef UG_PARALLEL
 	}
-	for(int i=pcl::GetProcRank(); i<pcl::GetNumProcesses(); i++)
+	for(int i=pcl::ProcRank(); i<pcl::NumProcs(); i++)
 		pcl::AllProcsTrue(true);
 #endif
 */

@@ -178,7 +178,7 @@ void CheckMatrixLayouts(ParallelNodes &PN, const TMatrix &mat, AlgebraLayouts &l
 			int c = it.index();
 			const AlgebraID &globalID = PN.local_to_global(c);
 			int mPID = globalID.master_proc();
-			if(mPID == pcl::GetProcRank()) continue;
+			if(mPID == pcl::ProcRank()) continue;
 			if(layouts.slave().interface_exists(mPID) == false)
 			{
 				UG_LOG("Node " << c << "(gid " << globalID << ") has no connection to master (interface to master proc "

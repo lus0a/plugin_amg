@@ -177,7 +177,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	}
 
 #ifdef UG_PARALLEL
-	if(pcl::GetNumProcesses() > 1)
+	if(pcl::NumProcs() > 1)
 	{
 		UG_COND_THROW(!m_presmoother->supports_parallel(), "presmoother has to support parallel!");
 		UG_COND_THROW(!m_postsmoother->supports_parallel(), "postsmoother has to support parallel!");
@@ -252,9 +252,9 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		precalc_level(level);
 		if(m_agglomerateLevel == level)
 		{
-			AMG_LOG(2, "Processor " << pcl::GetProcRank() << " got agglomerated at level " << level << ".\n");
+			AMG_LOG(2, "Processor " << pcl::ProcRank() << " got agglomerated at level " << level << ".\n");
 			//if(GetLogAssistant().get_output_process() != -1)
-				//GetLogAssistant().set_output_process(pcl::GetProcRank()+1);
+				//GetLogAssistant().set_output_process(pcl::ProcRank()+1);
 			break;
 		}
 #else
@@ -426,7 +426,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 		L.bLevelHasMergers=true;
 		// create basesolver
 		CollectMatrixOnOneProc(A, *L.collectedA, L.agglomerateMasterLayout, agglomerateSlaveLayout);
-		if(pcl::GetProcRank() == pc.get_proc_id(0))
+		if(pcl::ProcRank() == pc.get_proc_id(0))
 		{
 			if(m_writeMatrices)
 			{

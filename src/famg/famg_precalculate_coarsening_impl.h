@@ -140,7 +140,7 @@ void get_best_parent_pair_seqpar(size_t &i, neighborstruct2 &n)
 
 	AlgebraID id = pcl::argmin(n.F, PN.local_to_global(i));
 	neighborstruct2<AlgebraID> par;
-	if(id.master_proc() == pcl::GetProcRank())
+	if(id.master_proc() == pcl::ProcRank())
 	{
 		for(size_t j=0; j < n0.parents.size(); j++)
 		{
@@ -152,7 +152,7 @@ void get_best_parent_pair_seqpar(size_t &i, neighborstruct2 &n)
 	}
 	pcl::broadcast(par);
 
-	if(id.master_proc() != pcl::GetProcRank())
+	if(id.master_proc() != pcl::ProcRank())
 	{
 		bool b;
 		i = PN.get_local_index_if_available(id, b );

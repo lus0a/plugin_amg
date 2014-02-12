@@ -229,7 +229,7 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_
 	CloneVector(d, const_d);
 	d = const_d;
 	d.change_storage_type(PST_CONSISTENT);
-	size_t pid = pcl::GetProcRank();
+	size_t pid = pcl::ProcRank();
 
 	if(solution)
 	{

@@ -96,7 +96,7 @@ class CollectSolver: public IMatrixOperatorInverse<	typename TAlgebra::matrix_ty
 		{
 			vector_type collC;
 			vector_type collD;
-			if(pcl::GetProcRank() == 0)
+			if(pcl::ProcRank() == 0)
 			{
 				size_t N = collectedBaseA.num_rows();
 				collC.resize(N);
@@ -117,7 +117,7 @@ class CollectSolver: public IMatrixOperatorInverse<	typename TAlgebra::matrix_ty
 			com.receive_data(masterColl, compolAdd);
 			com.communicate();
 
-			if(pcl::GetProcRank() == 0)
+			if(pcl::ProcRank() == 0)
 				m_pInverse->apply_return_defect(collC, collD);
 
 			// send c -> collC
@@ -126,7 +126,7 @@ class CollectSolver: public IMatrixOperatorInverse<	typename TAlgebra::matrix_ty
 			com.receive_data(slaveColl, compolCopy);
 			com.communicate();
 
-			if(pcl::GetProcRank() == 0)
+			if(pcl::ProcRank() == 0)
 				for(size_t i=0; i<Ah.num_rows(); i++)
 					c[i] = collC[i];
 			d.set(0.0);

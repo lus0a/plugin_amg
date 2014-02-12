@@ -342,7 +342,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 
 	BinaryBuffer rstream;
 
-	if(pcl::GetProcRank() == pc.get_proc_id(0))
+	if(pcl::ProcRank() == pc.get_proc_id(0))
 	{
 		UG_DLOG(AMGAgglomerationDebug, 2, "Receiving interface information.\n");
 
@@ -503,7 +503,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 	else
 	{
 		int mergeTo = mergeWith[0];
-		if(mergeTo == pcl::GetProcRank())
+		if(mergeTo == pcl::ProcRank())
 			agglomerate_adjust_interfaces(merge, level, PN);
 		else
 			agglomerate_to(merge, mergeTo, level, PN);
