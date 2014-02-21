@@ -106,7 +106,7 @@ void OnDemand_Update(size_t node, stdvector<stdvector<TNeighborstruct> > &possib
 	}
 }
 
-void AddUnmarkedNeighbors(cgraph &SymmNeighGraph, size_t i, stdvector<bool> &mark, stdvector<size_t> &list)
+inline void AddUnmarkedNeighbors(cgraph &SymmNeighGraph, size_t i, stdvector<bool> &mark, stdvector<size_t> &list)
 {
 	for(cgraph::const_row_iterator conn = SymmNeighGraph.begin_row(i); conn != SymmNeighGraph.end_row(i); ++conn)
 		if(mark[(*conn)] == false) list.push_back((*conn));
