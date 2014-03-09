@@ -10,24 +10,50 @@
 namespace ug{
 
 #ifdef UG_PARALLEL
+
+
+// Assumption: Matrix has a unique distribution
+template<typename matrix_type>
+bool RedistributeMatrixRows(ParallelMatrix<matrix_type> &_mat, ParallelMatrix<matrix_type> &newMat)
+{
+
+	// for each master layout M_p linked to an upstream slave S_q:
+	// a) send row entries to slave on upstream processor q>p
+	// b) remove obsolete slave layout S_q
+
+
+
+	// for each slave layout with a downstream master:
+	// a) recv row entries from their master (downstream only!)
+	// b) remove obsolete master layout M_q
+
+}
+
 template<typename matrix_type>
 bool MakeFullRowsMatrix(const ParallelMatrix<matrix_type> &_mat, ParallelMatrix<matrix_type> &newMat,
-		ParallelNodes &PN, /* IParallelCoarsening *pParallelCoarsening,*/
-		stdvector<IndexLayout> &vMasterLayouts, stdvector<IndexLayout> &vSlaveLayouts)
+		ParallelNodes &PN,
+		stdvector<IndexLayout> &vMasterLayouts,
+		stdvector<IndexLayout> &vSlaveLayouts,
+		IParallelCoarsening *pParallelCoarsening=NULL)
 {
 	PROFILE_FUNC();
+
 	// pcl does not use const much
-	//UG_ASSERT(overlap_depth > 0, "overlap_depth has to be > 0");
 	ParallelMatrix<matrix_type> &mat = const_cast<ParallelMatrix<matrix_type> &> (_mat);
 
 	IndexLayout totalMasterLayout, totalSlaveLayout;
 
 	GenerateOverlapClass<ParallelMatrix<matrix_type> > c(mat, newMat,
 			totalMasterLayout, totalSlaveLayout, vMasterLayouts, vSlaveLayouts, PN);
-	//c.m_overlapDepthMaster = pParallelCoarsening->overlap_depth_master();
-	//c.m_overlapDepthSlave = pParallelCoarsening->overlap_depth_slave();
 
-	c.m_overlapDepthMaster = c.m_overlapDepthSlave = 1;
+	if (pParallelCoarsening==NULL) {
+		c.m_overlapDepthMaster = 1;
+		c.m_overlapDepthSlave = 0;
+	} else{
+		c.m_overlapDepthMaster = pParallelCoarsening->overlap_depth_master();
+		c.m_overlapDepthSlave = pParallelCoarsening->overlap_depth_slave();
+	}
+
 	c.m_masterDirichletLast = false;
 	c.m_slaveDirichletLast = false;
 	bool b = c.calculate();

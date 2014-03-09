@@ -15,83 +15,133 @@
 
 namespace ug{
 
+
+
 //! Adds 'strong negative connections' to graph.
 /*! Criterion: $$-a_{ij} \ge \epsilon \max_{a_{ik}<0} |a_{ik}|$$ */
-template<typename TRowType>
-void FindStrongNegativeConnections(const TRowType &Ci, size_t i, double theta, cgraph &graph)
+class StrongNegativeConnectionsByTrace
 {
-	double dmax = 0.0;
-	typedef typename TRowType::const_iterator const_iterator;
+protected:
+	double m_theta;
+public:
+	StrongNegativeConnectionsByTrace(double theta) : m_theta(theta){}
 
-	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+	template<typename TRowType>
+	void find(const TRowType &Ai, size_t i, cgraph &graph)
 	{
-		if(conn.index() == i) continue; // skip diag
-		if(conn.value() != 0.0 && amg_trace(conn.value()) < dmax)
-			dmax = amg_trace(conn.value());
-	}
-	// UG_LOG("Strong negative( = influencing) connections for " << i<< " (" << dmax <<") :" );
-	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
-	{
-		if(conn.index() == i) continue; // skip diag
-		const double d = amg_trace(conn.value());
-		if( d <= theta * dmax) {
-			graph.set_connection(i, conn.index());
-		//	UG_LOG(conn.index() << "(" << d << "), ")
+		typedef typename TRowType::const_iterator const_iterator;
+		typedef typename TRowType::iterator iterator;
+		typedef typename TRowType::value_type value_type;
+
+
+		// rescale by diagonal
+		value_type Bii=0.0;
+		for(const_iterator conn = Ai.begin(); conn != Ai.end(); ++conn)
+		{
+			if (conn.index() == i) {
+				GetInverse(Bii, conn.value()); break;
+			}
 		}
+
+
+		for(const_iterator conn = Ai.begin(); conn != Ai.end(); ++conn)
+		{ value_type &Aij = const_cast<value_type &> (conn.value());
+			Aij = Bii * Aij; }
+
+
+		// find maximum
+		double dmax = 0.0;
+		for(const_iterator conn = Ai.begin(); conn != Ai.end(); ++conn)
+		{
+			if(conn.index() == i) continue; // skip diag
+			if(conn.value() != 0.0 && amg_diag(conn.value()) < dmax)
+				dmax = amg_diag(conn.value());
+		}
+		// UG_LOG("Strong negative( = influencing) connections for " << i<< " (" << dmax <<") :" );
+
+		// set connections
+		for(const_iterator conn = Ai.begin(); conn != Ai.end(); ++conn)
+		{
+			if(conn.index() == i) continue; // skip diag
+			const double d = amg_diag(conn.value());
+			if( d <= m_theta * dmax) {
+				graph.set_connection(i, conn.index());
+				//	UG_LOG(conn.index() << "(" << d << "), ")
+			}
+		}
+		//UG_LOG("\n")
 	}
-	//UG_LOG("\n")
-}
+};
 
 
 //! Adds 'strong positive connections' to graph.
 /*! Criterion: $$a_{ij} \ge \epsilon^+ \max_{k\neq i} |a_{ik}|$$ */
-template<typename TRowType>
-void FindStrongPositiveConnections(const TRowType &Ci, size_t i, double theta, cgraph &graph)
+class StrongPositiveConnections
 {
-	PROFILE_FUNC();
-	double dmax = 0.0;
-	typedef typename TRowType::const_iterator const_iterator;
+protected:
+	double m_theta;
+public:
+	StrongPositiveConnections(double theta) : m_theta(theta){}
 
-	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+	template<typename TRowType>
+	void find(const TRowType &Ci, size_t i, cgraph &graph)
 	{
-		if(conn->index() == i) continue; // skip diag
-		const double dval =  fabs(amg_offdiag_value(conn->value()));
-		if(dval > dmax) dmax = dval;
-	}
+		PROFILE_FUNC();
+		double dmax = 0.0;
+		typedef typename TRowType::const_iterator const_iterator;
 
-	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
-	{
-		const size_t j =conn->index();
-		if(j == i) continue; // skip diag
-		const double dval =  amg_offdiag_value(conn->value());
-		if( dval >= theta * dmax)
-			graph.set_connection(i, j);
+		// find maximum
+		for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+		{
+			if(conn->index() == i) continue; // skip diag
+			const double dval =  fabs(amg_offdiag_value(conn->value()));
+			if(dval > dmax) dmax = dval;
+		}
+
+		// set connections
+		for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+		{
+			const size_t j =conn->index();
+			if(j == i) continue; // skip diag
+			const double dval =  amg_offdiag_value(conn->value());
+			if( dval >= m_theta * dmax)
+				graph.set_connection(i, j);
+		}
 	}
-}
+};
+
 
 //! Adds 'strong negative connections' to graph.
 /*! Criterion: $$-a_{ij} \ge \epsilon \max_{a_{ik}<0} |a_{ik}|$$ */
-template<typename TRowType>
-void FindStrongConnectionsByBlockNorm(const TRowType &Ci, size_t i, double theta, cgraph &graph)
+class StrongNegativeConnectionsByBlockNorm
 {
-	double dmax = 0.0;
-	typedef typename TRowType::const_iterator const_iterator;
+protected:
+	double m_theta;
+public:
+	StrongNegativeConnectionsByBlockNorm(double theta) : m_theta(theta){}
 
-	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+	template<typename TRowType>
+	void find(const TRowType &Ci, size_t i, cgraph &graph)
 	{
-		if(conn.index() == i) continue; // skip diag
-		double d = BlockNorm(conn.value());
-		std::cout << d << std::endl;
-		if(d > dmax) dmax = BlockNorm(conn.value());
-	}
+		double dmax = 0.0;
+		typedef typename TRowType::const_iterator const_iterator;
 
-	for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
-	{
-		if(conn.index() == i) continue; // skip diag
-		if( BlockNorm(conn.value()) >= theta * dmax)
-			graph.set_connection(i, conn.index());
+		for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+		{
+			if(conn.index() == i) continue; // skip diag
+			double d = BlockNorm(conn.value());
+			std::cout << d << std::endl;
+			if(d > dmax) dmax = BlockNorm(conn.value());
+		}
+
+		for(const_iterator conn = Ci.begin(); conn != Ci.end(); ++conn)
+		{
+			if(conn.index() == i) continue; // skip diag
+			if( BlockNorm(conn.value()) >= m_theta * dmax)
+				graph.set_connection(i, conn.index());
+		}
 	}
-}
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CreateConnectionGraph:
@@ -107,11 +157,16 @@ void FindStrongConnectionsByBlockNorm(const TRowType &Ci, size_t i, double theta
  * \param	m_dTheta	the smaller, the more connections are considered strong e.g. 0.25 is a reasonable default value
  * \note	you can also pre-calculate some connectivity-measurement matrix C, and call this function with C.
  */
+
+
 template<typename matrix_type>
 void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double theta, AMGNodes &nodes)
 {
 	AMG_PROFILE_FUNC();
 	graph.resize(A.num_rows());
+
+
+	StrongNegativeConnectionsByTrace strong(theta);
 
 	for(size_t i=0; i< A.num_rows(); i++)
 	{
@@ -123,12 +178,14 @@ void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double the
 		}
 
 		// Eliminate positive row entries
-		SparseVector<typename matrix_type::value_type> Ri(A.num_cols());
-		PositiveOffDiagCheck<typename matrix_type::value_type> positiveEntries;
-		EliminateEntries(positiveEntries, A, i, Ri);
 
-		// Find strong connections
-		FindStrongNegativeConnections(Ri, i, theta, graph);
+		// 1) Extract & modify entries
+		SparseVector<typename matrix_type::value_type> Ai_local(A.num_cols());
+		PositiveOffDiagCheck<typename matrix_type::value_type> positiveEntries;
+		EliminateEntries(positiveEntries, A, i, Ai_local);
+
+		// 2) Find strong connections
+		strong.find(Ai_local, i, graph);
 
 		if(graph.num_connections(i) == 0)
 			nodes.set_coarse(i);
@@ -155,7 +212,8 @@ void CreateStrongConnectionGraphForSystems(const matrix_type &A, cgraph &graph, 
 		CopyOffDiagEntries(A, i, Ri);
 
 		// Find strong connections
-		FindStrongConnectionsByBlockNorm(Ri, i, theta, graph);
+		StrongNegativeConnectionsByBlockNorm strong(theta);
+		strong.find(Ri, i, graph);
 
 		if(graph.num_connections(i) == 0)
 			nodes.set_coarse(i);
@@ -179,7 +237,8 @@ void UpdateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double the
 			continue;
 
 		// Find strong connections
-		FindStrongPositiveConnections(A.get_row(i), i, theta_pos, graph);
+		StrongPositiveConnections strong(theta_pos);
+		strong.find(A.get_row(i), i,graph);
 
 	}
 #ifdef AMG_PRINT_GRAPH

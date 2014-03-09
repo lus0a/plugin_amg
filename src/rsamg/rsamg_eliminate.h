@@ -16,9 +16,9 @@ namespace ug
 template <class T> struct PositiveOffDiagCheck
 {
 	//! returns true for any positive off-diag connection
-	 static bool eval(size_t i, size_t j, T Aij) {
+	static bool eval(size_t i, size_t j, T Aij) {
 	   //return ((amg_offdiag_value(Aij) > 0.0) && (i!=j));
-	   return ((amg_trace(Aij) > 0.0) && (i!=j));
+	   return ((amg_diag(Aij) > 0.0) && (i!=j));
 	}
 };
 
@@ -53,7 +53,7 @@ void CopyOffDiagEntries(const TMatrixType &A, size_t i, TRowType &row, bool enfo
 template<typename TMatrixType, typename TRowType, typename TElimRule>
 void EliminateEntries(const TElimRule &elimRule, const TMatrixType &A, size_t i, TRowType &row, bool enforceNew=false)
 {
-	// copy 'non-negative' matrix entries that we wish to keep
+	// copy matrix entries we wish to keep
 	for(typename TMatrixType::const_row_iterator connij = A.begin_row(i); connij != A.end_row(i); ++connij)
 	{
 		size_t j=connij.index();
@@ -67,7 +67,7 @@ void EliminateEntries(const TElimRule &elimRule, const TMatrixType &A, size_t i,
 	row.print();
 	*/
 
-	// distribute 'positive' rows
+	// eliminate all 'positive' row entries
 	for(typename TMatrixType::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
 	{
 		const size_t j=conn.index();
@@ -76,6 +76,7 @@ void EliminateEntries(const TElimRule &elimRule, const TMatrixType &A, size_t i,
 
 		if (elimRule.eval(i,j,Aij))
 		{
+			// eliminate entry Aij
 			typename TMatrixType::value_type Bjj;
 			typename TMatrixType::const_row_iterator connjj = A.get_connection(j,j);
 			GetInverse(Bjj, connjj.value());

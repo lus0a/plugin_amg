@@ -20,6 +20,7 @@ template<typename T> inline double amg_diag_value(const T &d) { return BlockNorm
 template<typename T> inline double amg_offdiag_value(const T &d) { return -BlockNorm(d); }
 
 template<typename T> inline double amg_trace(const T &mij) {return ug::matTrace(mij);}
+template<typename T> inline double amg_diag(const T &mij) {return ug::matDiagMax(mij);}
 
 // end group plugins_amg_rsamg
 /// \}

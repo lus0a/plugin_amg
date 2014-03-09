@@ -233,7 +233,8 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 				|| level >= m_maxLevels-1)
 		{
 			create_direct_solver(level);
-			L.pAgglomeratedA = L.pA;
+			//L.pAgglomeratedA = L.pA;
+			L.pAgglomeratedA = L.collectedA;
 			break;
 		}
 
@@ -252,7 +253,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		precalc_level(level);
 		if(m_agglomerateLevel == level)
 		{
-			AMG_LOG(2, "Processor " << pcl::ProcRank() << " got agglomerated at level " << level << ".\n");
+			AMG_LOG(0, "Processor " << pcl::ProcRank() << " got agglomerated at level " << level << ".\n");
 			//if(GetLogAssistant().get_output_process() != -1)
 				//GetLogAssistant().set_output_process(pcl::ProcRank()+1);
 			break;
@@ -722,7 +723,8 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 		// V-Cycle: spYConvCheck = FixedConvergenceCheck(1)
 		// W-Cycle: spYConvCheck = FixedConvergenceCheck(2)
 		// Y-Cycle: spYConvCheck = StdConvergenceCheck(20, 1e-24, 0.01)
-		SmartPtr<IConvergenceCheck<vector_type> > pCheck = levels[level]->spYConvCheck;
+		//SmartPtr<IConvergenceCheck<vector_type> > pCheck = levels[level]->spYConvCheck;
+	  SmartPtr<IConvergenceCheck<vector_type> > pCheck(new FixedConvergenceCheck<vector_type>(1));
 		//FixedConvergenceCheck<vector_type> pCheck(m_iYCycle);
 		pCheck->start(dH);
 

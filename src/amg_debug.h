@@ -218,7 +218,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::writevec(std::string filename, const vector_type &const_d, size_t level, const vector_type *solution)
 {
 	AMG_PROFILE_FUNC();
-	UG_ASSERT(m_writeMatrices, "");
+	UG_ASSERT(m_writeMatrices, "Huhh: writevec without m_writeMatrices?");
 
 
 	bool bDrawConnections=false;
