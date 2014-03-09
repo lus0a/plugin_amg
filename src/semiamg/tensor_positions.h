@@ -21,7 +21,7 @@ namespace ug {
 class TensorPositionInformation{
 public:
 	typedef std::vector<double> pos_vec_type;
-	typedef std::vector<size_t> ind_vec_type;
+	typedef std::vector<int> ind_vec_type;
 	typedef std::map<double, size_t> map_type;
 
 	// indices: 0 ... pos.size()-1
@@ -123,12 +123,12 @@ class TensorLevelInformation
 : protected TensorPositionInformation
 {
 public:
-	typedef std::vector<size_t> level_vec_type;
+	typedef std::vector<int> level_vec_type;
 
 	template <unsigned int dim>
 	size_t get_node_level(const MathVector<dim> &coord) const
 	{
-		size_t level = m_level[0][get_axis_index(0, coord[0])];
+		int level = m_level[0][get_axis_index(0, coord[0])];
 		for (unsigned int i=1; i<dim; i++)
 		{ level = std::min(level, m_level[i][get_axis_index(i, coord[i])]); }
 		return level;
@@ -181,23 +181,11 @@ class SimpleTensorPositionProvider
 public:
 
 	SimpleTensorPositionProvider(size_t I, size_t J, size_t K,
-			double hI=1.0, double hJ=1.0, double hK=1.0) :
-	m_nvec(I*J*K), m_I(I), m_J(J), m_K(K)
-	{
-		m_h[0]=hI; m_h[1]=hJ; m_h[2]=hK;
-		set_coord_offset(0.0, 0.0, 0.0);
-	}
+			double hI=1.0, double hJ=1.0, double hK=1.0);
 
 	SimpleTensorPositionProvider(size_t I, size_t J, size_t K,
 				double hI, double hJ, double hK,
-				double cx, double cy, double cz) :
-		m_nvec(I*J*K), m_I(I), m_J(J), m_K(K)
-		{
-			m_h[0]=hI; m_h[1]=hJ; m_h[2]=hK;
-			set_coord_offset(cx, cy, cz);
-		}
-
-
+				double cx, double cy, double cz);
 
 	virtual ~SimpleTensorPositionProvider() {};
 

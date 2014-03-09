@@ -43,6 +43,26 @@ bool TensorPositionProvider::get_positions(std::vector<MathVector<3> >&vec)
 	return (ind==m_nvec);
 };
 */
+
+
+SimpleTensorPositionProvider::SimpleTensorPositionProvider(size_t I, size_t J, size_t K,
+			double hI, double hJ, double hK) :
+	m_nvec(I*J*K), m_I(I), m_J(J), m_K(K)
+	{
+		m_h[0]=hI; m_h[1]=hJ; m_h[2]=hK;
+		set_coord_offset(0.0, 0.0, 0.0);
+	}
+
+SimpleTensorPositionProvider::SimpleTensorPositionProvider(size_t I, size_t J, size_t K,
+				double hI, double hJ, double hK,
+				double cx, double cy, double cz) :
+		m_nvec(I*J*K), m_I(I), m_J(J), m_K(K)
+		{
+			m_h[0]=hI; m_h[1]=hJ; m_h[2]=hK;
+			set_coord_offset(cx, cy, cz);
+		}
+
+
 bool SimpleTensorPositionProvider::get_positions(std::vector<MathVector<2> >&vec)
 {
 	vec.resize(m_nvec);
