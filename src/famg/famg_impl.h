@@ -49,15 +49,10 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 
 	m_iStrongConnectionSubMask=-1;
 
-	m_iTestvectors = TESTVECTORS_DIRICHLET_MATRIX_ROWS;
+	m_testvectorCalculator = make_sp(new TestvectorsLinearComponent<TAlgebra>());
 
 	m_bExternalCoarsening = false;
 	m_bUsePrecalculate = true;
-
-	iDebugLevelOverlapAMG = iDebugLevelOverlapMatrix = iDebugLevelTestvectorCalc = iDebugLevelPhase3 =
-			iDebugLevelCalculateParentPairs = iDebugLevelColoring = iDebugLevelRecvCoarsening = iDebugLevelGetRatings =
-			iDebugLevelPrecalculateCoarsening =	iDebugLevelAggressiveCoarsening = iDebugLevelSendCoarsening =
-			iDebugLevelCommunicateProlongation = iDebugLevelAfterCommunicateProlongation = iDebugLevelExternalCoarsening = 0;
 
 	m_bWriteFValues = false;
 	m_bProjectedEVP = false;
@@ -65,6 +60,9 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 	m_fileCoarsening = NONE;
 	m_iMaxParents = 2;
 	m_threeParentsPenalty = 1.1;
+
+	m_bUseConstantIfFailed = false;
+	m_dDeficitSolveTolerance = 1e-7;
 
 	set_testvector_smooths(2);
 	set_damping_for_smoother_in_interpolation_calculation(0.8);
@@ -105,12 +103,19 @@ std::string FAMG<TAlgebra>::config_string() const
 	ss << " max parents: " << m_iMaxParents << ", ";
 	ss << " H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n";
 
+	ss << " DeficitSolveTolerance = " << m_dDeficitSolveTolerance << "\n";
+	ss << " UseConstantIfFailed = " << (m_bUseConstantIfFailed?"ON":"OFF") << "\n";
+
 	if(m_testvectorsmoother == SPNULL)
 		ss << " No testvectorsmoother set!!!;\n";
 	else
 		ss << " Testvector Smoother (" << m_iTestvectorDamps << "x): " << m_testvectorsmoother->config_string() << "\n";
 
-	ss << " Testvectors: " << testvector_desc() << "\n";
+	if(m_testvectorCalculator == SPNULL)
+			ss << " No testvector set!!!;\n";
+		else
+			ss << " TestvectorCalculator: " << ConfigShift(m_testvectorCalculator->config_string()) << "\n";
+
 //	ss << m_testvectors.size() + m_vVectorWriters.size() << " test vectors" << std::endl; ?
 	if(m_writeMatrices && m_writeTestvectors)
 		ss << " Write Testvectors is on.\n";
@@ -121,111 +126,30 @@ std::string FAMG<TAlgebra>::config_string() const
 
 
 template<typename TAlgebra>
-void FAMG<TAlgebra>::get_testvectors(stdvector<vector_type> &testvectors, stdvector<double> &omega)
-{
-	AMG_PROFILE_FUNC();
-
-	testvectors.resize(m_vVectorWriters.size() + m_testvectors.size());
-	omega.resize(m_vVectorWriters.size() + m_testvectors.size());
-
-	for(size_t i=0; i<m_vVectorWriters.size(); i++)
-	{
-		size_t index = i;
-		m_vVectorWriters[i]->update(testvectors[index]);
-		omega[index] = m_omegaVectorWriters[i];
-
-	}
-	for(size_t i=0; i<m_testvectors.size(); i++)
-	{
-		size_t index = i+m_vVectorWriters.size();
-		testvectors[index] = m_testvectors[i];
-		omega[index] = m_omegaVectors[i];
-	}
-
-
-}
-
-template<typename TAlgebra>
-void FAMG<TAlgebra>::get_testvectors_from_matrix_rows
-	(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega)
-{
-	AMG_PROFILE_FUNC();
-
-	testvectors.resize(1);
-	omega.resize(1);
-	vector_type &v = testvectors[0];
-	v.resize(A.num_rows());
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		if(A.is_isolated(i))
-			v[i] = 0.0;
-		else
-			v[i] = 1.0;
-	}
-}
-
-template<typename TAlgebra>
 void FAMG<TAlgebra>::precalc_level(size_t level)
 {
 	try{
 	AMG_PROFILE_FUNC();
 	//UG_LOG("\n\n\nprecalc!\n\n\n");
-	UG_ASSERT(m_testvectorsmoother != SPNULL, "please provide a testvector smoother.");
+	UG_COND_THROW(m_testvectorsmoother == SPNULL, "please provide a testvector smoother.");
+	UG_COND_THROW(m_testvectorCalculator == SPNULL, "please provide a testvectors.");
+	UG_COND_THROW(m_testvectorCalculator->needs_positions() == true && m_amghelper.has_positions() == false,
+			"your selected testvector calculator needs position, but they are not there?.");
 
 	if(level == 0)
 	{
-		testvectors.clear();
-		if(m_iTestvectors == TESTVECTORS_DIRICHLET_MATRIX_ROWS)
-		{
-			UG_LOG("USING TESTVECTORS_DIRICHLET_MATRIX_ROWS\n");
-			get_testvectors_from_matrix_rows(*levels[level]->pAgglomeratedA, testvectors, omega);
-		}
-		else if(m_iTestvectors == TESTVECTORS_LE_2D)
-		{
-			UG_LOG("USING TESTVECTORS_LE_2D\n");
-			UG_ASSERT(m_amghelper.dimension == 2, "dimension needs to be 2");
-			GetTestvectorsLE_2d(*levels[level]->pAgglomeratedA, testvectors, omega,
-					m_amghelper.positions[0], m_weightC, m_weightZ);
-		}
-		else if(m_iTestvectors == TESTVECTORS_LE_3D)
-		{
-			UG_LOG("USING TESTVECTORS_LE_3D\n");
-			UG_ASSERT(m_amghelper.dimension == 3, "dimension needs to be 3");
-			GetTestvectorsLE_3d(*levels[level]->pAgglomeratedA, testvectors, omega,
-					m_amghelper.positions[0], m_weightC, m_weightX, m_weightY, m_weightZ);
-		}
-		else if(m_iTestvectors == TESTVECTORS_LINEAR_COMPONENT)
-		{
-			UG_LOG("USING TESTVECTORS_LINEAR_COMPONENT\n");
-			UG_ASSERT(m_amghelper.dimension == 2 || m_amghelper.dimension == 3, "dimension " << m_amghelper.dimension << " not supported");
-			GetTestvectorsLinearComponent(*levels[level]->pAgglomeratedA, testvectors, omega,
-							m_amghelper.positions[0]);
-		}
-		else if(m_iTestvectors == TESTVECTORS_LINEAR)
-		{
-			UG_LOG("USING TESTVECTORS_LINEAR\n");
-			UG_ASSERT(m_amghelper.dimension == 2 || m_amghelper.dimension == 3, "dimension " << m_amghelper.dimension << " not supported");
-			if(m_amghelper.dimension == 3)
-				GetTestvectorsLinear_3d(*levels[level]->pAgglomeratedA, testvectors, omega,
-								m_amghelper.positions[0], m_weightC, m_weightX, m_weightY, m_weightZ);
-			else
-				GetTestvectorsLinear_2d(*levels[level]->pAgglomeratedA, testvectors, omega,
-							m_amghelper.positions[0], m_weightC, m_weightX, m_weightY);
-
-
-		}
-		else
-		{
-			UG_ASSERT(m_iTestvectors == TESTVECTORS_EXTERNAL, "");
-			UG_LOG("USING TESTVECTORS_EXTERNAL\n");
-			get_testvectors(testvectors, omega);
-		}
+		AMG_PROFILE_BEGIN(testvectorCalculator);
+		try{
+			testvectors.clear();
+			MathVector<3> *pos = m_amghelper.has_positions() ? &(m_amghelper.positions[0][0]) : NULL;
+			m_testvectorCalculator->calc(levels[level]->pAgglomeratedA, pos, testvectors);
+		}UG_CATCH_THROW("testvectorCalculator " << m_testvectorCalculator->name() << " failed");
 	}
+
 
 #ifdef UG_PARALLEL
 	// check this: do FE tv need to be known?
-	if((level != 0 || m_iTestvectors == TESTVECTORS_EXTERNAL)
-			&& levels[level]->bHasBeenMerged)
+	if(level != 0 && levels[level]->bHasBeenMerged)
 	{
 		vector_type t;
 		if(super::isMergingMaster(level))
@@ -316,6 +240,7 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 template<typename TAlgebra>
 bool FAMG<TAlgebra>::check_testvector(size_t fromlevel, size_t tolevel)
 {
+	try{
 	AMG_PROFILE_FUNC();
 
 	UG_LOG("\n");
@@ -416,9 +341,63 @@ bool FAMG<TAlgebra>::check_testvector(size_t fromlevel, size_t tolevel)
 	}
 	super::set_num_presmooth(preSmooth);
 	super::set_num_postsmooth(postSmooth);
+
+	}UG_CATCH_THROW("FAMG::check_testvector failed");
 	return true;
 }
 
+
+
+template<typename TAlgebra>
+void FAMG<TAlgebra>::check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > testvectorCalculator, std::string desc)
+{
+	try{
+	AMG_PROFILE_FUNC();
+
+	size_t level =0;
+	if(super::levels.size() <= 1) return;
+	testvectors.clear();
+	MathVector<3> *pos = m_amghelper.has_positions() ? &(m_amghelper.positions[0][0]) : NULL;
+	testvectorCalculator->calc(levels[level]->pAgglomeratedA, pos, testvectors);
+
+
+	std::string path=std::string("/level") + ToString(level) + "/";
+	CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
+
+	for(size_t iTV=0; iTV<testvectors.size(); iTV++)
+	{
+		SmartPtr<matrix_type> pA, pAH;
+		pA = super::levels[level]->pAgglomeratedA;
+		pAH = super::levels[level+1]->pAgglomeratedA;
+
+		matrix_type &A = *pA;
+		matrix_type &AH = *pAH;
+//		prolongation_matrix_type &R = super::levels[level]->R;
+		prolongation_matrix_type &P = super::levels[level]->P;
+		vector_type tvH, Ptv;
+
+	#ifdef UG_PARALLEL
+		SetParallelVectorAsMatrix(tvH, A, PST_CONSISTENT);
+		SetParallelVectorAsMatrix(Ptv, AH, PST_CONSISTENT);
+	#endif
+		tvH.resize(AH.num_rows());
+		Ptv.resize(A.num_rows());
+
+		super::injection(tvH, testvectors[iTV], level);
+
+		P.apply(Ptv, tvH);
+
+		VecScaleAdd(Ptv, 1.0, Ptv, -1.0, testvectors[iTV]);
+
+		ConnectionViewer::WriteVector(m_writeMatrixPath + path + std::string("AMG_TV_") + desc + "_" + ToString(iTV)+ std::string("_L") +
+				ToString(level) + ".vec",
+				Ptv, &m_amghelper.positions[level][0], m_amghelper.dimension);
+
+
+	}
+
+	}UG_CATCH_THROW("FAMG::check_vector failed");
+}
 
 template<typename TAlgebra>
 void FAMG<TAlgebra>::init_for_EVP(const vector_type &u, const vector_type &b)

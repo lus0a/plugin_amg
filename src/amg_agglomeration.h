@@ -18,7 +18,7 @@
 namespace ug
 {
 
-extern DebugID AMGAgglomerationDebug; // SetDebugLevel(debugID.RSAMG.Agglomeration, 0)
+extern DebugID DBG_AMG_COARSENING; // SetDebugLevel(debugID.RSAMG.Agglomeration, 0)
 /// \addtogroup plugins_amg
 /// \{
 
@@ -156,7 +156,7 @@ bool AMGBase<TAlgebra>::agglomerate_from(const std::map<int, int> &merge, const 
 	CreateGlobalLayout(globalSlaveLayout, A.layouts()->slave(), PN);
 
 	L.bHasBeenMerged = true;
-	IF_DEBUG(AMGAgglomerationDebug, 2)
+	IF_DEBUG(DBG_AMG_COARSENING, 2)
 	{
 		UG_LOG("I am the merging father for pids ");
 		for(size_t i=0; i<mergeWith.size(); i++) { UG_LOG(mergeWith[i] << " "); }
@@ -218,7 +218,7 @@ bool AMGBase<TAlgebra>::agglomerate_to(const std::map<int, int> &merge, int merg
 	CreateGlobalLayout(globalSlaveLayout, A.layouts()->slave(), PN);
 
 	L.bHasBeenMerged = true;
-	UG_DLOG(AMGAgglomerationDebug, 2, "MERGING to " << mergeTo << "\n");
+	UG_DLOG(DBG_AMG_COARSENING, 2, "MERGING to " << mergeTo << "\n");
 
 	SendMatrix(A, agglomerateSlaveLayout, mergeTo, PN);
 
@@ -265,7 +265,7 @@ bool AMGBase<TAlgebra>::agglomerate_adjust_interfaces(const std::map<int, int> &
 	CreateGlobalLayout(globalSlaveLayout, A.layouts()->slave(), PN);
 
 	L.bHasBeenMerged = false;
-	UG_DLOG(AMGAgglomerationDebug, 2, "Not merging.\n");
+	UG_DLOG(DBG_AMG_COARSENING, 2, "Not merging.\n");
 	L.spAgglomeratedLayouts->proc_comm() = A.layouts()->proc_comm().create_sub_communicator(true);
 
 	MergeGlobalLayout(globalMasterLayout, merge);
@@ -316,7 +316,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 		return true;
 	}
 
-	UG_DLOG(AMGAgglomerationDebug, 1, "Minimal nodes over all processes is " << m_levelInformation[level].get_nr_of_nodes_min()
+	UG_DLOG(DBG_AMG_COARSENING, 1, "Minimal nodes over all processes is " << m_levelInformation[level].get_nr_of_nodes_min()
 			<< " < " << m_minNodesOnOneProcessor << ": agglomerating.\n"
 			<< pcl::ToString(A.layouts()->proc_comm()));
 
@@ -344,7 +344,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 
 	if(pcl::ProcRank() == pc.get_proc_id(0))
 	{
-		UG_DLOG(AMGAgglomerationDebug, 2, "Receiving interface information.\n");
+		UG_DLOG(DBG_AMG_COARSENING, 2, "Receiving interface information.\n");
 
 		// receive interface information and
 		typedef std::map<int, BinaryBuffer> BufferMap;
@@ -399,15 +399,15 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 			}
 		}
 
-		IF_DEBUG(AMGAgglomerationDebug, 2)
+		IF_DEBUG(DBG_AMG_COARSENING, 2)
 		{
 			for(size_t i=0; i<pc.size(); i++)
 			{
-				UG_DLOG(AMGAgglomerationDebug, 2, "Processor nr. " << i << " has PID " << pc.get_proc_id(i) << ", " << sizes[i] << " nodes and connections to ");
+				UG_DLOG(DBG_AMG_COARSENING, 2, "Processor nr. " << i << " has PID " << pc.get_proc_id(i) << ", " << sizes[i] << " nodes and connections to ");
 				for(std::map<int, size_t>::iterator it = connections[i].begin(); it != connections[i].end(); ++it){
-					UG_DLOG(AMGAgglomerationDebug, 2, "processor nr. " << (*it).first << " PID " << pc.get_proc_id((*it).first) << " (" << (*it).second << " connections) ");
+					UG_DLOG(DBG_AMG_COARSENING, 2, "processor nr. " << (*it).first << " PID " << pc.get_proc_id((*it).first) << " (" << (*it).second << " connections) ");
 				}
-				UG_DLOG(AMGAgglomerationDebug, 2, "\n");
+				UG_DLOG(DBG_AMG_COARSENING, 2, "\n");
 			}
 		}
 
@@ -456,7 +456,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 	}
 	else
 	{
-		UG_DLOG(AMGAgglomerationDebug, 2, "Sending interface information.\n");
+		UG_DLOG(DBG_AMG_COARSENING, 2, "Sending interface information.\n");
 		BinaryBuffer sstream;
 		Serialize(sstream, A.num_rows());
 		for(IndexLayout::const_iterator iter = A.layouts()->master().begin(); iter != A.layouts()->master().end(); ++iter)
@@ -467,7 +467,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 			Serialize(sstream, pid);
 			Serialize(sstream, s);
 
-			UG_DLOG(AMGAgglomerationDebug, 2, "Sending " << s << " bytes to processor " << pid << ".\n");
+			UG_DLOG(DBG_AMG_COARSENING, 2, "Sending " << s << " bytes to processor " << pid << ".\n");
 		}
 		communicator.send_raw(pc.get_proc_id(0), sstream.buffer(), sstream.write_pos(), false);
 		communicator.communicate();

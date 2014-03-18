@@ -21,10 +21,10 @@ namespace ug{
 /// \addtogroup plugins_amg_famg
 /// \{
 
-template<typename TNeighborstruct, typename TMatrix, typename TPMatrix, typename TVector>
+template<typename TNeighborstruct, typename TPMatrix, typename TAlgebra>
 bool OnDemand_UpdateRating(size_t node, stdvector<TNeighborstruct> &PN, FAMGNodes<TPMatrix> &nodes,
 		stdvector<bool> &prolongation_calculated, cgraph &SymmNeighGraph,
-		FAMGInterpolationCalculator<TMatrix, TPMatrix, TVector> &calculator)
+		FAMGInterpolationCalculator<TAlgebra> &calculator)
 {
 	AMG_PROFILE_FUNC();
 	if(prolongation_calculated[node])
@@ -59,7 +59,7 @@ bool OnDemand_UpdateRating(size_t node, stdvector<TNeighborstruct> &PN, FAMGNode
 			return false;
 
 #endif
-		UG_DLOG(LIB_ALG_AMG, 2, "node " << node << " has coarse neighbors, but rating is not calculated yet. calculating rating now\n");
+		UG_DLOG(DBG_AMG_COARSENING, 2, "node " << node << " has coarse neighbors, but rating is not calculated yet. calculating rating now\n");
 		calculator.get_possible_parents(node, PN, nodes);
 		prolongation_calculated[node] = true;
 		nodes.update_rating(node, PN);
@@ -69,10 +69,10 @@ bool OnDemand_UpdateRating(size_t node, stdvector<TNeighborstruct> &PN, FAMGNode
 	}
 }
 
-template<typename TNeighborstruct, typename TMatrix, typename TPMatrix, typename TVector>
+template<typename TNeighborstruct, typename TPMatrix, typename TAlgebra>
 void OnDemand_Update(size_t node, stdvector<stdvector<TNeighborstruct> > &possible_parents, FAMGNodes<TPMatrix> &nodes,
 		maxheap<FAMGNode> &heap,
-		stdvector<bool> &prolongation_calculated,	cgraph &SymmNeighGraph, FAMGInterpolationCalculator<TMatrix, TPMatrix, TVector> &calculator)
+		stdvector<bool> &prolongation_calculated,	cgraph &SymmNeighGraph, FAMGInterpolationCalculator<TAlgebra> &calculator)
 {
 	AMG_PROFILE_FUNC();
 	if(!nodes[node].is_valid_rating())
@@ -83,11 +83,11 @@ void OnDemand_Update(size_t node, stdvector<stdvector<TNeighborstruct> > &possib
 		{
 			if(heap.is_in(node))
 			{
-				UG_DLOG(LIB_ALG_AMG, 2, " remove node " << node << " from heap!\n");
+				UG_DLOG(DBG_AMG_COARSENING, 2, " remove node " << node << " from heap!\n");
 				heap.remove(node);
 			}
 			else
-				UG_DLOG(LIB_ALG_AMG, 2, " node " << node << " uninterpolateable, but not in heap anyway!\n");
+				UG_DLOG(DBG_AMG_COARSENING, 2, " node " << node << " uninterpolateable, but not in heap anyway!\n");
 		}
 		else
 		{
@@ -95,12 +95,12 @@ void OnDemand_Update(size_t node, stdvector<stdvector<TNeighborstruct> > &possib
 			if(heap.is_in(node))
 			{
 				heap.update(node);
-				UG_DLOG(LIB_ALG_AMG, 2, " updated node " << node << " in heap!\n");
+				UG_DLOG(DBG_AMG_COARSENING, 2, " updated node " << node << " in heap!\n");
 			}
 			else
 			{
 				heap.insert_item(node);
-				UG_DLOG(LIB_ALG_AMG, 2, " inserted node " << node << " into heap!\n");
+				UG_DLOG(DBG_AMG_COARSENING, 2, " inserted node " << node << " into heap!\n");
 			}
 		}
 	}
@@ -155,7 +155,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 	}
 
 	UG_ASSERT(i != N, "did not found suitable node");
-	UG_DLOG(LIB_ALG_AMG, 2, "\nStarting with node " << rating.get_original_index(i) << "\n");
+	UG_DLOG(DBG_AMG_COARSENING, 2, "\nStarting with node " << rating.get_original_index(i) << "\n");
 
 
 
@@ -181,12 +181,15 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 		UG_ASSERT(possible_parents[i].size() > 0, "node " << i << "has no possible parents?");
 		neighT &n = possible_parents[i][0];
 
-		UG_DLOG(LIB_ALG_AMG, 2, "\n\n\nSelect next node...\n");
-		UG_DLOG(LIB_ALG_AMG, 2, "======================================\n");
-		UG_DLOG(LIB_ALG_AMG, 2, "node " << rating.get_original_index(i) << " has rating " << rating[i] << ". now gets fine. parents: ");
-		for(size_t j=0; j < n.parents.size(); j++)
-			UG_DLOG(LIB_ALG_AMG, 2, rating.get_original_index(n.parents[j].from) << " ");
-		UG_DLOG(LIB_ALG_AMG, 2,"\n");
+		IF_DEBUG(DBG_AMG_COARSENING, 2)
+		{
+			UG_LOG("\n\n\nSelect next node...\n");
+			UG_LOG("======================================\n");
+			UG_LOG("node " << rating.get_original_index(i) << " has rating " << rating[i] << ". now gets fine. parents: ");
+			for(size_t j=0; j < n.parents.size(); j++)
+				UG_LOG(rating.get_original_index(n.parents[j].from) << " ");
+			UG_LOG("\n");
+		}
 
 		// node i gets fine. update neighbors.
 		rating.set_fine(i);
@@ -199,7 +202,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 
 		if(fvalues.size() > i) fvalues[i] = n.F;
 
-		UG_DLOG(LIB_ALG_AMG, 2, "Set coarse parents:\n");
+		UG_DLOG(DBG_AMG_COARSENING, 2, "Set coarse parents:\n");
 		// get parent pair, set as coarse (if not already done), update neighbors.
 
 		for(size_t j=0; j < n.parents.size(); j++)
@@ -208,8 +211,8 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 
 			UG_ASSERT(!rating[node].is_fine(), "parent node " << rating.get_original_index(node) << " of node " << rating.get_original_index(i) << " is FINE?");
 
-			if(rating[node].is_coarse()) { UG_DLOG(LIB_ALG_AMG, 2, "\nnode " << rating.get_original_index(node) << " is already coarse\n"); }
-			else { UG_DLOG(LIB_ALG_AMG, 2, "\nnode " << rating.get_original_index(node) << " has rating " << rating[node] << ". now gets coarse.\nUpdate Neighbors of " << node << "\n"); }
+			if(rating[node].is_coarse()) { UG_DLOG(DBG_AMG_COARSENING, 2, "\nnode " << rating.get_original_index(node) << " is already coarse\n"); }
+			else { UG_DLOG(DBG_AMG_COARSENING, 2, "\nnode " << rating.get_original_index(node) << " has rating " << rating[node] << ". now gets coarse.\nUpdate Neighbors of " << node << "\n"); }
 
 			if(!rating[node].is_coarse())
 			{
@@ -233,7 +236,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 		neighborsToUpdate.clear();
 
 
-		UG_DLOG(LIB_ALG_AMG, 2, "\n\nSearching for next node...\n");
+		UG_DLOG(DBG_AMG_COARSENING, 2, "\n\nSearching for next node...\n");
 		AMG_PROFILE_BEGIN(AMG_Search_for_next_node)
 		if(heap.height() == 0)
 		{
@@ -241,7 +244,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 			for(i=0; i<N; i++)
 			{
 				if(!rating[i].is_valid_rating() || rating.i_must_assign(i) == false) continue;
-				UG_DLOG(LIB_ALG_AMG, 2, "rating " << i << " is " << rating[i] << "\n");
+				UG_DLOG(DBG_AMG_COARSENING, 2, "rating " << i << " is " << rating[i] << "\n");
 				if(A.is_isolated(i) == false && rating[i].is_valid_rating())
 				{
 					if(prolongation_calculated[i] == false)
@@ -252,13 +255,13 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 					}
 					rating.update_rating(i, possible_parents[i]);
 
-					UG_DLOG(LIB_ALG_AMG, 2, " new rating is " << rating[i] << "\n");
+					UG_DLOG(DBG_AMG_COARSENING, 2, " new rating is " << rating[i] << "\n");
 					if(rating[i].is_valid_rating()) break;
 				}
 			}
-			if(i == N) { UG_DLOG(LIB_ALG_AMG, 2, "\nno more new start nodes found\n"); break; }
+			if(i == N) { UG_DLOG(DBG_AMG_COARSENING, 2, "\nno more new start nodes found\n"); break; }
 
-			UG_DLOG(LIB_ALG_AMG, 2, "\n\nRESTARTING WITH NODE " << rating.get_original_index(i) << "!!!\n\n");
+			UG_DLOG(DBG_AMG_COARSENING, 2, "\n\nRESTARTING WITH NODE " << rating.get_original_index(i) << "!!!\n\n");
 
 			calculator.get_possible_parents(i, possible_parents[i], rating);
 			prolongation_calculated[i] = true;
@@ -278,12 +281,12 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 					else
 						heap.update(i);
 				} while(true);
-				UG_DLOG(LIB_ALG_AMG, 2, "node " << i << " has best rating");
+				UG_DLOG(DBG_AMG_COARSENING, 2, "node " << i << " has best rating");
 				UG_ASSERT(rating.i_must_assign(i), "node " << i << " is not master!");
 
 				if(prolongation_calculated[i] == false)
 				{
-					UG_DLOG(LIB_ALG_AMG, 2, ", but prolongation not calculated. update.\n");
+					UG_DLOG(DBG_AMG_COARSENING, 2, ", but prolongation not calculated. update.\n");
 					calculator.get_possible_parents(i, possible_parents[i], rating);
 					prolongation_calculated[i] = true;
 					rating.update_rating(i, possible_parents[i]);
@@ -291,7 +294,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 				}
 				else
 				{
-					UG_DLOG(LIB_ALG_AMG, 2, ", and prolongation calculated, take this node.\n");
+					UG_DLOG(DBG_AMG_COARSENING, 2, ", and prolongation calculated, take this node.\n");
 					i = heap.remove_max();
 					break;
 				}
@@ -303,7 +306,7 @@ void FAMGLevelCalculator<TAlgebra>::on_demand_coarsening()
 		UG_ASSERT(rating.i_must_assign(i) == false || rating[i].get_rating() != 0.0, i);
 	}
 
-	UG_DLOG(LIB_ALG_AMG, 2, "\nDone!\n");
+	UG_DLOG(DBG_AMG_COARSENING, 2, "\nDone!\n");
 
 	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms.");
 }

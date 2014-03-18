@@ -8,18 +8,20 @@
 #include "common/debug_id.h"
 
 namespace ug{
-DebugID DBG_FAMG_OVERLAP("FAMG.overlap");
-DebugID DBG_FAMG_TESTVECTOR_CALC("FAMG.testvector_calc");
-DebugID DBG_FAMG_PHASE_3("FAMG.phase_3");
-DebugID DBG_CALCULATE_PARENT_PAIRS("FAMG.calculate_parent_pairs");
-DebugID DBG_FAMG_COLORING("FAMG.coloring");
-DebugID DBG_FAMG_RECV_COARSENING("FAMG.receive_coarsening");
-DebugID DBG_FAMG_GET_RATINGS("FAMG.get_ratings");
-DebugID DBG_FAMG_PRECALCULATE_COARSENING("FAMG.precalculate_coarsening");
-DebugID DBG_FAMG_SEND_COARSENING("FAMG.send_coarsening");
-DebugID DBG_FAMG_COMMUNICATE_PROLONGATION("FAMG.communicate_prolongation");
-DebugID DBG_FAMG_AFTER_COMMUNICATE_PROLONGATION("FAMG.after_communicate_prolongation");
-DebugID DBG_FAMG_EXTERNAL_COARSENING("FAMG.external_coarsening");
+
+DebugID DBG_FAMG("AMG.FAMG");
+DebugID DBG_FAMG_CON_GRAPH("AMG.FAMG.CreateSymmConnectivityGraph");
+DebugID DBG_FAMG_INTERPOLATION("AMG.FAMG.Interpolation");
+DebugID DBG_FAMG_COLORING("AMG.FAMG.Coloring");
+DebugID DBG_FAMG_OVERLAP("AMG.FAMG.Overlap");
+
+double myTmpFAMGParam1=1.0;
+int myTmpFAMGParam_LPE_N=5;
+int myTmpFAMGParam_LE_N=5;
 }
+
+
+
+
 
 

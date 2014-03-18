@@ -31,9 +31,7 @@ namespace ug {
 /// \addtogroup plugins_amg
 /// \{
 
-extern DebugID RSAMGCoarseningDebug;
-extern DebugID RSAMGProlongationDebug;
-extern DebugID AMGAgglomerationDebug;
+extern DebugID DBG_AMG_COARSENING, DBG_RSAMG_PROLONGATION, DBG_AMG_AGGLOMERATION, DBG_AMG_COMMUNICATE_PROLONGATION;
 
 // WriteToFile
 //--------------------------------------------------

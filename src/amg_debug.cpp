@@ -7,9 +7,12 @@
 namespace ug
 {
 
-DebugID RSAMGCoarseningDebug("RSAMG.Coarsening");
-DebugID RSAMGProlongationDebug("RSAMG.Prolongation");
-DebugID AMGAgglomerationDebug("AMG.Agglomeration");
+DebugID DBG_AMG_COARSENING("AMG.Coarsening");
+DebugID DBG_RSAMG_PROLONGATION("AMG.RSAMG.Prolongation");
+DebugID DBG_AMG_AGGLOMERATION("AMG.Agglomeration");
+
+DebugID DBG_AMG_COMMUNICATE_PROLONGATION("AMG.communicate_prolongation");
+
 
 #ifdef UG_PARALLEL
 void MyPrintLayout(const pcl::ProcessCommunicator &pc,

@@ -70,7 +70,7 @@ private:
 
 public:
 	FAMGNode() { rating = 0.0; }
-	double get_rating() { return rating; }
+	double get_rating() const { return rating; }
 
 
 	// is_fine is true if node is fine OR uncalculated_fine OR aggressive_fine
@@ -224,7 +224,8 @@ public:
 			/*else if(ninfo.is_uninterpolateable())
 				rating += 1000;
 			else*/
-			if(!ninfo.is_coarse()) rating++;
+			if(ninfo.is_coarse() || ninfo.is_uninterpolateable()) continue;
+			else rating++;
 		}
 		return rating;
 	}
@@ -242,16 +243,16 @@ public:
 	 * @return true if value has been updated, otherwise false
 	 */
 	template<typename neighborstruct>
-	bool update_rating(size_t node, stdvector<neighborstruct> &PN)
+	bool update_rating(size_t node, stdvector<neighborstruct> &PN, bool onlyRecalcBest=false)
 	{
-		if(i_must_assign(node) == false)
+		if(onlyRecalcBest ==false && i_must_assign(node) == false)
 		{
 			return false;
 		}
 
 		//AMG_PROFILE_FUNC();
 		UG_DLOG(LIB_ALG_AMG, 4, " update rating of node " << node << "... ");
-		if(nodes[node].is_valid_rating() == false)
+		if(onlyRecalcBest ==false && nodes[node].is_valid_rating() == false)
 		{
 			UG_DLOG(LIB_ALG_AMG, 4, nodes[node].rating << " is not a valid rating."); return false;
 		}
@@ -271,6 +272,8 @@ public:
 				UG_DLOG(LIB_ALG_AMG, 4, " removed pair " << i << " ");
 				continue;
 			}
+
+			UG_DLOG(LIB_ALG_AMG, 4,PN[i]<<"\nrating=" << irating << "\n");
 			irating += PN[i].F/1000;
 
 			// choose the pairs with best minimization F.
@@ -281,15 +284,20 @@ public:
 				mini = i;
 			}
 			i++;
+
 		}
 		UG_DLOG(LIB_ALG_AMG, 4, "now has " << PN.size() << " possible parent nodes. ");
 		for(size_t i=0; i<PN.size(); i++)
 			UG_DLOG(LIB_ALG_AMG, 4, PN[i].parents[0].from << "-" << PN[i].parents[1].from << " ");
+		UG_DLOG(LIB_ALG_AMG, 4, "\nmini=" << mini << "\n");
+
+		if(mini != -1 && mini != 0) std::swap(PN[0], PN[mini]);
+		if(onlyRecalcBest) return true;
 
 		if(mini != -1)
 		{
 			UG_DLOG(LIB_ALG_AMG, 4, " has rating " << minrating << "\n");
-			if(mini != 0) std::swap(PN[0], PN[mini]);
+
 			if(nodes[node].rating != minrating)
 			{
 				UG_DLOG(LIB_ALG_AMG, 4, " new rating! ");

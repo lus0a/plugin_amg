@@ -108,7 +108,7 @@ static void CreateSymmConnectivityGraph(const matrix_type &A, cgraph &SymmNeighG
 
 #ifdef FAMG_PRINT_GRAPH
 
-	IF_DEBUG(LIB_ALG_AMG, 3)
+	IF_DEBUG(DBG_FAMG_CON_GRAPH, 3)
 	{
 		UG_LOG("\nSymmNeighGraph:\n");
 		SymmNeighGraph.print();
@@ -181,7 +181,7 @@ private:
 	stdvector< vector_type > &m_testvectors;
 
 	// the calculator which calculates our interpolation weighs
-	FAMGInterpolationCalculator<matrix_type, prolongation_matrix_type, vector_type> calculator;
+	FAMGInterpolationCalculator<TAlgebra> calculator;
 
 	bool m_bTiming; //< if true, timing will be outputed
 
@@ -276,6 +276,7 @@ private:
 		AH.defragment();
 		if(m_bTiming) {UG_LOG("took " << SW.ms() << " ms");}
 
+		UG_LOG("check is " << 	CheckDiagonalInvertible(AH) << "\n");
 
 		PROFILE_END();
 
@@ -335,7 +336,7 @@ public:
 		// 2. global Testvector calculation (damping)
 		//-----------------------------------------------
 
-		calculate_testvectors();
+		smooth_testvectors();
 		get_testvectors_on_OL2();
 		calculator.init();
 
@@ -347,7 +348,6 @@ public:
 		bool bUsePrecalculate = m_famg.m_bUsePrecalculate;
 		if(bExternalCoarsening == false && m_famg.m_fileCoarsening != m_famg.READ_COARSENING)
 		{
-			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelPhase3);
 			heap.create(rating.nodes);
 
 			if(m_bTiming) { UG_LOG("\nCreate P, SymmNeighGraph... "); SW.start(); }
@@ -374,7 +374,6 @@ public:
 			if(bUsePrecalculate)
 			{
 				// calculate ratings (not precalculateable because of coarse/uninterpolateable)
-				UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelGetRatings);
 				if(m_bTiming) { UG_LOG("\ncalculate ratings... "); SW.start(); }
 				GetRatings(possible_parents, rating, heap);
 				if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms");}
@@ -392,7 +391,6 @@ public:
 			// this has to be BEFORE communication of coarse/fine markers
 			//
 
-			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelAggressiveCoarsening);
 			if(m_bTiming) {UG_LOG("\nsecond coarsening... "); SW.start();}
 			if(m_famg.get_aggressive_coarsening() == true)
 				get_aggressive_coarsening_interpolation();
@@ -437,15 +435,14 @@ public:
 		{
 			if(m_famg.m_writeMatrices) m_famg.write_debug_matrix_markers(level, rating);
 			PoldIndices.resize_and_clear(N, N);
-			UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
 
-			UG_DLOG(LIB_ALG_AMG, 1, "XC\n");
+			UG_DLOG(DBG_AMG_COARSENING, 1, "XC\n");
 			if(m_famg.m_fileCoarsening == m_famg.READ_COARSENING)
 				read_coarsening();
 			else
 				rs_amg_external_coarsening();
 
-			UG_DLOG(LIB_ALG_AMG, 1, "external_coarsening_calculate_prolongation...\n");
+			UG_DLOG(DBG_AMG_COARSENING, 1, "external_coarsening_calculate_prolongation...\n");
 
 			external_coarsening_calculate_prolongation();
 		}
@@ -454,9 +451,8 @@ public:
 			write_coarsening();
 
 
-		UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelAfterCommunicateProlongation);
-		IF_DEBUG(LIB_ALG_AMG, 3)
-		{	rating.print(); 	}
+//		IF_DEBUG(LIB_ALG_AMG, 3)
+//		{	rating.print(); 	}
 
 //		Write_LE_Error<prolongation_matrix_type, vector_type>
 //			(PoldIndices, m_famg.m_amghelper.positions[level], m_famg.m_writeMatrixPath, "FAMG_tv", level);
@@ -515,9 +511,6 @@ private:
 	void create_new_indices(stdvector<int> &newIndex)
 	{
 		AMG_PROFILE_FUNC();
-		UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelCommunicateProlongation);
-		UG_SET_DEBUG_LEVEL(LIB_ALG_MATRIX, m_famg.iDebugLevelCommunicateProlongation);
-
 #ifdef UG_PARALLEL
 		PoldIndices.set_layouts(A.layouts());
 		m_famg.parallel_process_prolongation(PoldIndices, PnewIndices,
@@ -580,11 +573,14 @@ private:
 	void calculate_uncalculated_fine_nodes();
 #endif
 	void external_coarsening_calculate_prolongation();
-	void rs_amg_external_coarsening();
 
-	void calculate_testvectors();
+	void rs_amg_external_coarsening();
+	void write_XC_coarsening(cgraph &graphS, AMGNodes &nodes);
+
+	void smooth_testvectors();
 	void get_testvectors_on_OL2();
 	void calculate_next_testvectors();
+
 public:
 	void write_coarsening(), read_coarsening();
 
@@ -593,7 +589,7 @@ public:
 #ifdef UG_PARALLEL
 		create_OL2_matrix();
 #endif
-		calculate_testvectors();
+		smooth_testvectors();
 		get_testvectors_on_OL2();
 		calculate_next_testvectors();
 	}

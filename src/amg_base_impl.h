@@ -233,8 +233,6 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 				|| level >= m_maxLevels-1)
 		{
 			create_direct_solver(level);
-			//L.pAgglomeratedA = L.pA;
-			L.pAgglomeratedA = L.collectedA;
 			break;
 		}
 
@@ -456,14 +454,17 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 			m_agglomerateLevel = level;
 			L.spAgglomeratedLayouts->proc_comm() = pc.create_sub_communicator(false);
 		}
+		L.pAgglomeratedA = L.collectedA;
 	}
 	else
 	{
 		L.bLevelHasMergers=false;
 		m_basesolver->init(L.pA);
+		L.pAgglomeratedA = L.pA;
 	}
 #else
 	m_basesolver->init(L.pA);
+	L.pAgglomeratedA = L.pA;
 #endif
 
 	m_dTimingCoarseSolverSetupMS = SW.ms();
@@ -1030,7 +1031,8 @@ bool AMGBase<TAlgebra>::injection(vector_type &vH, const vector_type &v, size_t 
 {
 	size_t nH = levels[level]->P.num_cols(); (void) nH;
 	size_t n = levels[level]->P.num_rows(); (void) n;
-	UG_COND_THROW(nH != vH.size() || n > v.size(), nH << " != " << vH.size() << " or " << n << " > " << v.size());
+	THROW_IF_NOT_EQUAL(nH, vH.size());
+	UG_COND_THROW(n > v.size(), n << " > " << v.size());
 
 	for(size_t j=0; j < nH; j++)
 		vH[j] = v[m_parentIndex[level+1][j]];

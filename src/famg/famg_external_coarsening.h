@@ -12,6 +12,8 @@
 
 #include "lib_algebra/adapter/scalar_submatrix_adapter.hh"
 
+#include "common/error.h"
+
 #ifndef FAMG_EXTERNAL_COARSENING_H_
 #define FAMG_EXTERNAL_COARSENING_H_
 
@@ -24,7 +26,6 @@ template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::external_coarsening_calculate_prolongation()
 {
 	AMG_PROFILE_FUNC();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
 
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\ncalculate prolongation... "); SW.start(); }
@@ -67,9 +68,6 @@ inline void AMGnodeinfoToFAMGnodeinfo(AMGNodes &amgNodes, FAMGNodes<T> &famgNode
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 {
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
-
-#if 1
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\nexternal coarsening... " );  SW.start(); }
@@ -79,8 +77,8 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	// use RSAMG's methods to do standard rs coarsening
 #ifdef UG_PARALLEL
 	AMGNodes nodes(N, PN);
-	UG_ASSERT(m_famg.m_pParallelCoarsening != NULL, "please set_parallel_coarsening !");
-	UG_DLOG(LIB_ALG_AMG, 0, m_famg.m_pParallelCoarsening->config_string() << "\n");
+	UG_COND_THROW(m_famg.m_pParallelCoarsening == NULL, "please set_parallel_coarsening !");
+	UG_DLOG(DBG_AMG_COARSENING, 0, m_famg.m_pParallelCoarsening->config_string() << "\n");
 #else
 	AMGNodes nodes(N);
 #endif
@@ -134,8 +132,8 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	// aggressive coarsening
 	if(m_famg.get_aggressive_coarsening() == true && level == 0)
 	{
-		UG_DLOG(LIB_ALG_AMG, 2, std::endl << "building graph2... ");
-		UG_DLOG(LIB_ALG_AMG, 2, "unassigned = " << nodes.get_unassigned() << "\n");
+		UG_DLOG(DBG_AMG_COARSENING, 2, std::endl << "building graph2... ");
+		UG_DLOG(DBG_AMG_COARSENING, 2, "unassigned = " << nodes.get_unassigned() << "\n");
 
 		//unassigned = 0; ??
 		cgraph graphAC(N);
@@ -162,23 +160,41 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	AMGnodeinfoToFAMGnodeinfo(nodes, rating, graphS);
 
 	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
+
+
+	//----------------------
+	if(m_famg.m_writeMatrices)
+		write_XC_coarsening(graphS, nodes);
 	//if(nodes[i].is_unassigned_fine_indirect())
 	//	rating.set_aggressive_fine(i);
-#else
-	size_t N = A_OL2.num_rows();
+
+}
+
+template<typename algebra_type>
+void FAMGLevelCalculator<algebra_type>::write_XC_coarsening(cgraph &graphS, AMGNodes &nodes)
+{
+	if(!m_famg.m_writeMatrices) return;
+	PROFILE_FUNC_GROUP("algebra AMG debug");
+	std::string filename = m_famg.GetAMGFilenamePath(A_OL2, level, "XC", level, ".mat", true);
+	std::string marksname = m_famg.GetAMGFilenamePath(A_OL2, level, "XC", level, ".marks", true);
+	std::fstream file(filename.c_str(), std::ios::out);
+	ConnectionViewer::WriteGridHeader(file, m_famg.m_amghelper.positions[level], m_famg.m_amghelper.dimension);
+	for(size_t i=0; i < graphS.size(); i++)
+		for(cgraph::row_iterator it = graphS.begin_row(i); it != graphS.end_row(i); ++it)
+			file << i << " " << (*it) << " 1" << std::endl;
+	file << "c " << marksname << "\n";
+
+	std::fstream fcoarse(marksname.c_str(), std::ios::out);
+	fcoarse << "0 0 1 1 2\n";
+	size_t N = nodes.size();
 	for(size_t i=0; i<N; i++)
 	{
-		/////////////////////
-
-		if(i == 4327) // 4608????
-		{
-			rating.set_fine(i);
-		}
-		else
-			rating.set_coarse(i); // was fine???
+		if(nodes[i].is_coarse())
+			fcoarse << i << "\n";
 	}
-#endif
 }
+
+
 
 
 

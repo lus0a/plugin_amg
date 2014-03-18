@@ -9,7 +9,7 @@
 #define LOCAL_EIGENVALUE_TEST_COMPUTATION_H_
 
 
-#if 1
+#if 0
 void calc_special(size_t i)
 {
 
@@ -44,8 +44,8 @@ void print_matlab_positions(std::vector<size_t> indices)
 	UG_LOG("\n")
 }
 
-template<typename TMatrix>
-inline void ToDouble(DenseMatrix<VariableArray2<double> > &Ad, TMatrix &d)
+template<typename T>
+inline void ToDouble(DenseMatrix<VariableArray2<double> > &A2, const T &A)
 {
 	size_t blockSize = GetRows(A(0,0));
 	A2.resize(blockSize*A.num_rows(), blockSize*A.num_cols());
@@ -55,10 +55,10 @@ inline void ToDouble(DenseMatrix<VariableArray2<double> > &Ad, TMatrix &d)
 		for(size_t j=0; j<A.num_cols(); j++)
 			for(size_t r=0; r<blockSize; r++)
 				for(size_t c=0; c<blockSize; c++)
-					A2(i*blockSize+r, j*blockSize+c) = BlockRef(Aloc(i, j), r, c);
+					A2(i*blockSize+r, j*blockSize+c) = BlockRef(A(i, j), r, c);
 	}
 }
-
+/*
 template<typename A_type, typename B_type, typename vector_type>
 int GeneralizedEigenvalueProblemSys(A_type &A, std::vector<vector_type> &X,
 		B_type &lambda, A_type &B, bool bSortEigenvalues=false)
@@ -85,9 +85,10 @@ int GeneralizedEigenvalueProblemSys(A_type &A, std::vector<vector_type> &X,
 }
 
 
-void calc_special2(size_t i)
+void calc_special22(size_t i)
 {
-	if(i != 0) return;
+	if(!is_watch_node(i))
+		return;
 	std::vector<std::vector<size_t> > indicesSysH;
 	GetNeighborhoodHierachy(A_OL2, i, 3, indicesH);
 
@@ -141,7 +142,7 @@ void calc_special2(size_t i)
 	ev.reize(Nb, Nb);
 	lambda.resize(Nb);
 
-	ToDouble(A2, A);
+	ToDouble(A2, Aloc);
 
 
 	for (size_t p0 = indices1; p0 < indices2; p0++)
@@ -173,7 +174,8 @@ void calc_special2(size_t i)
 				// bei blockalgorithmen entstehen hier N*blockSize eigenwerte
 				GeneralizedEigenvalueProblem(Q2, ev, lambda, A2, true);
 
-				writeSubVec(std::string("/Users/mrupp/matrices/ev_")+ToString(gp0)+"_"+ToString(gp0)+"_"+ToString(lambda[N-1])+"_.vec", A, ev, N-1, indices, indices4);
+				writeSubVec(std::string("/Users/mrupp/matrices/ev_")+ToString(gp0)+"_"+ToString(gp0)+"_"+ToString(lambda[N-1])+"_.vec",
+						A, ev, N-1, indices, indices4);
 			}
 
 		}
@@ -193,30 +195,157 @@ void calc_special2(size_t i)
 
 
 
-}
+}*/
+
 
 void calc_special(size_t i)
 {
-//	calc_special2(i);
+	if(!is_watch_node(i))
 	return;
-	if(i!=105) // gitarre
-//		if(i!=0) // famgLE// unit square
-//		if(i!=604) // ugshell -ex amg/famgLE3d_rechteck_working.lua -writeMatrices -numRefs 1 -maxLevels 2
-//		if(i!=4390) // ugshell -ex amg/famgLE3d.lua -maxLevels 2
-		return;
 
+	//calc_special_local_eigenvalues(i);
+	calc_special_local_projected_eigenvalues(i);
+	calc_special_local_eigenvalues(i);
+}
+
+template<typename T, typename T2>
+void GetLocalVector(const T &tsrc, T2 &tdest, std::vector<size_t> &indices)
+{
+	tdest.resize(indices.size());
+	for(size_t i=0; i<indices.size(); i++)
+		tdest[i] = tsrc[indices[i]];
+}
+
+void calc_special_local_projected_eigenvalues(size_t i)
+{
+	PROFILE_FUNC_GROUP("debug");
+	UG_LOG("\n--------------------------------------------------\n");
 	std::vector<std::vector<size_t> > indicesH;
-	GetNeighborhoodHierachy(A_OL2, i, 3, indicesH);
+	GetNeighborhoodHierachy(A_OL2, i, myTmpFAMGParam_LPE_N , indicesH);
 
 	std::vector<size_t> indices;
+	PROFILE_BEGIN(A);
 
-	for(size_t k=0; k <= 3; k++)
+	for(size_t k=0; k < indicesH.size(); k++)
 		indices.insert(indices.end(), indicesH[k].begin(), indicesH[k].end());
 
 	size_t indices1=indicesH[0].size();
 	size_t indices2=indicesH[1].size()+indices1;
 	size_t indices3=indicesH[2].size()+indices2;
 	size_t indices4=indices.size();
+	//indices3 = indices4;
+
+	DenseMatrix<VariableArray2<smallmat_type> > Aloc;
+
+	Aloc.resize(indices.size(), indices.size());
+
+	GetLocalMatrix(A_OL2, Aloc, &indices[0], &indices[0]);
+
+	DenseMatrix<VariableArray2<smallmat_type> > Bloc;
+	Bloc.resize(indices4, indices4);
+	for(size_t j=0; j<indices4; j++)
+		Bloc(j,j) = Aloc(j,j);
+
+	stdvector<DenseVector<VariableArray1<smallvec_type> > > tv;
+	tv.resize(m_testvectors.size());
+	DenseVector<VariableArray1<smallvec_type> > tmp;
+
+	for(size_t j=0; j<m_testvectors.size(); j++)
+		GetLocalVector(m_testvectors[j], tv[j], indices);
+
+	DenseMatrix<VariableArray2<double> > ewA, ewB;
+	ewA.resize(tv.size(), tv.size());
+	ewB.resize(tv.size(), tv.size());
+
+	for(size_t j1=0; j1<tv.size(); j1++)
+	{
+		tmp = Aloc*tv[j1];
+		for(size_t k=indices3; k<indices4; k++) tmp[k] *= myTmpFAMGParam1;
+		for(size_t j2=0; j2<tv.size(); j2++)
+			ewA(j1, j2) = VecProd(tmp, tv[j2]);
+	}
+	for(size_t j1=0; j1<tv.size(); j1++)
+	{
+		tmp = Bloc*tv[j1];
+//		for(size_t k=indices3; k<indices4; k++) tmp[k] = 0.0;
+		for(size_t j2=0; j2<tv.size(); j2++)
+			ewB(j1, j2) = VecProd(tmp, tv[j2]);
+	}
+	ewA.maple_print("A");
+	ewB.maple_print("B");
+
+
+	DenseMatrix<VariableArray2<double> > ev;
+	std::vector<std::complex<double> > lambda;
+	ev.resize(ewA.num_rows(), ewA.num_rows());
+	lambda.resize(ewA.num_rows());
+	GeneralizedEigenvalueProblemComplex(ewA, ev, lambda, ewB, true);
+
+	for(size_t k=0; k<ev.num_rows(); k++)
+	{
+		tmp = 0.0;
+		for(size_t c = 0; c<ev.num_rows(); c++)
+			tmp += ev(c, k) * tv[c];
+
+		writeSubVec2(Stringify() << m_matrixWritePath << "/PEV2_" << i << "_ev_" << k << "__" << lambda[k] << ".vec", Aloc, tmp, indices, indices2);
+		writeSubVec2(Stringify() << m_matrixWritePath << "/PEV3_" << i << "_ev_" << k << "__" << lambda[k] << ".vec", Aloc, tmp, indices, indices3);
+		writeSubVec2(Stringify() << m_matrixWritePath << "/PEV_" << i << "_ev_" << k << "__" << lambda[k] << ".vec", Aloc, tmp, indices, indices4);
+	}
+}
+
+void writeSubVec2(std::string filename, const DenseMatrix<VariableArray2<smallmat_type> > &mat,
+		DenseVector<VariableArray1<smallvec_type> > &v, const std::vector<size_t> &indices, size_t N)
+{
+	if(m_amghelper.has_positions() == false) return;
+	size_t level = m_amghelper.positions.size()-1;
+
+	std::fstream file(filename.c_str(), std::ios::out);
+
+	ConnectionViewer::WriteGridHeader(file, m_amghelper.positions[level], m_amghelper.dimension);
+
+	size_t blockSize = GetRows(mat(0,0));
+
+//		for(size_t i=0; i < m_amghelper.positions[level].size(); i++)
+//			file << i << " " << i << " 0.0\n";
+
+	for(size_t i=0; i < N; i++)
+	{
+		if(blockSize == 1)
+			file << indices[i] << " " << indices[i] << " " << v[i] << "\n";
+		else
+		{
+			file << indices[i] << " " << indices[i] << " [ ";
+			for(size_t j=0; j<blockSize; j++)
+				file << BlockRef(v[i], j) << " ";
+			file << "]\n";
+		}
+
+	}
+
+	/*for(size_t i=0; i < N; i++)
+		for(size_t j=0; j < N; j++)
+			if(i != j && BlockNorm(mat(i,j)) > 1e-9)
+			{
+				file << indices[i] << " " << indices[j] << " " << mat(i,j) << "\n";
+			}*/
+}
+
+void calc_special_local_eigenvalues(size_t i)
+{
+	PROFILE_FUNC_GROUP("debug");
+	std::vector<std::vector<size_t> > indicesH;
+	GetNeighborhoodHierachy(A_OL2, i, myTmpFAMGParam_LE_N, indicesH);
+
+	std::vector<size_t> indices;
+
+	for(size_t k=0; k < indicesH.size(); k++)
+		indices.insert(indices.end(), indicesH[k].begin(), indicesH[k].end());
+
+	size_t indices1=indicesH[0].size();
+	size_t indices2=indicesH[1].size()+indices1;
+	size_t indices3=indicesH[2].size()+indices2;
+	size_t indices4=indices.size();
+	indices3 = indices4;
 
 	DenseMatrix<VariableArray2<smallmat_type> > Aloc;
 
@@ -294,8 +423,8 @@ void calc_special(size_t i)
 	PrintVector(indicesH[2], "N2");
 	A2.maple_print("A2");
 
-	writeSubMatrix("/Users/mrupp/matrices/Aloc.mat", Aloc, indices, indices3);
-	writeSubMatrix("/Users/mrupp/matrices/Bloc.mat", Bloc, indices, indices3);
+	writeSubMatrix(m_matrixWritePath+std::string("/Aloc.mat"), Aloc, indices, indices3);
+	writeSubMatrix(m_matrixWritePath+std::string("/Bloc.mat"), Bloc, indices, indices3);
 
 	DenseMatrix<VariableArray2<double> > ev;
 	std::vector<std::complex<double> > lambda;
@@ -305,7 +434,7 @@ void calc_special(size_t i)
 
 	for(size_t k=0; k<ev.num_rows(); k++)
 	{
-		writeSubVec(std::string("/Users/mrupp/matrices/ev_")+ToString(k)+"__"+ToString(lambda[k])+"_.vec", Aloc, ev, k, indices, indices3);
+		writeSubVec(Stringify() << m_matrixWritePath << "/LEV_" << i << "_ev_" << k << "__" << lambda[k] << ".vec", Aloc, ev, k, indices, indices3);
 	}
 
 }
@@ -345,7 +474,7 @@ void writeSubVec(std::string filename, const DenseMatrix<VariableArray2<smallmat
 		else
 		{
 			file << indices[i] << " " << indices[i] << " [ ";
-			for(int j=0; j<blockSize; j++)
+			for(size_t j=0; j<blockSize; j++)
 				file << v(i*blockSize+j, K) << " ";
 			file << "]\n";
 		}

@@ -115,7 +115,7 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 	/*for(size_t r=N; r<overlapN; r++)
 		UG_ASSERT(amgnodes[r].is_fine() == false || amgnodes[r].is_uncalculated_fine(), amgnodes.info(r));*/
 #endif
-	//UG_DLOG(LIB_ALG_AMG, 0, "\namgnodes.get_nr_of_coarse() = " << amgnodes.get_nr_of_coarse() << ", nrOfCoarse = " << nrOfCoarse);
+	//UG_DLOG(DBG_AMG_COMMUNICATE_PROLONGATION, 0, "\namgnodes.get_nr_of_coarse() = " << amgnodes.get_nr_of_coarse() << ", nrOfCoarse = " << nrOfCoarse);
 	PnewIndices.defragment();
 #ifdef UG_PARALLEL
 	PnewIndices.set_storage_type(PST_CONSISTENT);
@@ -306,7 +306,7 @@ void AMGBase<TAlgebra>::postset_coarse(ParallelNodes &PN, prolongation_matrix_ty
 			if(!PoldIndices.is_isolated(i) && amgnodes[i].is_fine() == false && amgnodes[i].is_dirichlet() == false)
 			{
 				amgnodes.set_fine(i);
-				UG_DLOG(LIB_ALG_AMG, 0, "post-setted " << i << " fine.\n");
+				UG_DLOG(DBG_AMG_COMMUNICATE_PROLONGATION, 1, "post-setted " << i << " fine.\n");
 			}
 
 			// this is a prolongation
@@ -318,7 +318,7 @@ void AMGBase<TAlgebra>::postset_coarse(ParallelNodes &PN, prolongation_matrix_ty
 				if(amgnodes[j].is_coarse() == false)
 				{
 					amgnodes.external_set_coarse(j);
-					UG_DLOG(LIB_ALG_AMG, 4, "post-setted " << j << " coarse.\n");
+					UG_DLOG(DBG_AMG_COMMUNICATE_PROLONGATION, 4, "post-setted " << j << " coarse.\n");
 				}
 			}
 		}

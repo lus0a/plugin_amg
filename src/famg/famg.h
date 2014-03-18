@@ -23,6 +23,8 @@
 #include "../rsamg/rsamg_parallel_coarsening.h"
 #endif
 
+#include "testvector_calculators.h"
+#include "debug_ids.h"
 
 
 namespace ug{
@@ -34,15 +36,24 @@ namespace ug{
  * \{
  */
 
-#define FAMG_MAX_LEVELS 32
-
 template<typename TAlgebra>
 class FAMGLevelCalculator;
+
+template<typename TAlgebra>
+class FAMGInterpolationCalculator;
 
 // AMG
 //---------------------------------
 //! algebraic multigrid class.
 //!
+
+struct levelnode
+{
+	levelnode(size_t l, size_t n) {level =l; node =n; }
+	size_t level;
+	size_t node;
+};
+
 
 template <typename TAlgebra>
 class FAMG:
@@ -95,6 +106,10 @@ public:
 		m_dDampingForSmootherInInterpolationCalculation = dDampingForSmootherInInterpolationCalculation;
 	}
 
+	void set_use_constant_if_failed(bool b)
+	{
+		m_bUseConstantIfFailed = b;
+	}
 
 	void set_external_coarsening(bool bUse) { m_bExternalCoarsening = bUse; }
 	void set_use_precalculate(bool bUse) { m_bUsePrecalculate = bUse; }
@@ -106,26 +121,6 @@ public:
 		m_pParallelCoarsening = pPC;
 	}
 #endif
-
-
-	size_t iDebugLevelOverlapAMG, iDebugLevelOverlapMatrix, iDebugLevelTestvectorCalc, iDebugLevelPhase3,
-	       iDebugLevelCalculateParentPairs, iDebugLevelColoring, iDebugLevelRecvCoarsening, iDebugLevelGetRatings, iDebugLevelPrecalculateCoarsening,
-	       iDebugLevelAggressiveCoarsening, iDebugLevelSendCoarsening, iDebugLevelCommunicateProlongation, iDebugLevelAfterCommunicateProlongation,
-	       iDebugLevelExternalCoarsening;
-	void set_debug_level_overlap(size_t amg, size_t matrix) { iDebugLevelOverlapAMG = amg; iDebugLevelOverlapMatrix = matrix; }
-	void set_debug_level_testvector_calc(size_t lvl) { iDebugLevelTestvectorCalc = lvl; }
-	void set_debug_level_phase_3(size_t lvl) { iDebugLevelPhase3 = lvl; }
-	void set_debug_level_calculate_parent_pairs(size_t lvl) { iDebugLevelCalculateParentPairs = lvl; }
-	void set_debug_level_coloring(size_t lvl) { iDebugLevelColoring = lvl; }
-	void set_debug_level_recv_coarsening(size_t lvl) { iDebugLevelRecvCoarsening = lvl; }
-	void set_debug_level_get_ratings(size_t lvl) { iDebugLevelGetRatings = lvl; }
-	void set_debug_level_precalculate_coarsening(size_t lvl) { iDebugLevelPrecalculateCoarsening = lvl; }
-	void set_debug_level_aggressive_coarsening(size_t lvl) { iDebugLevelAggressiveCoarsening = lvl; }
-	void set_debug_level_send_coarsening(size_t lvl) { iDebugLevelSendCoarsening = lvl; }
-	void set_debug_level_communicate_prolongation(size_t lvl) { iDebugLevelCommunicateProlongation = lvl; }
-	void set_debug_level_after_communciate_prolongation(size_t lvl) { iDebugLevelAfterCommunicateProlongation = lvl; }
-	void set_debug_level_external_coarsening(size_t lvl) { iDebugLevelExternalCoarsening = lvl; }
-
 
 	double get_damping_for_smoother_in_interpolation_calculation() const { return m_dDampingForSmootherInInterpolationCalculation; }
 
@@ -153,99 +148,12 @@ public:
 	void set_testvector_smooths(size_t testvectordamps) { m_iTestvectorDamps = testvectordamps; }
 	size_t get_testvector_smooths() const { return m_iTestvectorDamps; }
 
-
-	void reset_testvectors()
-	{
-		m_testvectors.clear();
-		m_vVectorWriters.clear();
-		m_omegaVectors.clear();
-		m_omegaVectorWriters.clear();
-	}
-
 	// void add_std_testvector
 	// with callback calculate(vector_type &c, double &weight, stdvector<positions>, stdvector<bool> isinner) o�.
-
-	void add_testvector(vector_type& c, double weight)
-	{
-		m_iTestvectors = TESTVECTORS_EXTERNAL;
-		UG_ASSERT(m_testvectors.size() == m_omegaVectors.size(), "???");
-		m_testvectors.push_back(c);
-		m_omegaVectors.push_back(weight);
-	}
-
-	void add_testvector(IVectorWriter<vector_type> *vw, double weight)
-	{
-		m_iTestvectors = TESTVECTORS_EXTERNAL;
-		m_vVectorWriters.push_back(vw);
-		m_omegaVectorWriters.push_back(weight);
-	}
 
 	void set_write_testvectors(bool wt)
 	{
 		m_writeTestvectors = wt;
-	}
-
-
-	enum{
-		TESTVECTORS_EXTERNAL,
-		TESTVECTORS_DIRICHLET_MATRIX_ROWS,
-		TESTVECTORS_LE_2D,
-		TESTVECTORS_LE_3D,
-		TESTVECTORS_LINEAR,
-		TESTVECTORS_LINEAR_COMPONENT
-	} m_iTestvectors;
-
-	const char *testvector_desc() const
-	{
-		switch(m_iTestvectors)
-		{
-		case TESTVECTORS_EXTERNAL: return "external";
-		case TESTVECTORS_DIRICHLET_MATRIX_ROWS: return "[0 on dirichlet rows, else 1]";
-		case TESTVECTORS_LE_2D: return "[Rigid Body Modes of Linear Elasticity 2d: (1, 0), (0, 1), (-y, x)]";
-		case TESTVECTORS_LE_3D: return "[Rigid Body Modes of Linear Elasticity 3d: (1, 0, 0), (0, 1, 0), (0, 0, 1), (0, -z, y), (-z, 0, x), (-y, x, 0)]";
-		case TESTVECTORS_LINEAR: return "[constants and linear functions: 1, x, y, [z] in each component]";
-		case TESTVECTORS_LINEAR_COMPONENT: return "[constants and linear functions: 1 and x_i in each component i]";
-		}
-	}
-
-	void set_testvector_from_matrix_rows()
-	{
-		m_iTestvectors = TESTVECTORS_DIRICHLET_MATRIX_ROWS;
-	}
-
-	void set_testvectors_LE_2d(double weightC, double weightZ)
-	{
-		m_weightC=weightC;
-		m_weightZ=weightZ;
-		m_iTestvectors = TESTVECTORS_LE_2D;
-	}
-
-	void set_testvectors_LE_3d(double weightC, double weightX, double weightY, double weightZ)
-	{
-		m_weightC=weightC;
-		m_weightX=weightX;
-		m_weightY=weightY;
-		m_weightZ=weightZ;
-		m_iTestvectors = TESTVECTORS_LE_3D;
-	}
-
-	void set_testvectors_linear_2d(double weightC, double weightX, double weightY)
-	{
-		set_testvectors_linear_3d(weightC, weightX, weightY, 0);
-	}
-
-	void set_testvectors_linear_3d(double weightC, double weightX, double weightY, double weightZ)
-	{
-		m_weightC=weightC;
-		m_weightX=weightX;
-		m_weightY=weightY;
-		m_weightZ=weightZ;
-		m_iTestvectors = TESTVECTORS_LINEAR;
-	}
-
-	void set_testvectors_linear_component()
-	{
-		m_iTestvectors = TESTVECTORS_LINEAR_COMPONENT;
 	}
 
 	void init_for_EVP(const vector_type &u, const vector_type &b);
@@ -292,6 +200,8 @@ public:
 
 	void 	set_max_parents(size_t n) 	{ m_iMaxParents = n;}
 
+	void check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > testvectorCalculator, std::string desc);
+
 	bool check_testvector(size_t fromlevel, size_t tolevel);
 	bool check_testvector(size_t fromlevel)
 	{
@@ -302,12 +212,42 @@ public:
 		return check_testvector(0);
 	}
 
+	virtual bool needs_positions() const
+	{
+		if(m_bWriteFValues || m_writeTestvectors) return true;
+		UG_COND_THROW(m_testvectorCalculator == SPNULL, "please provide testvectors.");
+		return m_testvectorCalculator->needs_positions();
+	}
 
-	double m_threeParentsPenalty;
+
+
+
 	void set_three_parents_penalty(double d)
 	{
 		m_threeParentsPenalty = d;
 	}
+
+public:
+	void set_testvectors(SmartPtr<ITestvectorCalculator<TAlgebra> > testvectorCalculator)
+	{
+		m_testvectorCalculator = testvectorCalculator;
+	}
+
+	SmartPtr<ITestvectorCalculator<TAlgebra> > get_testvector_calculator() const { return m_testvectorCalculator; }
+
+
+	void add_watchnode(size_t level, size_t node)
+	{
+		debugWatchNodes.push_back(levelnode(level, node));
+	}
+
+
+	void set_deficit_solve_tolerance(double d)
+	{
+		m_dDeficitSolveTolerance = d;
+	}
+
+	std::vector<levelnode> debugWatchNodes;
 
 private:
 //  functions
@@ -315,14 +255,9 @@ private:
 				prolongation_matrix_type &P, size_t level, AMGLayouts &nextLevelLayouts);
 
 	virtual void precalc_level(size_t level);
-
-	void get_testvectors(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega);
-	void get_testvectors(stdvector<vector_type> &testvectors, stdvector<double> &omega);
-	void get_testvectors_from_matrix_rows
-			(const matrix_type &A, stdvector<vector_type> &testvectors, stdvector<double> &omega);
-
 private:
 // data
+	SmartPtr<ITestvectorCalculator<TAlgebra> > m_testvectorCalculator;
 	double m_dDampingForSmootherInInterpolationCalculation;
 	double m_delta;				///< "Interpolation quality" F may not be worse than this (F < m_delta)
 	double m_theta;				///< with multiple parents, discard pairs with m_theta * F > min F.
@@ -344,7 +279,9 @@ private:
 	size_t m_iTestvectorDamps;
 	bool m_writeTestvectors;
 
-
+	size_t m_iAutoTestvectorsSize;
+	double m_threeParentsPenalty;
+		double m_dDeficitSolveTolerance;
 
 	bool m_bAggressiveCoarsening;
 	bool m_bExternalCoarsening;
@@ -352,14 +289,12 @@ private:
 	bool m_bWriteFValues;
 	bool m_bInjectionRestriction;
 
+	bool m_bUseConstantIfFailed;
+
 	SmartPtr<ILinearIterator<vector_type> > m_testvectorsmoother;
 
 	friend class FAMGLevelCalculator<algebra_type>;
-
-	stdvector<vector_type> m_testvectors;
-	stdvector<double> m_omegaVectors; // testvectorWeights
-	stdvector< IVectorWriter<vector_type> * > m_vVectorWriters;
-	stdvector<double> m_omegaVectorWriters; // testvectorWeights
+	friend class FAMGInterpolationCalculator<algebra_type>;
 
 	stdvector< vector_type > testvectors;
 	stdvector<double> omega;
@@ -377,22 +312,6 @@ private:
 #endif
 public:
 	size_t m_iMaxParents;
-
-protected:
-	virtual bool needs_positions() const
-	{
-		if(super::needs_positions()) return true;
-
-		switch(m_iTestvectors)
-		{
-			case TESTVECTORS_EXTERNAL: return false;
-			case TESTVECTORS_DIRICHLET_MATRIX_ROWS: return false;
-			case TESTVECTORS_LE_2D: return true;
-			case TESTVECTORS_LE_3D: return true;
-			case TESTVECTORS_LINEAR: return true;
-			default: UG_THROW("unknown testvector type???"); return false;
-		}
-	}
 };
 
 // end group plugins_amg_famg

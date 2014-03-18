@@ -131,16 +131,17 @@ template<typename TAlgebra>
 void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
 		prolongation_matrix_type &PnewIndices, size_t level, AMGLayouts &nextLevelLayouts)
 {
+	try{
 	AMG_PROFILE_FUNC();
 
 #ifdef UG_PARALLEL
-	//UG_ASSERT(pcl::NumProcs()==1, "not implemented for procs > 1");
+	//UG_ASSERT(pcl::GetNumProcesses()==1, "not implemented for procs > 1");
 
 
 	matrix_type AOL1;
 	matrix_type &A_ = const_cast<matrix_type&> (A);
 	ParallelNodes PN(A_.layouts(), A_.num_rows());
-	UG_ASSERT(m_pParallelCoarsening!=NULL, "please set the Parallel Coarsening type");
+	UG_COND_THROW(m_pParallelCoarsening==NULL, "please set the Parallel Coarsening type");
 
 	stdvector<IndexLayout> vMasterLayouts, vSlaveLayouts;
 	_MakeFullRowsMatrix(A, AOL1, PN, m_pParallelCoarsening, vMasterLayouts, vSlaveLayouts);
@@ -260,7 +261,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	if(m_bAggressiveCoarsening && level == 0)
 	{
 #ifdef UG_PARALLEL
-		UG_ASSERT(pcl::NumProcs() == 1, "aggressive coarsening not implemented for > 1 processes");
+		UG_COND_THROW(pcl::NumProcs() != 1, "aggressive coarsening not implemented for > 1 processes");
 #endif
 		// build graph 2
 		//------------------
@@ -401,6 +402,8 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 		AMGBase<TAlgebra>::write_debug_matrix_markers(level, nodes);
 		this->write_debug_matrices(AH, R, AOL1, PnewIndices, level);
 	}
+
+	}UG_CATCH_THROW("RSAMG::create_AMG_level failed, level = " << level);
 }
 
 
@@ -410,14 +413,14 @@ template<typename TAlgebra>
 RSAMG<TAlgebra>::RSAMG() :
 	AMGBase<TAlgebra>(),
 	m_dProlongationTr(0.2),
-	m_dTheta(0.3),
+	m_dTheta(0.1),
 	m_dTheta2(2.0),
 	//m_dSigma(0.3),
 	m_bAggressiveCoarsening(0),
 	m_iAggressiveCoarseningNrOfPaths(2)
 {
 #ifdef UG_PARALLEL
-	m_pParallelCoarsening = NULL;
+	set_parallel_coarsening(GetColorCoarsening());
 #endif
 }
 

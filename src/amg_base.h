@@ -25,6 +25,7 @@
 #include <sstream>
 #include <string>
 #include "amg_debug_helper.h"
+#include "common/util/string_table_stream.h"
 #include "amg_level_information.h"
 #include "lib_algebra/common/stl_debug.h" // stdvector
 #ifdef UG_PARALLEL
@@ -36,6 +37,7 @@
 #include "lib_algebra/operator/convergence_check.h"
 
 #include "common/util/string_util.h"
+
 
 #define PRINTLAYOUT(pc, com, Layout1, Layout2) MyPrintLayout(pc, com, (Layout1), (Layout2), #Layout1, #Layout2)
 
@@ -556,8 +558,14 @@ public:
 				<< get_grid_complexity() << ".\n";
 		ss << "Whole setup took " << get_timing_whole_setup_ms() << " ms, coarse solver setup took "
 				<< get_timing_coarse_solver_setup_ms() << " ms.\n";
+
+		/*for(size_t i = 0; i<get_used_levels(); i++)
+			ss << get_level_information(i)->tostring() << "\n";*/
+		StringTableStream sts;
+		LevelInformation::get_header(sts);
 		for(size_t i = 0; i<get_used_levels(); i++)
-			ss << get_level_information(i)->tostring() << "\n";
+			get_level_information(i)->add_data(sts);
+		ss << sts;
 
 		if(!is_fixed_conv_check())
 		{

@@ -28,7 +28,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 {
 	Stopwatch SW;;
 	if(m_bTiming) { UG_LOG("\ncreating possible parent list... "); SW.start(); }
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelCalculateParentPairs);
+
 	AMG_PROFILE_FUNC();
 
 	possible_parents.clear();
@@ -58,7 +58,8 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 	}
 
 
-//	UG_LOG(HistogrammString(fvalues));
+	UG_LOG(HistogrammString(fvalues));
+	UG_LOG(DistributionPercentage(fvalues));
 	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms");
 }
 
@@ -67,7 +68,6 @@ template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 {
 	AMG_PROFILE_FUNC();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelPrecalculateCoarsening);
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\ncoarsening... "); SW.start(); }
 
@@ -80,6 +80,7 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 
 	PROGRESS_START(prog, N, "FAMG::precalculate coarsening");
 
+	std::vector<bool> mustAssign(N, false);
 	while(heap.height() != 0)
 	{
 		PROGRESS_UPDATE(prog, N-heap.height());
@@ -87,10 +88,14 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 		size_t i = heap.remove_max();
 		neighT &n = possible_parents[i][0];
 
-		UG_DLOG(LIB_ALG_AMG, 4, "\n\n\nSelect next node...\n");
-		UG_DLOG(LIB_ALG_AMG, 4, "node " << i << " has rating " << rating[i] << ". now gets fine. parents: ");
-		for(size_t j=0; j < n.parents.size(); j++)	UG_DLOG(LIB_ALG_AMG, 2, n.parents[j].from << " ");
-		UG_DLOG(LIB_ALG_AMG, 4, "\nUpdate Neighbors of " << i << "\n");
+
+		IF_DEBUG(DBG_AMG_COARSENING,4)
+		{
+			UG_LOG("\n\n\nSelect next node...\n");
+			UG_LOG("node " << i << " has rating " << rating[i] << ". now gets fine. parents: ");
+			for(size_t j=0; j < n.parents.size(); j++)	UG_LOG(n.parents[j].from << " ");
+			UG_LOG("\nUpdate Neighbors of " << i << "\n");
+		}
 
 		// node i then gets fine, parent nodes get coarse, and neighbors of those updated.
 
@@ -98,17 +103,17 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 		rating.set_fine(i);
 		UpdateNeighbors(SymmNeighGraph, i, possible_parents, rating, heap);
 
-		if(fvalues.size() > i) fvalues[i] = n.F;
+//		if(fvalues.size() > i) fvalues[i] = n.F;
 
-		UG_DLOG(LIB_ALG_AMG, 4, "Set coarse parents:\n");
+		UG_DLOG(DBG_AMG_COARSENING, 4, "Set coarse parents:\n");
 		// get parent pair, set as coarse (if not already done), update neighbors.
 
 		for(size_t j=0; j < n.parents.size(); j++)
 		{
 			size_t node = n.parents[j].from;
 
-			if(rating[node].is_coarse()) { UG_DLOG(LIB_ALG_AMG, 4, "\nnode " << node << " is already coarse\n"); }
-			else { UG_DLOG(LIB_ALG_AMG, 4, "\nnode " << node << " has rating " << rating[node] << ". now gets coarse.\nUpdate Neighbors of " << node << "\n"); }
+			if(rating[node].is_coarse()) { UG_DLOG(DBG_AMG_COARSENING, 4, "\nnode " << node << " is already coarse\n"); }
+			else { UG_DLOG(DBG_AMG_COARSENING, 4, "\nnode " << node << " has rating " << rating[node] << ". now gets coarse.\nUpdate Neighbors of " << node << "\n"); }
 
 			if(!rating[node].is_coarse())
 			{
@@ -120,9 +125,26 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 				}
 			}
 			if(!rating[node].is_dirichlet())
-				PoldIndices(i, node) = n.parents[j].value;
+				mustAssign[i] = true;
+				//PoldIndices(i, node) = n.parents[j].value;
 		}
 	}
+
+	for(size_t i=0;i<N; i++)
+	{
+		if(mustAssign[i]==false) continue;
+
+//		rating.update_rating(i, possible_parents[i], true);
+
+		neighT &n = possible_parents[i][0];
+		if(fvalues.size() > i) fvalues[i] = n.F;
+		for(size_t j=0; j < n.parents.size(); j++)
+		{
+			size_t node = n.parents[j].from;
+			PoldIndices(i, node) = n.parents[j].value;
+		}
+	}
+
 	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms.");
 }
 
@@ -168,7 +190,6 @@ template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::seqpar_precalculate_coarsening()
 {
 	AMG_PROFILE_FUNC();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelPrecalculateCoarsening);
 	Stopwatch SW;
 	UG_DLOG(LIB_ALG_AMG, 1, std::endl << "seqpar coarsening... "); if(bTiming) SW.start();
 

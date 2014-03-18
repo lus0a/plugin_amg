@@ -12,7 +12,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include "common/util/file_util.h"
-
+#include "common/util/stringify.h"
 
 namespace ug
 {
@@ -33,8 +33,9 @@ void AMGBase<TAlgebra>::write_interfaces()
 	cAMG_helper &h = m_amghelper;
 	for(size_t level=0; level<m_usedLevels; level++)
 	{
-		const char *filename = (get_output_directory(level) + std::string("AMG_interface") + "_" + ToString(pcl::ProcRank()) + std::string(".mat")).c_str();
-		std::fstream file(filename, std::ios::out);
+		std::string filename =
+				Stringify() << get_output_directory(level) << "AMG_interface_" << pcl::ProcRank() << ".mat";
+		std::fstream file(filename.c_str(), std::ios::out);
 
 		ConnectionViewer::WriteGridHeader(file, h.positions[level], h.dimension);
 
@@ -55,7 +56,7 @@ void AMGBase<TAlgebra>::write_interfaces()
 			for(IndexLayout::Interface::const_iterator iter = interface.begin(); iter != interface.end(); ++iter)
 			{
 				size_t i = interface.get_element(iter);
-				v[i].append(std::string("M") + ToString(pid) + std::string(" "));
+				v[i].append(Stringify() << "M" << pid << " ");
 			}
 		}
 
@@ -66,7 +67,7 @@ void AMGBase<TAlgebra>::write_interfaces()
 			for(IndexLayout::Interface::const_iterator iter = interface.begin(); iter != interface.end(); ++iter)
 			{
 				size_t i = interface.get_element(iter);
-				v[i].append(std::string("S") + ToString(pid) + std::string(" "));
+				v[i].append(Stringify() << "S" << pid << " ");
 			}
 		}
 
@@ -292,9 +293,9 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 	{
 		add_correction_and_update_defect2(c, d, *L.pAgglomeratedA, level);
 
-		if(m_writeMatrices) writevec(std::string("cc")+ToString(i+1), c, level, solution);
-		if(m_writeMatrices) writevec(std::string("c")+ToString(i+1), c, level);
-		if(m_writeMatrices) writevec(std::string("d")+ToString(i+1), d, level);
+		if(m_writeMatrices) writevec(Stringify() << "cc" << i+1, c, level, solution);
+		if(m_writeMatrices) writevec(Stringify() << "c" << i+1, c, level);
+		if(m_writeMatrices) writevec(Stringify() << "d" << i+1, d, level);
 
 		n1 = n2;
 		n2 = ConstTwoNorm(d);

@@ -30,7 +30,7 @@ using namespace std;
 namespace ug
 {
 
-extern DebugID RSAMGCoarseningDebug; // SetDebug(debugId.RSAMG.Coarsening, 3)
+extern DebugID DBG_AMG_COARSENING; // SetDebug(debugId.RSAMG.Coarsening, 3)
 
 /// \addtogroup plugins_amg_rsamg
 /// \{
@@ -92,6 +92,7 @@ void CreateMeasureOfImportancePQ(const cgraph &strong, const cgraph &strongT, no
 void CreateAggressiveCoarseningGraph(const cgraph &graph, cgraph &graph2, const AMGNodes &nodes,
 		int minNrOfPaths)
 {
+	try	{
 	AMG_PROFILE_FUNC();
 	UG_ASSERT(nodes.size() == graph.size(), "");
 	vector<int> connection(255);
@@ -131,6 +132,7 @@ void CreateAggressiveCoarseningGraph(const cgraph &graph, cgraph &graph2, const 
 			}
 		}
 	}
+	}UG_CATCH_THROW_FUNC()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,6 +146,7 @@ void CreateAggressiveCoarseningGraph(const cgraph &graph, cgraph &graph2, const 
  */
 void CreateMeasureOfImportanceAggressiveCoarseningPQ(const cgraph &graphAC, nodeinfo_pq_type &PQ, AMGNodes &nodes)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	UG_ASSERT(nodes.size() == graphAC.size(), "");
 	PQ.create(nodes.size(), &nodes[0]);
@@ -158,6 +161,7 @@ void CreateMeasureOfImportanceAggressiveCoarseningPQ(const cgraph &graphAC, node
 		PQ.insert_item(i);
 	}
 
+	}UG_CATCH_THROW_FUNC();
 }
 
 
@@ -199,7 +203,7 @@ void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_
 	{
 		int indexN = (*conn);
 
-		IF_DEBUG(RSAMGCoarseningDebug, 3)
+		IF_DEBUG(DBG_AMG_COARSENING, 3)
 		{
 			UG_LOG(indexN << " ");
 			if(nodes[indexN].is_assigned())
@@ -235,6 +239,7 @@ void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_
  */
 int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bAggressiveCoarsening)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	PROGRESS_START(prog, nodes.size(), "Coarsening graph size " << nodes.size());
 	UG_ASSERT(S.size() == nodes.size() && S.size() == PQ.arr_size() && S.size() == ST.size(), "");
@@ -260,7 +265,7 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 		// get Node with best rating
 		int best = PQ.remove_max();
 
-		UG_DLOG(RSAMGCoarseningDebug, 3, endl << "set coarse: " << best << " rating " << nodes[best].rating  << ". then fine: ");
+		UG_DLOG(DBG_AMG_COARSENING, 3, endl << "set coarse: " << best << " rating " << nodes[best].rating  << ". then fine: ");
 		UG_ASSERT(!nodes[best].is_assigned(), "node " << best << " is already assigned??? (rating = " << nodes[best].rating << ", unassigend = " << nodes.get_unassigned() << ")");
 
 		nodes.set_coarse(best);					// mark as coarse/assigned
@@ -277,8 +282,11 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 	//cout << endl;
 
 	UG_ASSERT(nodes.get_nr_of_coarse() > 0, "no coarse nodes???");
-	UG_DLOG(RSAMGCoarseningDebug, 1, nodes.get_nr_of_coarse() << " Coarse Nodes. ");
+	UG_DLOG(DBG_AMG_COARSENING, 1, nodes.get_nr_of_coarse() << " Coarse Nodes. ");
 	return nodes.get_nr_of_coarse();
+
+	}UG_CATCH_THROW_FUNC();
+	return 0;
 }
 
 
@@ -291,6 +299,7 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
  */
 void PreventFFConnection(const cgraph &graphS, const cgraph &graphST, AMGNodes &nodes, size_t i, vector<bool> &marks, int &nrOfFFCoarseNodes)
 {
+	try{
 	if(nodes[i].is_coarse() || graphS.num_connections(i)==0) return;
 
 	// mark coarse nodes interpolating this fine node
@@ -328,6 +337,8 @@ void PreventFFConnection(const cgraph &graphS, const cgraph &graphST, AMGNodes &
 		if(nodes[index].is_coarse())
 			marks[index] = false;
 	}
+
+	}UG_CATCH_THROW_FUNC();
 }
 
 
@@ -344,6 +355,7 @@ void PreventFFConnection(const cgraph &graphS, const cgraph &graphST, AMGNodes &
  */
 void PreventFFConnections(const cgraph &graphS, const cgraph &graphST, AMGNodes &nodes)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	size_t N = graphS.size();
 	UG_ASSERT(N == graphST.size() && N == nodes.size(), "");
@@ -358,7 +370,9 @@ void PreventFFConnections(const cgraph &graphS, const cgraph &graphST, AMGNodes 
 	}
 
 	if(nrOfFFCoarseNodes)
-		UG_DLOG(RSAMGCoarseningDebug, 0, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
+		UG_DLOG(DBG_AMG_COARSENING, 0, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
+
+	}UG_CATCH_THROW_FUNC();
 }
 
 /*
@@ -406,7 +420,7 @@ void PreventFFConnectionsMetsch(const matrix_type &mat, const cgraph &graphS, co
 	}
 
 	if(nrOfFFCoarseNodes)
-		UG_DLOG(RSAMGCoarseningDebug, 1, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
+		UG_DLOG(DBG_AMG_COARSENING, 1, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
 }
 
 
@@ -424,6 +438,7 @@ void PreventFFConnectionsMetsch(const matrix_type &mat, const cgraph &graphS, co
 void GetFFConnectionGraph(const cgraph &graphS, const cgraph &graphST, AMGNodes &nodes, size_t i, vector<bool> &marks,
 		cgraph &G, stdvector<size_t> &ratings)
 {
+	try{
 	if(nodes[i].is_coarse() || graphS.num_connections(i)==0) return;
 
 	// mark coarse nodes interpolating this fine node
@@ -464,6 +479,8 @@ void GetFFConnectionGraph(const cgraph &graphS, const cgraph &graphST, AMGNodes 
 		if(nodes[index].is_coarse())
 			marks[index] = false;
 	}
+
+	}UG_CATCH_THROW_FUNC();
 }
 
 /**
@@ -475,6 +492,7 @@ void GetFFConnectionGraph(const cgraph &graphS, const cgraph &graphST, AMGNodes 
  */
 void PreventFFConnectionsMinimal(const cgraph &graphS, const cgraph &graphST, AMGNodes &nodes)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	size_t N = graphS.size();
 	UG_ASSERT(N == graphST.size() && N == nodes.size(), "");
@@ -512,7 +530,9 @@ void PreventFFConnectionsMinimal(const cgraph &graphS, const cgraph &graphST, AM
 		}
 	}
 	if(nrOfFFCoarseNodes)
-		UG_DLOG(RSAMGCoarseningDebug, 1, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
+		UG_DLOG(DBG_AMG_COARSENING, 1, "F-F prevention, now " << nodes.get_nr_of_coarse() << " coarse nodes.\n");
+
+	}UG_CATCH_THROW_FUNC();
 }
 
 

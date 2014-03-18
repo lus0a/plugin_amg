@@ -62,12 +62,11 @@ inline void get_testvector_xy(DenseVector<VariableArray1<double> > &testvector, 
 
 
 template<typename algebra_type>
-void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
+void FAMGLevelCalculator<algebra_type>::smooth_testvectors()
 {
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelTestvectorCalc);
+	AMG_PROFILE_FUNC();
 
 	// todo: all global?
-
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\ncalculating testvector... "); SW.start(); }
 
@@ -78,6 +77,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 	d.set_layouts(A.layouts());
 #endif
 
+	// output before smoothing of testvector
 	if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
 		for(size_t i=0; i<m_testvectors.size(); i++)
 			ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_pS") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
@@ -85,9 +85,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 
 	for(size_t i=0; i<m_testvectors.size(); i++)
 	{
-
 		UG_ASSERT(m_testvectors[i].size() == A.num_rows(), m_testvectors[i].size() << " != " << A.num_rows());
-
 #ifdef UG_PARALLEL
 		m_testvectors[i].set_storage_type(PST_CONSISTENT);
 #endif
@@ -101,16 +99,6 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 			A.apply(d, m_testvectors[i]);
 			m_famg.m_testvectorsmoother->apply(c, d);
 			m_testvectors[i] -= c;
-			if(false && m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
-			{
-					ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_St") + ToString(i) + "____" + ToString(jj) + ToString("_L") + ToString(level) + ".vec").c_str(),
-						m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
-					ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_Sc") + ToString(i) + "____" + ToString(jj) + ToString("_L") + ToString(level) + ".vec").c_str(),
-										c, &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
-					ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_Sd") + ToString(i) + "____" + ToString(jj) + ToString("_L") + ToString(level) + ".vec").c_str(),
-										d, &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
-			}
-
 		}
 
 		//double e=EnergyProd(m_testvectors[i], A, m_testvectors[i]);;
@@ -120,6 +108,7 @@ void FAMGLevelCalculator<algebra_type>::calculate_testvectors()
 		//VecScaleAdd(m_testvectors[i], 1.0, m_testvectors[i], -1.0, d);
 	}
 
+	// output after smoothing of testvector
 	if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
 			for(size_t i=0; i<m_testvectors.size(); i++)
 				ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_S") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
@@ -157,239 +146,6 @@ void FAMGLevelCalculator<algebra_type>::calculate_next_testvectors()
 	{
 		m_famg.injection(t, m_testvectors[i], level);
 		m_testvectors[i] = t;
-	}
-}
-
-
-/**
- * @return [0, z, -y], the rotation around the x-axes
- */
-inline MathVector<3> GetRotX(MathVector<3> &pos)
-{
-	return MathVector<3>(0, pos.z(), -pos.y());
-}
-
-/**
- * @return [z, 0, -x], the rotation around the x-axes
- */
-inline MathVector<3> GetRotY(MathVector<3> &pos)
-{
-	return MathVector<3>(pos.z(), 0, -pos.x());
-}
-
-/**
- * @return [y, -x, 0], the rotation around the z-axes
- */
-inline MathVector<3> GetRotZ(MathVector<3> &pos)
-{
-	return MathVector<3>(pos.y(), -pos.x(), 0);
-}
-
-template<typename T>
-inline void SetAlgVector2d(T &v, MathVector<3> mv)
-{
-	BlockRef(v, 0) = mv.x();
-	BlockRef(v, 1) = mv.y();
-}
-
-template<typename T>
-inline void SetAlgVector3d(T &v, MathVector<3> mv)
-{
-	BlockRef(v, 0) = mv.x();
-	BlockRef(v, 1) = mv.y();
-	BlockRef(v, 2) = mv.z();
-}
-class Polymorphic {virtual void Member(){}};
-
-template<typename TMatrix, typename TVector>
-void GetTestvectorsLE_2d	(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
-		double weightC, double weightZ)
-{
-	if(true)
-	{
-		testvectors.resize(3);
-		for(size_t i=0; i<testvectors.size(); i++)
-			testvectors[i].resize(A.num_rows());
-
-		omega.resize(2);
-		omega[0] = weightC;
-		omega[1] = weightZ;
-
-		for(size_t i=0; i<A.num_rows(); i++)
-		{
-			testvectors[0][i] = 0.0;
-			testvectors[1][i] = 0.0;
-
-			if(!A.is_isolated(i))
-			{
-				testvectors[0][i] = 1.0;
-				SetAlgVector2d(testvectors[1][i], GetRotZ(pos[i]));
-			}
-		}
-	}
-	else
-	{
-		testvectors.resize(6);
-		for(size_t i=0; i<testvectors.size(); i++)
-			testvectors[i].resize(A.num_rows());
-
-		omega.resize(5);
-		omega[0] = weightC;
-		omega[1] = weightC;
-		omega[2] = weightZ;
-		omega[3] = weightZ;
-		omega[4] = weightZ;
-
-		for(size_t i=0; i<A.num_rows(); i++)
-		{
-			testvectors[0][i] = 0.0;
-			testvectors[1][i] = 0.0;
-			testvectors[2][i] = 0.0;
-			testvectors[3][i] = 0.0;
-			testvectors[4][i] = 0.0;
-			testvectors[5][i] = 0.0;
-
-			if(!A.is_isolated(i))
-			{
-				testvectors[0][i] = 1.0;
-//				SetAlgVector2d(testvectors[2][i], GetRotZ(pos[i]));
-
-//				BlockRef(testvectors[2][i], 0) = pos[i].y();
-//				BlockRef(testvectors[2][i], 1) = pos[i].x();
-
-				testvectors[2][i] = pos[i].x();
-				testvectors[3][i] = pos[i].y();
-
-				//testvectors[4][i] = pos[i].y();
-
-			}
-		}
-		testvectors.resize(4);
-		omega.resize(testvectors.size());
-	}
-}
-
-
-template<typename TMatrix, typename TVector>
-void GetTestvectorsLE_3d	(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
-		double weightC, double weightX, double weightY, double weightZ)
-
-{
-	testvectors.resize(6);
-	for(size_t i=0; i<testvectors.size(); i++)
-		testvectors[i].resize(A.num_rows());
-
-	omega.resize(6);
-	omega[0] = weightC;
-	omega[1] = weightC;
-	omega[2] = weightC;
-	omega[3] = weightX;
-	omega[4] = weightY;
-	omega[5] = weightZ;
-
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		for(size_t j=0; j<6; j++)
-			testvectors[j][i] = 0.0;
-
-		if(!A.is_isolated(i))
-		{
-			BlockRef(testvectors[0][i], 0) = 1.0;
-			BlockRef(testvectors[1][i], 1) = 1.0;
-			BlockRef(testvectors[2][i], 2) = 1.0;
-			SetAlgVector3d(testvectors[3][i], GetRotX(pos[i]));
-			SetAlgVector3d(testvectors[4][i], GetRotY(pos[i]));
-			SetAlgVector3d(testvectors[5][i], GetRotZ(pos[i]));
-		}
-	}
-}
-
-template<typename TMatrix, typename TVector>
-void GetTestvectorsLinear_3d(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
-		double weightC, double weightX, double weightY, double weightZ)
-
-{
-	testvectors.resize(4);
-	for(size_t i=0; i<testvectors.size(); i++)
-		testvectors[i].resize(A.num_rows());
-
-	omega.resize(4);
-	omega[0] = weightC;
-	omega[1] = weightX;
-	omega[2] = weightY;
-	omega[3] = weightZ;
-
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		testvectors[0][i] = 0.0;
-		testvectors[1][i] = 0.0;
-		testvectors[2][i] = 0.0;
-		testvectors[3][i] = 0.0;
-		if(!A.is_isolated(i))
-		{
-			testvectors[0][i] = 1.0;
-			testvectors[1][i] = pos[i].x();
-			testvectors[2][i] = pos[i].y();
-			testvectors[3][i] = pos[i].z();
-		}
-	}
-}
-
-
-template<typename TMatrix, typename TVector>
-void GetTestvectorsLinear_2d(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega, stdvector<MathVector<3> > &pos,
-		double weightC, double weightX, double weightY)
-
-{
-	testvectors.resize(3);
-	for(size_t i=0; i<testvectors.size(); i++)
-		testvectors[i].resize(A.num_rows());
-
-	omega.resize(3);
-	omega[0] = weightC;
-	omega[1] = weightX;
-	omega[2] = weightY;
-
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		testvectors[0][i] = 0.0;
-		testvectors[1][i] = 0.0;
-		testvectors[2][i] = 0.0;
-		if(!A.is_isolated(i))
-		{
-			testvectors[0][i] = 1.0;
-			testvectors[1][i] = pos[i].x();
-			testvectors[2][i] = pos[i].y();
-		}
-	}
-}
-
-
-
-template<typename TMatrix, typename TVector>
-void GetTestvectorsLinearComponent(const TMatrix &A, stdvector<TVector> &testvectors, stdvector<double> &omega,
-		stdvector<MathVector<3> > &pos)
-
-{
-	testvectors.resize(2);
-	for(size_t i=0; i<testvectors.size(); i++)
-		testvectors[i].resize(A.num_rows());
-	omega.resize(2);
-	omega[0] = 1;
-	omega[1] = 1;
-
-	bool b3 = GetSize(testvectors[0][0]) == 3;
-	for(size_t i=0; i<A.num_rows(); i++)
-	{
-		testvectors[0][i] = 0.0;
-		if(!A.is_isolated(i))
-		{
-			testvectors[0][i] = 1.0;
-			BlockRef(testvectors[1][i], 0) = pos[i].x();
-			BlockRef(testvectors[1][i], 1) = pos[i].y();
-			if(b3)
-				BlockRef(testvectors[1][i], 2) = pos[i].z();
-		}
 	}
 }
 

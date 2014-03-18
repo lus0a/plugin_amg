@@ -28,12 +28,34 @@ namespace ug{
 namespace bridge{
 namespace registerFAMG{
 
+template<typename TAlgebra, typename TClass>
+ExportedClass<TClass> &addClassGroup(Registry& reg, std::string name, std::string grp)
+{
+	string suffix = GetAlgebraSuffix<TAlgebra>();
+	string tag = GetAlgebraTag<TAlgebra>();
+	ExportedClass<TClass>  &c = reg.add_class_<	TClass > (name+suffix, grp);
+	reg.add_class_to_group(name+suffix, name, tag);
+	return c;
+}
+
+
+template<typename TAlgebra, typename TClass, typename TBaseClass>
+ExportedClass<TClass> &addClassGroup(Registry& reg, std::string name, std::string grp)
+{
+	string suffix = GetAlgebraSuffix<TAlgebra>();
+	string tag = GetAlgebraTag<TAlgebra>();
+	ExportedClass<TClass>  &c = reg.add_class_<	TClass, TBaseClass > (name+suffix, grp);
+		reg.add_class_to_group(name+suffix, name, tag);
+	return c;
+}
+
 /**
  * Class exporting the functionality. All functionality that is to
  * be used in scripts or visualization must be registered here.
  */
 struct Functionality
 {
+
 
 /**
  * Function called for the registration of Algebra dependent parts.
@@ -73,22 +95,23 @@ static void Algebra(Registry& reg, string grp)
 
 			.add_method("set_damping_for_smoother_in_interpolation_calculation",&T::set_damping_for_smoother_in_interpolation_calculation)
 
-			.add_method("add_testvector", OVERLOADED_METHOD_PTR(void, T, add_testvector, (vector_type& c, double weight)),
-					"", "testVector#weight",
-					"adds a testvector with weight")
-			.add_method("add_testvector", OVERLOADED_METHOD_PTR(void, T, add_testvector, (IVectorWriter<vector_type> *vw, double weight)),
-					"", "testVector#weight", "adds a testvector with weight by using the IVectorWriter interface")
+//			.add_method("add_testvector", OVERLOADED_METHOD_PTR(void, T, add_testvector, (vector_type& c, double weight)),"", "testVector#weight","adds a testvector with weight")
+//			.add_method("add_testvector", OVERLOADED_METHOD_PTR(void, T, add_testvector, (IVectorWriter<vector_type> *vw, double weight)),"", "testVector#weight", "adds a testvector with weight by using the IVectorWriter interface")
 			.add_method("set_write_testvectors", &T::set_write_testvectors, "", "bWrite", "if true, write testvectors to path specified in set_matrix_write_path")
 			.add_method("set_testvector_smoother", &T::set_testvector_smoother, "", "smoother", "sets the smoother to smooth testvectors")
 			.add_method("set_testvector_smooths", &T::set_testvector_smooths, "", "n", "number of smoothing steps to smooth testvectors")
-			.add_method("set_testvector_from_matrix_rows", &T::set_testvector_from_matrix_rows, "", "testvector is obtained by setting 1 for dirichlet nodes (nodes with only A(i,i) != 0) and 0 everywhere else")
-			.add_method("set_testvectors_LE_2d", &T::set_testvectors_LE_2d)
-			.add_method("set_testvectors_LE_3d", &T::set_testvectors_LE_3d)
-			.add_method("set_testvectors_linear_2d", &T::set_testvectors_linear_2d)
-			.add_method("set_testvectors_linear_3d", &T::set_testvectors_linear_3d)
-			.add_method("set_testvectors_linear_component", &T::set_testvectors_linear_component)
 
-			.add_method("reset_testvectors", &T::reset_testvectors, "", "removes all added testvectors")
+			.add_method("set_testvectors", &T::set_testvectors, "", "tvc")
+			.add_method("get_testvector_calculator", &T::get_testvector_calculator, "tvc")
+//			.add_method("set_testvector_from_matrix_rows", &T::set_testvector_from_matrix_rows, "", "testvector is obtained by setting 1 for dirichlet nodes (nodes with only A(i,i) != 0) and 0 everywhere else")
+//			.add_method("set_testvectors_LE_2d", &T::set_testvectors_LE_2d)
+//			.add_method("set_testvectors_LE_3d", &T::set_testvectors_LE_3d)
+//			.add_method("set_testvectors_linear_2d", &T::set_testvectors_linear_2d)
+//			.add_method("set_testvectors_linear_3d", &T::set_testvectors_linear_3d)
+//			.add_method("set_testvectors_linear_component", &T::set_testvectors_linear_component)
+			.add_method("add_watchnode", &T::add_watchnode)
+
+//			.add_method("reset_testvectors", &T::reset_testvectors, "", "removes all added testvectors")
 
 			.add_method("set_prolongation_truncation", &T::set_prolongation_truncation, "", "prolongation_tr", "sets prolongation_truncation, a parameter used for truncation of interpolation. use with care! (like 1e-5)")
 			.add_method("get_prolongation_truncation", &T::get_prolongation_truncation, "prolongation_tr")
@@ -117,7 +140,8 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_max_parents", &T::set_max_parents)
 			.add_method("set_H_as_inverse", &T::set_H_as_inverse)
 			.add_method("set_three_parents_penalty", &T::set_three_parents_penalty)
-			.add_method("testvector_desc", &T::testvector_desc)
+			.add_method("check_vector", &T::check_vector)
+			.add_method("set_deficit_solve_tolerance", &T::set_deficit_solve_tolerance)
 
 
 
@@ -125,20 +149,6 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_parallel_coarsening", &T::set_parallel_coarsening, "", "parallelCoarsening", "e.g. GetColorCoarsening()")
 	#endif
 			.add_method("set_use_precalculate", &T::set_use_precalculate, "", "bUsePrecalculate", "experimental way of coarsening. beta.")
-
-			.add_method("set_debug_level_overlap", &T::set_debug_level_overlap)
-			.add_method("set_debug_level_testvector_calc", &T::set_debug_level_testvector_calc)
-			.add_method("set_debug_level_phase_3", &T::set_debug_level_phase_3)
-			.add_method("set_debug_level_calculate_parent_pairs", &T::set_debug_level_calculate_parent_pairs)
-			.add_method("set_debug_level_recv_coarsening", &T::set_debug_level_recv_coarsening)
-			.add_method("set_debug_level_coloring", &T::set_debug_level_coloring)
-			.add_method("set_debug_level_get_ratings", &T::set_debug_level_get_ratings)
-			.add_method("set_debug_level_precalculate_coarsening", &T::set_debug_level_precalculate_coarsening)
-			.add_method("set_debug_level_aggressive_coarsening", &T::set_debug_level_aggressive_coarsening)
-			.add_method("set_debug_level_send_coarsening", &T::set_debug_level_send_coarsening)
-			.add_method("set_debug_level_communicate_prolongation", &T::set_debug_level_communicate_prolongation)
-			.add_method("set_debug_level_after_communciate_prolongation", &T::set_debug_level_after_communciate_prolongation)
-			.add_method("set_debug_level_external_coarsening", &T::set_debug_level_external_coarsening)
 
 			.add_method("set_write_f_values", &T::set_write_f_values)
 
@@ -151,7 +161,40 @@ static void Algebra(Registry& reg, string grp)
 	}
 	reg.add_class_to_group(string("FAMGPreconditioner").append(suffix), "FAMGPreconditioner", tag);
 
+
+	addClassGroup<TAlgebra, ITestvectorCalculator<TAlgebra> >(reg, "ITestvectorCalculator", grp);
+
+	addClassGroup<TAlgebra, TestvectorsLinearElasticity2d<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsLinearElasticity2d", grp)
+			.add_constructor() .set_construct_as_smart_pointer(true);
+	addClassGroup<TAlgebra, TestvectorsLinearElasticity3d<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsLinearElasticity3d", grp)
+				.add_constructor() .set_construct_as_smart_pointer(true);
+	addClassGroup<TAlgebra, TestvectorsConstant<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsConstant", grp)
+				.add_constructor() .set_construct_as_smart_pointer(true);
+	addClassGroup<TAlgebra, TestvectorsLinear3d<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsLinear3d", grp)
+				.add_constructor() .set_construct_as_smart_pointer(true);
+	addClassGroup<TAlgebra, TestvectorsLinear2d<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsLinear2d", grp)
+					.add_constructor() .set_construct_as_smart_pointer(true);
+	addClassGroup<TAlgebra, TestvectorsLinearComponent<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsLinearComponent", grp)
+						.add_constructor() .set_construct_as_smart_pointer(true);
+	addClassGroup<TAlgebra, TestvectorsOnlyRotation2d<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsOnlyRotation2d", grp)
+						.add_constructor() .set_construct_as_smart_pointer(true);
+	addClassGroup<TAlgebra, TestvectorsAuto<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsAuto", grp)
+				.ADD_CONSTRUCTOR( (size_t numTestvectors, SmartPtr<ILinearIterator<vector_type> > smoother, size_t numSmooths) )
+					("numTestvectors#smoother#numSmooths")
+				.set_construct_as_smart_pointer(true);
+
+	addClassGroup<TAlgebra, TestvectorsConstantWobbled<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsConstantWobbled", grp)
+					.ADD_CONSTRUCTOR( (double delta) )
+						("delta")
+					.set_construct_as_smart_pointer(true);
+
+
+
 }
+
+
+
+
 }; // end Functionality
 }// end AMG
 

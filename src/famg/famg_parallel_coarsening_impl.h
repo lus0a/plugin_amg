@@ -52,7 +52,6 @@ FAMGLevelCalculator<TAlgebra>::
 	color_process_graph()
 {
 	AMG_PROFILE_FUNC();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelColoring)
 	Stopwatch SW;
 
 	if(m_bTiming) { UG_LOG("\ncoloring processor OL graph..."); SW.start(); }
@@ -69,20 +68,23 @@ FAMGLevelCalculator<TAlgebra>::
 			pidsOL.insert(OLCoarseningReceiveLayout.proc_id(iter));
 	}
 
+	TemporaryDebugLevel(DBG_COLORING, DBG_FAMG_COLORING);
 	m_myColor = ColorProcessorGraph(PN.communicator(), pidsOL, processesWithLowerColor, processesWithHigherColor);
 	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 
-	UG_DLOG(LIB_ALG_AMG, 1, "\nmy color is " << m_myColor);
-	UG_DLOG(LIB_ALG_AMG, 1, "i am connected to");
-	for(std::set<int>::iterator it = pidsOL.begin(); it != pidsOL.end(); ++it)
-		UG_DLOG(LIB_ALG_AMG, 1, (*it) << " ");
-	UG_DLOG(LIB_ALG_AMG, 1, "\nprocesses with lower color:");
-	for(size_t i=0; i<processesWithLowerColor.size(); i++)
-		UG_DLOG(LIB_ALG_AMG, 1, processesWithLowerColor[i] << " ");
-	UG_DLOG(LIB_ALG_AMG, 1, "\nprocesses with higher color:");
-	for(size_t i=0; i<processesWithHigherColor.size(); i++)
-		UG_DLOG(LIB_ALG_AMG, 1, processesWithHigherColor[i] << " ");
-	UG_DLOG(LIB_ALG_AMG, 1, "\n");
+	IF_DEBUG(DBG_FAMG_COLORING, 1)
+	{
+		UG_LOG("\nmy color is " << m_myColor << ", i am connected to");
+		for(std::set<int>::iterator it = pidsOL.begin(); it != pidsOL.end(); ++it)
+			UG_LOG((*it) << " ");
+		UG_LOG("\nprocesses with lower color:");
+		for(size_t i=0; i<processesWithLowerColor.size(); i++)
+			UG_LOG(processesWithLowerColor[i] << " ");
+		UG_LOG("\nprocesses with higher color:");
+		for(size_t i=0; i<processesWithHigherColor.size(); i++)
+			UG_LOG(processesWithHigherColor[i] << " ");
+		UG_LOG("\n");
+	}
 }
 
 
@@ -157,7 +159,6 @@ void
 FAMGLevelCalculator<TAlgebra>::receive_coarsening_from_processes_with_lower_color()
 {
 	AMG_PROFILE_FUNC();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelRecvCoarsening);
 
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\nreceive coarsening data from processes with lower color"); }
@@ -194,8 +195,6 @@ FAMGLevelCalculator<TAlgebra>::
 	send_coarsening_data_to_processes_with_higher_color()
 {
 	AMG_PROFILE_FUNC();
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelSendCoarsening);
-
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\nsend coarsening data to processes..."); SW.start(); }
 
@@ -252,12 +251,9 @@ bool GenerateOverlap2(const ParallelMatrix<matrix_type> &_mat, ParallelMatrix<ma
 template<typename TAlgebra>
 void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 {
+	TemporaryDebugLevel(DBG_MATRIX_OVERLAP, DBG_FAMG_OVERLAP);
+
 	AMG_LOG(1, "\ncreate OL2 matrix...\n");
-#ifdef UG_DEBUG
-	//int iDebugLevelMatrixPre = GET_DEBUG_LEVEL(LIB_ALG_MATRIX);
-	UG_SET_DEBUG_LEVEL(LIB_ALG_MATRIX, m_famg.iDebugLevelOverlapMatrix);
-	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelOverlapAMG);
-#endif
 
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
@@ -390,7 +386,7 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 		}
 	}
 
-	IF_DEBUG(LIB_ALG_AMG, 4)
+	IF_DEBUG(DBG_FAMG_OVERLAP, 3)
 	{
 		AMG_PROFILE_NEXT(create_OL2_print_layouts);
 		// debug: print some layouts
@@ -440,7 +436,7 @@ FAMGLevelCalculator<TAlgebra>::
 			PoldIndices(i, node) = n.parents[j].value;
 		}
 	}
-	UG_DLOG(LIB_ALG_AMG, 1, "calculated " << iNrOfUncalculated << " of uncalculated nodes.\n");
+	UG_DLOG(DBG_AMG_COARSENING, 1, "calculated " << iNrOfUncalculated << " of uncalculated nodes.\n");
 }
 
 // end group plugins_amg_famg
