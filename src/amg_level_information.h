@@ -167,6 +167,46 @@ public:
 		}
 
 	}
+	static void get_header(StringTableStream &sts)
+	{
+		sts << "Level" << " #nodes"
+			<< "coarsening rate"
+			<< "nnzs"
+			<< "fill in"
+			<< " avgNNZs/row: "
+			<< "maxCon"
+			<< "T_Setup";
+		#ifdef UG_PARALLEL
+		if(pcl::NumProcs() > 1)
+			sts << "#interface"
+				<< "#cores";
+		#endif
+			sts << "\n";
+		;
+	}
+
+	void add_data(StringTableStream &sts) const
+	{
+		sts << level << get_nr_of_nodes();
+		if (level != 0)
+			sts << (Stringify() << get_coarsening_rate() * 100.0 << "%");
+		else
+			sts << "-";
+		sts << get_nnz();
+		sts << (Stringify() << get_fill_in() * 100 << "%").str();
+		sts << get_avg_nnz_per_row() << get_max_connections();
+		sts << (Stringify() << get_creation_time_ms() << " ms");
+
+#ifdef UG_PARALLEL
+		if(pcl::NumProcs() > 1)
+		{
+			sts << (Stringify() << get_nr_of_interface_elements() << " (" <<
+				(double) get_nr_of_interface_elements() / (double) get_nr_of_nodes() * 100.0 << "%)");
+			sts << m_iParticipating;
+		}
+	#endif
+		sts << "\n";
+	}
 
 	std::string tostring() const
 	{
