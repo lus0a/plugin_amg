@@ -122,7 +122,10 @@ protected:
 	virtual bool step(SmartPtr<MatrixOperator<matrix_type, vector_type> > pOp,
 			vector_type& c, const vector_type& d)
 	{
-		UG_ASSERT(m_bInited, "not inited?");
+		UG_COND_THROW(!m_bInited, "not inited?");
+#ifdef UG_PARALLEL
+		if(m_bEmptyProcess) return true;
+#endif
 		return get_correction(c, d);
 	}
 
@@ -823,6 +826,7 @@ protected:
 	SmartPtr<IConvergenceCheck<vector_type> > spYConvCheck;
 
 #ifdef UG_PARALLEL
+	bool m_bEmptyProcess;
 	// on level m_agglomerateLevel
 	IndexLayout agglomerateSlaveLayout;
 	size_t m_agglomerateLevel;

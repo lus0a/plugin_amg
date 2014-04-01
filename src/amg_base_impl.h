@@ -37,6 +37,7 @@
 
 std::string GetProcFilename(std::string path, std::string name, std::string extension);
 
+
 namespace ug{
 
 /// \addtogroup plugins_amg
@@ -82,6 +83,8 @@ void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createA
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::init_smoother(size_t level)
 {
+	PROFILE_FUNC();
+	try{
 	AMGLevel &L = *levels[level];
 	L.presmoother = m_presmoother->clone();
 	L.presmoother->init(L.pAgglomeratedA);
@@ -93,11 +96,15 @@ void AMGBase<TAlgebra>::init_smoother(size_t level)
 		L.postsmoother = m_postsmoother->clone();
 		L.postsmoother->init(L.pAgglomeratedA);
 	}
+
+	} UG_CATCH_THROW_FUNC();
 }
 
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::init_smoothers()
 {
+	if(levels.size() == 0) return false;
+
 	try{
 
 		size_t N0 = levels[0]->pA->num_rows();
@@ -110,7 +117,7 @@ bool AMGBase<TAlgebra>::init_smoothers()
 			init_smoother(level);
 		}
 		return true;
-	}UG_CATCH_THROW("AMGBase::" << __FUNCTION__ << " failed")
+	}UG_CATCH_THROW_FUNC()
 
 	return false;
 }
@@ -131,7 +138,13 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 #ifdef UG_PARALLEL
 	if(mat.num_rows() == 0 && mat.layouts()->proc_comm().empty())
+	{
+		m_bInited=true;
+		m_bEmptyProcess=true;
 		return true;
+	}
+	else
+		m_bEmptyProcess=false;
 #endif
 
 	cleanup();
@@ -248,7 +261,6 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 			UG_LOG("New output proc is " << L.agglomeratedPC.get_proc_id(0) << "\n");
 		}*/
 			//calculate_level_information(level, createAMGlevelTiming);
-		precalc_level(level);
 		if(m_agglomerateLevel == level)
 		{
 			AMG_LOG(0, "Processor " << pcl::ProcRank() << " got agglomerated at level " << level << ".\n");
@@ -256,6 +268,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 				//GetLogAssistant().set_output_process(pcl::ProcRank()+1);
 			break;
 		}
+		precalc_level(level);
 #else
 		precalc_level(level);
 		L.pAgglomeratedA = L.pA;
@@ -389,7 +402,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	m_vLvlConvRates.clear();
 	m_vLvlConvRates.resize(m_totalUsedLevels);
 
-	}UG_CATCH_THROW("AMGBase::" << __FUNCTION__ << " failed")
+	}UG_CATCH_THROW_FUNC()
 	catch(...)
 	{
 		UG_THROW("unknown error");
@@ -470,7 +483,7 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 	m_dTimingCoarseSolverSetupMS = SW.ms();
 	UG_DLOG(LIB_ALG_AMG, 1, "Coarse Solver Setup took " << m_dTimingCoarseSolverSetupMS << "ms." << std::endl);
 
-	}UG_CATCH_THROW("AMGBase::" << __FUNCTION__ << " failed");
+	}UG_CATCH_THROW_FUNC();
 }
 
 //!
@@ -724,8 +737,8 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 		// V-Cycle: spYConvCheck = FixedConvergenceCheck(1)
 		// W-Cycle: spYConvCheck = FixedConvergenceCheck(2)
 		// Y-Cycle: spYConvCheck = StdConvergenceCheck(20, 1e-24, 0.01)
-		//SmartPtr<IConvergenceCheck<vector_type> > pCheck = levels[level]->spYConvCheck;
-	  SmartPtr<IConvergenceCheck<vector_type> > pCheck(new FixedConvergenceCheck<vector_type>(1));
+		SmartPtr<IConvergenceCheck<vector_type> > pCheck = levels[level]->spYConvCheck;
+	  //SmartPtr<IConvergenceCheck<vector_type> > pCheck(new FixedConvergenceCheck<vector_type>(1));
 		//FixedConvergenceCheck<vector_type> pCheck(m_iYCycle);
 		pCheck->start(dH);
 
