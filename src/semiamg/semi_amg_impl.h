@@ -109,23 +109,28 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &strong, cons
 	{
 		PROGRESS_UPDATE(prog, i);
 
+		// map coarse grid points by identity
+		if (nodes[i].is_coarse())
+		  {
+		    P(i, i) = 1.0; continue;
+		    //	std::cout << "Ignoring " << i << std::endl;
+		  }
+
+		// continue for fine nodes here
+
 		// skip off-proc nodes
 		if(!nodes.is_master_or_inner(i))
 		{
-			std::cout << "Skipping2 " << i << std::endl;
+		  //std::cout << "Skipping " << i << std::endl;
 			nskipped++;
 			continue;
 		}
 
-		// map coarse grid points by identity
-		if (nodes[i].is_coarse())
-		{
-			std::cout << "Ignoring " << i << std::endl;
-			P(i, i) = 1.0; continue;
-		}
-
-		// continue for fine nodes here
 		coarse.clear();
+
+		if (0) {
+
+		  
 		std::cout << "Setting " << i;
 		for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
 		{
@@ -153,14 +158,55 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &strong, cons
 			if (flevels[j] == level) weight*=0.5;
 		}
 
+		
 		// set weight
-
 		for(std::set<size_t>::iterator citer=coarse.begin(); citer!=coarse.end(); citer++)
 		{
 			std::cout << ":" << *citer << std::endl;
 			P(i, *citer) = 1.0/ncoarse;//weight;
 		}
 		std::cout <<std::endl;
+
+
+
+
+		} else {
+
+		  //std::cout << "SettingXCP for  " << i;
+		  MathVector<3> &coord =  helper.positions[level][i];
+		  MathVector<3> nbcoords[27];
+		  double nbweights[27];
+		  const int nparents = m_tli.get_parents(coord, level, nbcoords, nbweights);
+		  UG_ASSERT(nparents<=8, "Huhh: Too many neighbors???");
+		 
+		  double sumw = 0.0;
+		  for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+		    {
+		      	const size_t j = conn.index();
+			if (! nodes[j].is_coarse()) continue;
+			
+			MathVector<3> &coordj =  helper.positions[level][j];
+			for (int jj=0;jj<nparents; ++jj)
+			  {
+			    if ((nbcoords[jj][0]==coordj[0]) &&
+				(nbcoords[jj][1]==coordj[1]) &&
+				(nbcoords[jj][2]==coordj[2]) )
+			      {
+				P(i, j) = nbweights[jj];
+				//		std::cout << ":" << j  << "=" << nbweights[jj]<< std::endl;
+				sumw += nbweights[jj];
+				break;
+			      }
+			  }
+
+			
+
+		    }
+		  //std::cout <<"=" << sumw << std::endl;
+		  //UG_ASSERT(sumw<=1.0, "Huhh: Large sum???");
+		}
+
+
 
 	}
 /*
@@ -327,7 +373,9 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 
 	if(bTiming) SW.start();
 	this->user_defined_prolongation(graphS, AOL1, PoldIndices, level, nodes);
-
+#ifdef UG_PARALLEL
+	//	this->communicate_prolongation_additive_to_consistent(PN, PoldIndices, true);
+#endif
 	/////////////////////////////////////////
 	/// create layouts
 	/////////////////////////////////////////
@@ -335,7 +383,8 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 		stdvector<int> newIndex;
 #ifdef UG_PARALLEL
 	this->parallel_process_prolongation(PoldIndices, PnewIndices, 0.0, level, nodes,
-			PN, false, nextLevelLayouts, newIndex);
+					    //	PN, false, nextLevelLayouts, newIndex);
+					    PN, true, nextLevelLayouts, newIndex);
 #else
 	this->serial_process_prolongation(PoldIndices, PnewIndices, 0.0, level, nodes, newIndex);
 #endif
@@ -389,7 +438,7 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	if(m_writeMatrices)
 	{
 		AMGBase<TAlgebra>::write_debug_matrix_markers(level, nodes);
-		this->write_debug_matrices(AH, R, AOL1, PnewIndices, level);
+		this->write_debug_matrices(AH, R, A, PnewIndices, level);
 	}
 }
 

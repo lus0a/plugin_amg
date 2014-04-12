@@ -111,7 +111,40 @@ public:
 	}
 */
 
-private:
+
+	// determines neighbor coordinates (N1)
+	size_t get_node_nbcoord(const MathVector<3> &center, MathVector<3> nbcoord[])
+	{
+	  // indices of all neighbors
+	  ind_vec_type nbtensor[3];
+	  const size_t dim =3;
+	  for (unsigned int i=0; i < dim; ++i)
+	    {
+	       int indexi = get_axis_index(i, center[i]);
+	       for (int ii=std::min(indexi-1,0); ii<m_size[i];++ii)
+		 { nbtensor[i].push_back(ii);}
+	    }	
+	  
+
+	  // loop neighbors
+	  size_t a = 0;
+	  for (ind_vec_type::const_iterator it0= nbtensor[0].begin(); it0!=nbtensor[0].end(); ++it0)
+	    for (ind_vec_type::const_iterator it1= nbtensor[1].begin(); it1!=nbtensor[1].end(); ++it1)
+	      for (ind_vec_type::const_iterator it2= nbtensor[2].begin(); it2!=nbtensor[2].end(); ++it2)
+		{
+		  size_t indexa[3];
+		  indexa[0] = *it0;
+		  indexa[1] = *it1;
+		  indexa[2] = *it2;
+		  get_node_coord<3>(indexa, nbcoord[a]);
+		  a++;
+		}
+
+	  return a;
+	  
+	}
+
+protected:
 	pos_vec_type m_coord[3];
 	map_type m_map[3];
 	size_t m_size[3];
@@ -153,6 +186,130 @@ public:
 		TensorPositionInformation::set_axis_coord(tdim, pos);
 		m_level[tdim] = lev;
 	}
+
+
+
+	// determines neighbor coordinates (N1)
+	size_t get_parents(const MathVector<3> &center, int level, 
+			   MathVector<3> pcoord[],
+			   double pweight[])
+	{
+	  // find coarse neighbors
+	 
+	  const size_t dim =3;
+	  ind_vec_type nbtensor[dim];
+	  int index[dim];      // indices of center
+	  
+	  int ncoarse[dim];    // number of coarse nodes in this direction
+	  double weight[dim];  // weight in this direction
+	 
+	  for (unsigned int i=0; i < dim; ++i)
+	    {
+	    int ii = get_axis_index(i, center[i]);
+	    index[i] = ii;
+	    ncoarse[i]=0;
+	    //const int endi = std::min((int)m_size[i]-1, index[i]+1);
+	    //for (int nbi=std::max(index[i]-1,0); nbi<=endi; ++nbi)
+	    
+	    if (m_level[i][ii]>level) // found coarse node 
+	    {
+	      nbtensor[i].push_back(ii); 
+	      ncoarse[i]++; 
+	    }
+	    else
+	    {
+	      // backward search
+	      for (int nbi=ii-1; nbi>=0; --nbi)
+	      {
+		if (m_level[i][nbi]>level) // found coarse node
+		  { ncoarse[i]++; nbtensor[i].push_back(nbi); }
+		if (m_level[i][nbi]>=level) break;
+	      }
+
+	      // forward search
+	      for (int nbi=ii+1; nbi<m_size[i]; ++nbi)
+	      {
+		if (m_level[i][nbi]>level)
+		  { ncoarse[i]++; nbtensor[i].push_back(nbi); }  
+		if (m_level[i][nbi]>=level) break;
+		 
+	      }
+	    }
+
+	  }	
+	  
+	  // effective directions (DEBUG)
+	  int directions=0; 
+	  for (unsigned int i=0; i < dim; ++i)
+	  {
+	    if (ncoarse[i]>0)
+	      directions++;
+	  }
+	  /*
+	  if ((directions<=0)|| directions>3)
+	    {
+	      std::cerr << "ERROR:\n";
+		for (unsigned int i=0; i < dim; ++i)
+		{
+		  for (int nbi=index[i]-1; nbi>=0; --nbi)
+		  {
+		    if (m_level[i][nbi]>level) // found coarse node
+		    { std::cerr << i << ":" <<nbi <<std::endl;}
+		    if (m_level[i][nbi]>=level) break;
+		  }
+		}
+	    }*/
+	  UG_ASSERT( ((directions<=3) && (directions>0)), "Huhh: Directions do not match!");
+	  
+	  // assign weights
+	  for (unsigned int i=0; i < dim; ++i)
+	  {
+	    //	    if (ncoarse[i]==0) {
+	    //  nbtensor[i].push_back(index[i]);
+	    //}
+	    UG_ASSERT(ncoarse[i]>0, "No coarse dim found: "<< i);
+	    weight[i] = 1.0/nbtensor[i].size(); 
+    	  }
+
+	  // create nodes
+	  size_t indexa[3];
+	  size_t a = 0;
+	  double sumw =0.0;
+	  for (ind_vec_type::const_iterator it0= nbtensor[0].begin(); it0!=nbtensor[0].end(); ++it0)   
+	    for (ind_vec_type::const_iterator it1= nbtensor[1].begin(); it1!=nbtensor[1].end(); ++it1)
+	      for (ind_vec_type::const_iterator it2= nbtensor[2].begin(); it2!=nbtensor[2].end(); ++it2)
+		{
+		  indexa[0] = *it0;
+		  indexa[1] = *it1;
+		  indexa[2] = *it2;
+		  get_node_coord<3>(indexa, pcoord[a]);
+		  pweight[a] = weight[0]*weight[1]*weight[2];
+		  
+
+		  sumw +=pweight[a];
+		  a++;		
+		}
+
+	  if (sumw>1.0)
+	  {
+	    std::cerr << sumw << " " << a << " ";
+
+	    for (unsigned int i=0; i < a; ++i)
+	    {
+	      std::cerr << pweight[i] << " ";
+            }
+
+	    for (unsigned int i=0; i < dim; ++i)
+	    {
+	      std::cerr << weight[i] << " ";
+	    }
+	    
+	    UG_ASSERT(sumw<=1.0, "Sum does not match!");
+	  }
+	  return a;
+	  
+	}
+
 
 private:
 	level_vec_type m_level[3];
