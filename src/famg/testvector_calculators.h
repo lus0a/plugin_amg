@@ -77,9 +77,9 @@ public:
 		v.resize(A->num_rows());
 		for(size_t i=0; i<A->num_rows(); i++)
 		{
-			if(A->is_isolated(i))
-				v[i] = 0.0;
-			else
+//			if(A->is_isolated(i))
+//				v[i] = 0.0;
+//			else
 				v[i] = 1.0;
 		}
 #ifdef UG_PARALLEL
@@ -110,9 +110,9 @@ public:
 		v.resize(A->num_rows());
 		for(size_t i=0; i<A->num_rows(); i++)
 		{
-			if(A->is_isolated(i))
+			/*if(A->is_isolated(i))
 				v[i] = 0.0;
-			else
+			else*/
 				v[i] = 1.0+urand(-m_delta, m_delta);
 		}
 #ifdef UG_PARALLEL
@@ -144,7 +144,7 @@ public:
 			testvectors[0][i] = 0.0;
 			testvectors[1][i] = 0.0;
 
-			if(!A->is_isolated(i))
+//			if(!A->is_isolated(i))
 			{
 				testvectors[0][i] = 1.0;
 				SetAlgVector2d(testvectors[1][i], GetRotZ(pos[i]));
@@ -179,7 +179,7 @@ public:
 		for(size_t i=0; i<N; i++)
 		{
 			testvectors[1][0] = 0.0;
-			if(!A->is_isolated(i))
+//			if(!A->is_isolated(i))
 				SetAlgVector2d(testvectors[0][i], GetRotZ(pos[i]));
 		}
 #ifdef UG_PARALLEL
@@ -213,7 +213,7 @@ public:
 			for(size_t j=0; j<4; j++)
 				testvectors[j][i] = 0.0;
 
-			if(!A->is_isolated(i))
+//			if(!A->is_isolated(i))
 			{
 				testvectors[0][i] = 1.0;
 				SetAlgVector3d(testvectors[1][i], GetRotX(pos[i]));
@@ -261,7 +261,7 @@ public:
 			testvectors[1][i] = 0.0;
 			testvectors[2][i] = 0.0;
 			testvectors[3][i] = 0.0;
-			if(!A->is_isolated(i))
+//			if(!A->is_isolated(i))
 			{
 				testvectors[0][i] = 1.0;
 				testvectors[1][i] = pos[i].x();
@@ -300,7 +300,7 @@ public:
 			testvectors[0][i] = 0.0;
 			testvectors[1][i] = 0.0;
 			testvectors[2][i] = 0.0;
-			if(!A->is_isolated(i))
+//			if(!A->is_isolated(i))
 			{
 				testvectors[0][i] = 1.0;
 				testvectors[1][i] = pos[i].x();
@@ -337,7 +337,7 @@ public:
 		for(size_t i=0; i<N; i++)
 		{
 			testvectors[0][i] = 0.0;
-			if(!A->is_isolated(i))
+//			if(!A->is_isolated(i))
 			{
 				testvectors[0][i] = 1.0;
 				BlockRef(testvectors[1][i], 0) = pos[i].x();

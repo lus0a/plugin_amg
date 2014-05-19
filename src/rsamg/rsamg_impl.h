@@ -138,30 +138,30 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	//UG_ASSERT(pcl::GetNumProcesses()==1, "not implemented for procs > 1");
 
 
-	matrix_type AOL1;
+	matrix_type A_OL1;
 	matrix_type &A_ = const_cast<matrix_type&> (A);
 	ParallelNodes PN(A_.layouts(), A_.num_rows());
 	UG_COND_THROW(m_pParallelCoarsening==NULL, "please set the Parallel Coarsening type");
 
 	stdvector<IndexLayout> vMasterLayouts, vSlaveLayouts;
-	_MakeFullRowsMatrix(A, AOL1, PN, m_pParallelCoarsening, vMasterLayouts, vSlaveLayouts);
+	_MakeFullRowsMatrix(A, A_OL1, PN, m_pParallelCoarsening, vMasterLayouts, vSlaveLayouts);
 	
 	
 	/* vereinfachung der matrix
-	 * AOL1.resize(A.num_rows(), A.num_rows());
+	 * A_OL1.resize(A.num_rows(), A.num_rows());
 	
 	std::vector<typename matrix_type::connection> ind; ind.reserve(10);
 	
 	for(size_t i=0; i<A.num_rows(); i++)
 	{
-		double d = AOL1(i,i);
-		AOL1(i, i) = d;
+		double d = A_OL1(i,i);
+		A_OL1(i, i) = d;
 		double dmax = d;
 		
 		if(A.num_connections(i) < 6)
 		{
 			for(typename matrix_type::const_row_iterator it = A.begin_row(i); it != A.end_row(i); ++it)
-				AOL1(i, it.index()) = it.value();
+				A_OL1(i, it.index()) = it.value();
 		}
 		else
 		{
@@ -171,19 +171,24 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 			sort(ind.begin(), ind.end(),CompareIndicesByConnectionValue<typename matrix_type::connection>);
 
 			for(size_t j=0; j<6; j++)
-				AOL1(i, ind[j].iIndex) = ind[j].dValue;
+				A_OL1(i, ind[j].iIndex) = ind[j].dValue;
 			
 		}
 	}*/
 
+	if(pcl::NumProcs() > 1 && m_amghelper.has_positions())
+	{
+		m_amghelper.update_overlap_positions(level, PN.comm(), vMasterLayouts[1], vSlaveLayouts[1], A_OL1.num_rows());
+		write_debug_matrix(A_OL1, level, level, "A_OL1", true);
+	}
 
 #else
-	const matrix_type &AOL1 = A;
+	const matrix_type &A_OL1 = A;
 #endif
 	prolongation_matrix_type PoldIndices;
 
 
-	size_t NOL1 = AOL1.num_rows();
+	size_t NOL1 = A_OL1.num_rows();
 	size_t N = A.num_rows();
 #ifdef UG_PARALLEL
 	AMGNodes nodes(NOL1, PN);
@@ -213,8 +218,9 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	UG_DLOG(LIB_ALG_AMG, 1, "building graph... ");
 	if(bTiming) SW.start();
 
-	// todo: A or AOL1?
-	CreateStrongConnectionGraph(AOL1, graphS, m_dTheta, nodes);
+	// todo: A or A_OL1?
+	CreateStrongConnectionGraph(A_OL1, graphS, m_dTheta);
+	SetIsolatedCoarse(graphS, nodes);
 
 	// we need the transpose, since when we set a node coarse, we want
 	// all nodes to be fine which can be interpolated by this coarse node
@@ -307,7 +313,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	/////////////////////////////////////////
 	if (m_dTheta2<=1)
 	{
-		UpdateStrongConnectionGraph(AOL1, graphS, m_dTheta2);
+		UpdateStrongConnectionGraph(A_OL1, graphS, m_dTheta2);
 #ifdef AMG_WRITE_GRAPH
 		WriteAMGGraphToFile(graphS, (m_writeMatrixPath + path + "UG" + ToString(level) + ".mat").c_str(), m_amghelper, level);
 #endif
@@ -322,8 +328,8 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 
 
 	if(bTiming) SW.start();
-	CreateRugeStuebenProlongation(PoldIndices, AOL1, nodes, graphS, m_dProlongationTr);
-	/*CreateHensonProlongation(PoldIndices, AOL1, nodes, graphS, //newIndex,
+	CreateRugeStuebenProlongation(PoldIndices, A_OL1, nodes, graphS, m_dProlongationTr);
+	/*CreateHensonProlongation(PoldIndices, A_OL1, nodes, graphS, //newIndex,
 			m_dTheta, m_dProlongationTr);*/
 	if(!(nodes.get_unassigned() == 0 || (m_bAggressiveCoarsening && level == 0)))
 	{
@@ -332,7 +338,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	}
 
 	if(nodes.get_unassigned_indirect_fine() > 0)
-		CreateIndirectProlongation(PoldIndices, AOL1, nodes, graphS);
+		CreateIndirectProlongation(PoldIndices, A_OL1, nodes, graphS);
 
 
 	/////////////////////////////////////////
@@ -400,7 +406,7 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	if(m_writeMatrices)
 	{
 		AMGBase<TAlgebra>::write_debug_matrix_markers(level, nodes);
-		this->write_debug_matrices(AH, R, AOL1, PnewIndices, level);
+		this->write_debug_matrices(AH, R, A_OL1, PnewIndices, level);
 	}
 
 	}UG_CATCH_THROW("RSAMG::create_AMG_level failed, level = " << level);

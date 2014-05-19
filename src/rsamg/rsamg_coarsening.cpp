@@ -224,6 +224,23 @@ void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_
 	}
 }
 
+int SetCoarse(int i, const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bAggressiveCoarsening)
+{
+	UG_DLOG(DBG_AMG_COARSENING, 3, endl << "set coarse: " << i << " rating " << nodes[i].rating  << ". then fine: ");
+	UG_ASSERT(!nodes[i].is_assigned(), "node " << i << " is already assigned??? (rating = " << nodes[i].rating << ", unassigend = " << nodes.get_unassigned() << ")");
+
+	nodes.set_coarse(i);					// mark as coarse/assigned
+
+	// unassigned neighbors will be marked as fine, so remove from PQ
+	RemoveUnassignedNeighbors(ST, PQ, nodes, i);
+
+	// now mark unassigned neighbors as fine
+	MarkUnassignedNeighborsFine(S, ST, PQ, nodes, i, bAggressiveCoarsening);
+
+	if(bUnsymmetric)
+		ChangeRatingOfUnassignedNeighbors(S, PQ, nodes, i, -1);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Coarsen:
 //-------------------------
@@ -249,9 +266,9 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 	for(size_t i=0; i<nodes.size(); i++)
 	{
 		if(nodes[i].is_assigned() == false)
-			UG_ASSERT(PQ.is_in(i), i);
+		{	UG_ASSERT(PQ.is_in(i), i << " ? " << nodes[i]); }
 		if(PQ.is_in(i))
-			UG_ASSERT(nodes[i].is_assigned() == false, i);
+		{ 	UG_ASSERT(nodes[i].is_assigned() == false, i << " " << nodes[i]); }
 		if(nodes[i].is_assigned() == false)
 			n++;
 	}
@@ -265,23 +282,11 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 		// get Node with best rating
 		int best = PQ.remove_max();
 
-		UG_DLOG(DBG_AMG_COARSENING, 3, endl << "set coarse: " << best << " rating " << nodes[best].rating  << ". then fine: ");
-		UG_ASSERT(!nodes[best].is_assigned(), "node " << best << " is already assigned??? (rating = " << nodes[best].rating << ", unassigend = " << nodes.get_unassigned() << ")");
-
-		nodes.set_coarse(best);					// mark as coarse/assigned
-
-		// unassigned neighbors will be marked as fine, so remove from PQ
-		RemoveUnassignedNeighbors(ST, PQ, nodes, best);
-
-		// now mark unassigned neighbors as fine
-		MarkUnassignedNeighborsFine(S, ST, PQ, nodes, best, bAggressiveCoarsening);
-
-		if(bUnsymmetric)
-			ChangeRatingOfUnassignedNeighbors(S, PQ, nodes, best, -1);
+		SetCoarse(best, S, ST, PQ, nodes, bUnsymmetric, bAggressiveCoarsening);
 	}
 	//cout << endl;
 
-	UG_ASSERT(nodes.get_nr_of_coarse() > 0, "no coarse nodes???");
+//	UG_ASSERT(nodes.get_nr_of_coarse() > 0, "no coarse nodes???");
 	UG_DLOG(DBG_AMG_COARSENING, 1, nodes.get_nr_of_coarse() << " Coarse Nodes. ");
 	return nodes.get_nr_of_coarse();
 

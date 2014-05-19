@@ -343,7 +343,8 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	// build graph
 	/////////////////////////////////////////
 	cgraph graphS(NOL1);
-	CreateStrongConnectionGraph(AOL1, graphS, m_dTheta, nodes);
+	CreateStrongConnectionGraph(AOL1, graphS, m_dTheta);
+	SetIsolatedCoarse(graphS, nodes);
 
 	/////////////////////////////////////////
 	// Coarsen
@@ -352,6 +353,8 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	if(bTiming) SW.start();
 
 	const size_t nnodes = this->user_defined_coarsening(graphS, level, nodes);
+
+	(void) nnodes; // remove unused warning.
 
 	//UG_ASSERT(N == nnodes, "Something wrong!");
 

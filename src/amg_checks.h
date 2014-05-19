@@ -24,6 +24,7 @@ namespace ug
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::write_interfaces()
 {
+	try{
 	AMG_PROFILE_FUNC();
 	if(!m_writeMatrices)
 	{
@@ -78,6 +79,7 @@ void AMGBase<TAlgebra>::write_interfaces()
 				file << i << " " << i << " " << s << std::endl;
 		}
 	}
+	}UG_CATCH_THROW_FUNC();
 }
 #else
 template<typename TAlgebra>
@@ -110,6 +112,8 @@ bool AMGBase<TAlgebra>::check()
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::check(vector_type &c, vector_type &d, bool bRandom)
 {
+	try{
+	int oldOutputProcess = GetLogAssistant().get_output_process();
 	//UG_LOG("\nLEVEL 0\n\n");
 #ifdef UG_PARALLEL
 	if(m_agglomerateLevel == (size_t)-1)
@@ -159,6 +163,14 @@ bool AMGBase<TAlgebra>::check(vector_type &c, vector_type &d, bool bRandom)
 			pD = &levels[level]->collD;
 			pC = &levels[level]->collC;
 			pA = levels[level]->collectedA;
+
+			const pcl::ProcessCommunicator &pc = levels[level]->pAgglomeratedA->layouts()->proc_comm();
+			if(oldOutputProcess == 0 && GetLogAssistant().get_output_process() != pcl::ProcRank()
+				&& pc.get_proc_id(0) == pcl::ProcRank())
+			{
+				//GetLogAssistant().set_output_process(pcl::ProcRank());
+				UG_LOG("Processor " << pcl::ProcRank() << " is now output process.\n");
+			}
 		}
 #endif
 
@@ -190,6 +202,8 @@ bool AMGBase<TAlgebra>::check(vector_type &c, vector_type &d, bool bRandom)
 #ifdef UG_PARALLEL
 //	const_c.layouts()->proc_comm().barrier();
 #endif
+	GetLogAssistant().set_output_process(oldOutputProcess);
+	}UG_CATCH_THROW_FUNC();
 	return true;
 }
 
@@ -262,6 +276,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type &A,
 		size_t level, checkResult &res, const vector_type *solution)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	AMGLevel &L = *levels[level];
 
@@ -308,11 +323,12 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		UG_LOG("\tpreIter " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
 				"    " << std::scientific << n2/n1 << "\n");
 
-#ifdef UG_PARALLEL
-		if(level+1 < levels.size() && !levels[level]->bLevelHasMergers && levels[level+1]->bLevelHasMergers)
+/*#ifdef UG_PARALLEL
+		if(level+1 < levels.size() && !levels[level]->bLevelHasMergers)
 #else
 			if(level+1 < levels.size())
-#endif
+#endif*/
+
 		{
 			vector_type vH;
 			CloneVector(vH, L.cH);
@@ -483,7 +499,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		cH.set(0.0);
 		double pre_nH=nH1;
 		double nH2=nH1;
-		for(i=0; i<50; i++)
+		for(i=0; i<100; i++)
 		{
 			add_correction_and_update_defect(cH, dH, level+1);
 			nH1 = nH2;
@@ -601,6 +617,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 	}
 
 
+	}UG_CATCH_THROW_FUNC();
 	//return postnorm/prenorm;
 	return 0;
 }
@@ -618,6 +635,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::check2(const vector_type &const_c, const vector_type &const_d)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	UG_LOG("\n");
 	UG_LOG("            check2\n");
@@ -647,6 +665,7 @@ bool AMGBase<TAlgebra>::check2(const vector_type &const_c, const vector_type &co
 
 	UG_LOG("finished check2.\n");
 
+	}UG_CATCH_THROW_FUNC();
 	return true;
 }
 
@@ -665,6 +684,7 @@ bool AMGBase<TAlgebra>::check2(const vector_type &const_c, const vector_type &co
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_type &d, size_t level, size_t exactLevel)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	AMGLevel &L = *levels[level];
 	const matrix_operator_type &A = *L.pA;
@@ -758,7 +778,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 		L.postsmoother->apply_update_defect(corr, d);
 		c += corr;
 	}
-
+	}UG_CATCH_THROW_FUNC();
 	return true;
 }
 
@@ -766,6 +786,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filename)
 {
+	try{
 	double anorm = Anorm(v, 0);
 	double dnorm = Dnorm(v, 0);
 	AMGLevel &L = *levels[0];
@@ -784,6 +805,7 @@ void AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filename
 	else v2 -= v;
 	double dnorm2 = Dnorm(v2, 0);
 	UG_LOG("Anorm(v) = " << anorm << " Dnorm(v) = " << dnorm << " Dnorm( (1-PR)v ) = " << dnorm2 << "\n");
+	}UG_CATCH_THROW_FUNC();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -794,6 +816,7 @@ void AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filename
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::check_fsmoothing()
 {
+	try{
 	AMG_PROFILE_FUNC();
 	UG_LOG("\n");
 	UG_LOG("            check_fsmoothing\n");
@@ -838,7 +861,7 @@ bool AMGBase<TAlgebra>::check_fsmoothing()
 	}
 
 	UG_LOG("finished check_fsmoothing.\n");
-
+	}UG_CATCH_THROW_FUNC();
 	return true;
 }
 

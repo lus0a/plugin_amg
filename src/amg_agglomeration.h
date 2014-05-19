@@ -25,7 +25,7 @@ extern DebugID DBG_AMG_COARSENING; // SetDebugLevel(debugID.RSAMG.Agglomeration,
 #ifdef UG_PARALLEL
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 template<typename TAlgebra>
-bool AMGBase<TAlgebra>::gather_vertical(vector_type &vec, vector_type &collectedVec, size_t level,
+bool AMGBase<TAlgebra>::gather_vertical(const vector_type &vec, vector_type &collectedVec, size_t level,
 		ParallelStorageType type)
 {
 	AMGLevel &L = *levels[level];
@@ -53,7 +53,7 @@ bool AMGBase<TAlgebra>::gather_vertical(vector_type &vec, vector_type &collected
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 template<typename TAlgebra>
-bool AMGBase<TAlgebra>::broadcast_vertical(vector_type &vec, vector_type &collectedVec, size_t level,
+bool AMGBase<TAlgebra>::broadcast_vertical(vector_type &vec, const vector_type &collectedVec, size_t level,
 		ParallelStorageType type)
 {
 	AMGLevel &L = *levels[level];
@@ -324,9 +324,9 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 	L.bLevelHasMergers=true;
 
 	// write unagglomerated matrix
-	AMGWriteToFile(A, level, level,
-			GetAMGFilenamePath(A, level, "A_unagglomerated", level, ".mat", true),
-			m_amghelper);
+	if(m_writeMatrices)
+		AMGWriteToFile(A, level, level,
+			GetAMGFilenamePath(A, level, "A_unagglomerated", level, ".mat", true), m_amghelper);
 
 
 	// 1. create global Algebra IDs

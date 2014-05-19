@@ -200,6 +200,21 @@ public:
 
 	void 	set_max_parents(size_t n) 	{ m_iMaxParents = n;}
 
+	void	set_XC_LE_griebel(bool b)
+	{
+		m_bLE_XC_Griebel = b;
+	}
+
+	void	set_indirect_interpolation(bool b)
+	{
+		m_bIndirectInterpolation = b;
+	}
+
+	void	set_XC_new(bool b)
+	{
+		m_bXC_new = b;
+	}
+
 	void check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > testvectorCalculator, std::string desc);
 
 	bool check_testvector(size_t fromlevel, size_t tolevel);
@@ -289,6 +304,9 @@ private:
 	bool m_bWriteFValues;
 	bool m_bInjectionRestriction;
 
+	bool m_bXC_new;				///< new strategy, \sa rs_amg_coarsening_new
+	bool m_bLE_XC_Griebel;		///< Griebel LE strategy for neumann-coarsening \sa rs_amg_coarsening_new
+
 	bool m_bUseConstantIfFailed;
 
 	SmartPtr<ILinearIterator<vector_type> > m_testvectorsmoother;
@@ -299,13 +317,11 @@ private:
 	stdvector< vector_type > testvectors;
 	stdvector<double> omega;
 
+	bool m_bXCaggressive;
+	bool m_bIndirectInterpolation;
+
 	vector_type evpU, evpB;
 	bool m_bProjectedEVP;
-
-	double m_weightC;
-	double m_weightX;
-	double m_weightY;
-	double m_weightZ;
 
 #ifdef UG_PARALLEL
 	IParallelCoarsening *m_pParallelCoarsening;

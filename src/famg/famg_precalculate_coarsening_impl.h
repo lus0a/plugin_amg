@@ -112,8 +112,8 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 		{
 			size_t node = n.parents[j].from;
 
-			if(rating[node].is_coarse()) { UG_DLOG(DBG_AMG_COARSENING, 4, "\nnode " << node << " is already coarse\n"); }
-			else { UG_DLOG(DBG_AMG_COARSENING, 4, "\nnode " << node << " has rating " << rating[node] << ". now gets coarse.\nUpdate Neighbors of " << node << "\n"); }
+			if(rating[node].is_coarse()) { UG_DLOG(DBG_AMG_COARSENING, 4, "\nnode [" << node << "] is already coarse\n"); }
+			else { UG_DLOG(DBG_AMG_COARSENING, 4, "\nnode [" << node << "] has rating " << rating[node] << ". now gets coarse.\nUpdate Neighbors of [" << node << "]\n"); }
 
 			if(!rating[node].is_coarse())
 			{

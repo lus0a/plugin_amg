@@ -62,6 +62,7 @@ typedef int AMGLayouts;
 template<typename TAlgebra>
 class AMGBase: public IPreconditioner<TAlgebra> {
 public:
+	using DebugWritingObject<TAlgebra>::debug_writer;
 
 ///	Algebra type
 	typedef TAlgebra algebra_type;
@@ -124,7 +125,11 @@ protected:
 	{
 		UG_COND_THROW(!m_bInited, "not inited?");
 #ifdef UG_PARALLEL
-		if(m_bEmptyProcess) return true;
+		if(m_bEmptyProcess)
+		{
+			c.set_storage_type(PST_CONSISTENT);
+			return true;
+		}
 #endif
 		return get_correction(c, d);
 	}
@@ -291,7 +296,7 @@ protected:
 	 * @param level			level we operate on
 	 * @param type			the type we want the result to be in (PST_ADDITIVE or PST_CONSISTENT)
 	 */
-	bool gather_vertical(vector_type &vec, vector_type &collectedVec,
+	bool gather_vertical(const vector_type &vec, vector_type &collectedVec,
 			size_t level, ParallelStorageType type);
 
 	/**
@@ -302,7 +307,7 @@ protected:
 	 * @param level			level we operate on
 	 * @param type			the type we want the result to be in (PST_ADDITIVE or PST_CONSISTENT)
 	 */
-	bool broadcast_vertical(vector_type &vec, vector_type &collectedVec,
+	bool broadcast_vertical(vector_type &vec, const vector_type &collectedVec,
 			size_t level, ParallelStorageType type);
 #endif
 
@@ -361,6 +366,7 @@ public:
 	 */
 	/// returns the number of AMG levels
 	size_t get_used_levels() const {
+		if(m_bEmptyProcess) return 0;
 		return m_totalUsedLevels;
 	}
 
@@ -555,6 +561,7 @@ public:
 	std::string level_information_str() const
 	{
 		if(m_bInited==false) return "no level information: not initialized.";
+		if(m_bEmptyProcess) return "this is an empty process.";
 		std::stringstream ss;
 		ss.setf(std::ios::fixed);
 		ss << "Operator Complexity: " << get_operator_complexity() << ", grid complexity: "
@@ -593,6 +600,10 @@ public:
 
 public:
 	void check_interpolation(vector_type &v, const char *filename);
+	void use_checks(bool b)
+	{
+		m_bChecks = b;
+	}
 
 	bool init_smoothers();
 	void init_smoother(size_t level);
@@ -613,12 +624,10 @@ protected:
 	double Dnorm(vector_type &t, size_t level);
 	double Anorm(vector_type &t, size_t level);
 
-	void write_debug_matrices(matrix_type &AH, prolongation_matrix_type &R,
-			const matrix_type &A, prolongation_matrix_type &P, size_t level);
+	void write_debug_matrices(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A, prolongation_matrix_type &P, size_t level);
 
 	template<typename TMatrix>
-	void write_debug_matrix(TMatrix &mat, size_t fromlevel, size_t tolevel,
-			const char *name);
+	void write_debug_matrix(TMatrix &mat, size_t fromlevel, size_t tolevel, const char *name, bool bAddMarkers=false);
 
 	template<typename TNodeType>
 	void write_debug_matrix_markers(size_t level, const TNodeType &nodes);
@@ -635,8 +644,9 @@ protected:
 	 * @param	d
 	 * @param	level
 	 */
-	bool writevec(std::string filename, const vector_type &d, size_t level,
-			const vector_type *solution = NULL);
+	template<typename TVector>
+	bool writevec(std::string filename, const TVector &d, size_t level,
+			const TVector *solution = NULL);
 
 	std::string GetAMGFilenamePath(const matrix_type &m, int levelDir, std::string name, int level, std::string extension, bool bWriteHeader=false);
 	std::string GetAMGFilename(const matrix_type &m, std::string name, int level, std::string extension, bool bWriteHeader=false);
@@ -755,6 +765,7 @@ protected:
 	stdvector<LevelInformation> m_levelInformation;
 
 	bool m_bDebugWriteAllVectors;
+	bool m_bChecks;
 
 	class AMGLevel
 	{

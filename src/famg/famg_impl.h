@@ -63,6 +63,11 @@ FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 
 	m_bUseConstantIfFailed = false;
 	m_dDeficitSolveTolerance = 1e-7;
+	m_bLE_XC_Griebel = m_bXC_new = false;
+
+	m_bXCaggressive = false;
+	m_bIndirectInterpolation = true;
+
 
 	set_testvector_smooths(2);
 	set_damping_for_smoother_in_interpolation_calculation(0.8);
@@ -105,6 +110,10 @@ std::string FAMG<TAlgebra>::config_string() const
 
 	ss << " DeficitSolveTolerance = " << m_dDeficitSolveTolerance << "\n";
 	ss << " UseConstantIfFailed = " << (m_bUseConstantIfFailed?"ON":"OFF") << "\n";
+	if(m_bLE_XC_Griebel)
+		ss << " GRIEBEL Linear Elasticity External Neumann-Coarsening.\n";
+	if(m_bXC_new)
+		ss << " New External Neumann-Coarsening.\n";
 
 	if(m_testvectorsmoother == SPNULL)
 		ss << " No testvectorsmoother set!!!;\n";
@@ -136,20 +145,12 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 	UG_COND_THROW(m_testvectorCalculator->needs_positions() == true && m_amghelper.has_positions() == false,
 			"your selected testvector calculator needs position, but they are not there?.");
 
-	if(level == 0)
-	{
-		AMG_PROFILE_BEGIN(testvectorCalculator);
-		try{
-			testvectors.clear();
-			MathVector<3> *pos = m_amghelper.has_positions() ? &(m_amghelper.positions[0][0]) : NULL;
-			m_testvectorCalculator->calc(levels[level]->pAgglomeratedA, pos, testvectors);
-		}UG_CATCH_THROW("testvectorCalculator " << m_testvectorCalculator->name() << " failed");
-	}
+
 
 
 #ifdef UG_PARALLEL
 	// check this: do FE tv need to be known?
-	if(level != 0 && levels[level]->bHasBeenMerged)
+	if(levels[level]->bHasBeenMerged)
 	{
 		vector_type t;
 		if(super::isMergingMaster(level))
@@ -161,8 +162,20 @@ void FAMG<TAlgebra>::precalc_level(size_t level)
 			super::gather_vertical(testvectors[i], t, level, PST_CONSISTENT);
 			testvectors[i] = t;
 		}
+
+		if(super::isMergingMaster(level) == false)
+			return;
 	}
 #endif
+	if(level == 0)
+	{
+		AMG_PROFILE_BEGIN(testvectorCalculator);
+		try{
+			testvectors.clear();
+			MathVector<3> *pos = m_amghelper.has_positions() ? &(m_amghelper.positions[0][0]) : NULL;
+			m_testvectorCalculator->calc(levels[level]->pAgglomeratedA, pos, testvectors);
+		}UG_CATCH_THROW("testvectorCalculator " << m_testvectorCalculator->name() << " failed");
+	}
 	}UG_CATCH_THROW("FAMG::precalc_level failed, level = " << level);
 }
 
@@ -190,14 +203,14 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 	else
 		m_delta = mDeltaAll;
 
-	UG_ASSERT(m_testvectorsmoother != SPNULL, "please provide a testvector smoother.");
+	UG_COND_THROW(m_testvectorsmoother == SPNULL, "please provide a testvector smoother.");
 
 	if(m_bProjectedEVP && level == 0)
 	{
 
 	}
-	UG_ASSERT(testvectors.size() != 0, "testvectors?");
-	UG_ASSERT(testvectors[0].size() == A.num_rows(), "testvectorsize = " << testvectors[0].size() << " != A.num_rows() = " << A.num_rows() << " ?");
+	UG_COND_THROW(testvectors.size() == 0, "testvectors?");
+	UG_COND_THROW(testvectors[0].size() != A.num_rows(), "testvectorsize = " << testvectors[0].size() << " != A.num_rows() = " << A.num_rows() << " ?");
 
 	if(m_writeMatrices && m_writeTestvectors)
 	{
@@ -242,7 +255,14 @@ bool FAMG<TAlgebra>::check_testvector(size_t fromlevel, size_t tolevel)
 {
 	try{
 	AMG_PROFILE_FUNC();
-
+#ifdef UG_PARALLEL
+	if(pcl::NumProcs() > 1)
+	{
+		UG_LINE_LOG();
+		UG_LOG("WARNING: NOT AVAILABLE IN PARALLEL");
+		return false;
+	}
+#endif
 	UG_LOG("\n");
 	UG_LOG("            check_testvector\n");
 	UG_LOG("==========================================\n")
@@ -353,11 +373,19 @@ void FAMG<TAlgebra>::check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > tes
 {
 	try{
 	AMG_PROFILE_FUNC();
-
+#ifdef UG_PARALLEL
+	if(pcl::NumProcs() > 1)
+	{
+		UG_LINE_LOG();
+		UG_LOG("WARNING: NOT AVAILABLE IN PARALLEL");
+		return;
+	}
+#endif
 	size_t level =0;
 	if(super::levels.size() <= 1) return;
 	testvectors.clear();
 	MathVector<3> *pos = m_amghelper.has_positions() ? &(m_amghelper.positions[0][0]) : NULL;
+
 	testvectorCalculator->calc(levels[level]->pAgglomeratedA, pos, testvectors);
 
 

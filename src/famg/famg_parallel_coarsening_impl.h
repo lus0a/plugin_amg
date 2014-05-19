@@ -69,7 +69,7 @@ FAMGLevelCalculator<TAlgebra>::
 	}
 
 	TemporaryDebugLevel(DBG_COLORING, DBG_FAMG_COLORING);
-	m_myColor = ColorProcessorGraph(PN.communicator(), pidsOL, processesWithLowerColor, processesWithHigherColor);
+	m_myColor = ColorProcessorGraph(PN.comm(), pidsOL, processesWithLowerColor, processesWithHigherColor);
 	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 
 	IF_DEBUG(DBG_FAMG_COLORING, 1)
@@ -171,7 +171,7 @@ FAMGLevelCalculator<TAlgebra>::receive_coarsening_from_processes_with_lower_colo
 	}
 
 	FAMGCoarseningCommunicationScheme<prolongation_matrix_type> scheme(rating);
-	ReceiveOnInterfaces(PN.communicator(), processesWithLowerColor, OLCoarseningReceiveLayout, scheme);
+	ReceiveOnInterfaces(PN.comm(), processesWithLowerColor, OLCoarseningReceiveLayout, scheme);
 
 	// issue receive of coarsening data from processes with lower color
 	/*IF_DEBUG(LIB_ALG_AMG, 11)
@@ -206,7 +206,7 @@ FAMGLevelCalculator<TAlgebra>::
 
 
 	FAMGCoarseningCommunicationScheme<prolongation_matrix_type> scheme(rating);
-	SendOnInterfaces(PN.communicator(), processesWithHigherColor, OLCoarseningSendLayout, scheme);
+	SendOnInterfaces(PN.comm(), processesWithHigherColor, OLCoarseningSendLayout, scheme);
 
 	if(m_bTiming) { UG_LOG("took " << SW.ms() << " ms"); }
 
@@ -278,20 +278,20 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 
 
 	/*
-	PRINTLAYOUT(PN.communicator(), A.layouts()->master(), A.layouts()->slave());
-	PRINTLAYOUT(PN.communicator(), OL1MasterLayout, OL1SlaveLayout);
-	PRINTLAYOUT(PN.communicator(), OL2MasterLayout, OL2SlaveLayout);
+	PRINTLAYOUT(PN.comm(), A.layouts()->master(), A.layouts()->slave());
+	PRINTLAYOUT(PN.comm(), OL1MasterLayout, OL1SlaveLayout);
+	PRINTLAYOUT(PN.comm(), OL2MasterLayout, OL2SlaveLayout);
 */
 /*	for(int i=0; i<3; i++)
  	{
 		UG_LOG("\n\n\noverlap[" << i << "] layout, level " << level << ":\n");
-		PRINTLAYOUT(PN.communicator(), masterLayouts[i], slaveLayouts[i]);
+		PRINTLAYOUT(PN.comm(), masterLayouts[i], slaveLayouts[i]);
 	}*/
 
 #ifdef UG_DEBUG
-	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.communicator(), A.layouts()->master(), A.layouts()->slave()) == true, "A layout wrong, level " << level);
-	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.communicator(), OL1MasterLayout, OL1SlaveLayout) == true, "A layout wrong, level " << level);
-	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.communicator(), OL1MasterLayout, OL1SlaveLayout) == true, "A layout wrong, level " << level);
+	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.comm(), A.layouts()->master(), A.layouts()->slave()) == true, "A layout wrong, level " << level);
+	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.comm(), OL1MasterLayout, OL1SlaveLayout) == true, "A layout wrong, level " << level);
+	UG_ASSERT(TestLayout(A.layouts()->proc_comm(), PN.comm(), OL1MasterLayout, OL1SlaveLayout) == true, "A layout wrong, level " << level);
 #endif
 
 	// create OLCoarseningSendLayout, OLCoarseningReceiveLayout
@@ -331,7 +331,7 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 	//UG_DLOG(LIB_ALG_AMG, 1, "OLCoarseningLayout :\n")
 	//PrintLayout(A.get_process_communicator(), PN.get_communicator(), OLCoarseningSendLayout, OLCoarseningSendLayout);
 
-	AddConnectionsBetweenSlaves(PN.communicator(), OL1MasterLayout, OL1SlaveLayout, OLCoarseningSendLayout, OLCoarseningReceiveLayout);
+	AddConnectionsBetweenSlaves(PN.comm(), OL1MasterLayout, OL1SlaveLayout, OLCoarseningSendLayout, OLCoarseningReceiveLayout);
 
 
 
@@ -374,16 +374,8 @@ void FAMGLevelCalculator<TAlgebra>::create_OL2_matrix()
 
 	if(pcl::NumProcs() > 1 && m_famg.m_amghelper.has_positions())
 	{
-		m_famg.m_amghelper.update_overlap_positions(level, PN.communicator(), OL2MasterLayout, OL2SlaveLayout, A_OL2.num_rows());
-
-		AMG_PROFILE_NEXT(create_OL2_matrix_debug_output);
-		if(m_famg.m_writeMatrices)
-		{
-			std::string path=std::string("/level") + ToString(level) + "/";
-			CreateDirectory((std::string(m_famg.m_writeMatrixPath) + path).c_str(), 0777);
-			ConnectionViewer::WriteMatrix((m_famg.m_writeMatrixPath + path + std::string("AMG_A_OL2_L") + ToString(level) + ".mat").c_str(),
-					A_OL2, &m_famg.m_amghelper.positions[level][0], 2);
-		}
+		m_famg.m_amghelper.update_overlap_positions(level, PN.comm(), OL2MasterLayout, OL2SlaveLayout, A_OL2.num_rows());
+		m_famg.write_debug_matrix(A_OL2, level, level, "A_OL2", true);
 	}
 
 	IF_DEBUG(DBG_FAMG_OVERLAP, 3)

@@ -130,6 +130,7 @@ static void Algebra(Registry& reg, string grp)
 		.add_method("level_information_str", &T::level_information_str)
 
 		.add_method("init_smoothers", &T::init_smoothers)
+		.add_method("use_checks", &T::use_checks)
 		;
 	reg.add_class_to_group(string("AMGBase").append(suffix), "AMGBase", tag);
 }

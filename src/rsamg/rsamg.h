@@ -58,6 +58,7 @@ public:
 	using super::levels;
 	using super::m_dGalerkinTruncation;
 	using super::m_verbose;
+	using super::write_debug_matrix;
 
 public:
 //	Algebra type

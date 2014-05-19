@@ -41,6 +41,9 @@ namespace ug {
 class FAMGNode
 {
 	template<typename> friend class FAMGNodes;
+public:
+
+
 private:
 	/// rating is set to  min_{possible parents} (number of nodes which have to set coarse additionally)  + (F-value of this pair) / delta
 	/// depending on FAMG_COARSENING_USE_F_FOR_SORT, the additional F-value is ignore or not
@@ -97,6 +100,8 @@ public:
 	/// uncalculated: only used for on_demand_coarsening
 	inline bool is_uncalculated_fine() const { return rating == FAMG_UNCALCULATED_FINE_RATING; }
 
+	inline bool is_interpolateable_from() const { return is_dirichlet() || is_coarse(); }
+
 
 public:
 	/// \true if we could set this node coarse
@@ -149,10 +154,20 @@ public:
 		if(n.rating == FAMG_FINE_RATING) out << " (fine)";
 		else if(n.rating == FAMG_AGGRESSIVE_FINE_RATING) out << " (AC fine)";
 		else if(n.rating == FAMG_UNCALCULATED_FINE_RATING) out << " (fine u)";
+		else if(n.rating == FAMG_UNINTERPOLATEABLE) out << " (uninterpolateable)";
 		else if(n.is_coarse()) out << " (coarse)";
+		else if(n.rating == FAMG_DIRICHLET_RATING) out << " (dirichlet)";
 		else if(n.rating == 0.0) out << "(unassigned)";
-		else if(n.is_uninterpolateable()) out << " (uninterpolateable)";
 		return out;
+	}
+
+	bool operator != (const FAMGNode &other) const
+	{
+		return rating != other.rating;
+	}
+	bool operator == (const FAMGNode &other) const
+	{
+		return rating == other.rating;
 	}
 };
 
@@ -162,6 +177,7 @@ template<typename TProlongationMatrix>
 class FAMGNodes
 {
 public:
+	typedef FAMGNode value_type;
 
 #ifdef UG_PARALLEL
 	FAMGNodes(TProlongationMatrix &_P, size_t level, ug::cAMG_helper &amghelper,
@@ -218,7 +234,7 @@ public:
 			const FAMGNode &ninfo = nodes[M[i].from];
 			if(ninfo.is_fine())
 			{
-				UG_DLOG(LIB_ALG_AMG, 4, " pair " << get_original_index(M[0].from) << ", " << get_original_index(M[1].from) << " is invalid, since " << get_original_index(M[i].from) << " is fine. ");
+				UG_DLOG(LIB_ALG_AMG, 4, " pair [" << M[0].from << "], [" << M[1].from << "] is invalid, since " << get_original_index(M[i].from) << " is fine. ");
 				return -1;
 			}
 			/*else if(ninfo.is_uninterpolateable())
@@ -251,7 +267,7 @@ public:
 		}
 
 		//AMG_PROFILE_FUNC();
-		UG_DLOG(LIB_ALG_AMG, 4, " update rating of node " << node << "... ");
+		UG_DLOG(LIB_ALG_AMG, 4, " update rating of node [" << node << "]... ");
 		if(onlyRecalcBest ==false && nodes[node].is_valid_rating() == false)
 		{
 			UG_DLOG(LIB_ALG_AMG, 4, nodes[node].rating << " is not a valid rating."); return false;
@@ -288,7 +304,7 @@ public:
 		}
 		UG_DLOG(LIB_ALG_AMG, 4, "now has " << PN.size() << " possible parent nodes. ");
 		for(size_t i=0; i<PN.size(); i++)
-			UG_DLOG(LIB_ALG_AMG, 4, PN[i].parents[0].from << "-" << PN[i].parents[1].from << " ");
+			UG_DLOG(LIB_ALG_AMG, 4, "[" << PN[i].parents[0].from << "]-[" << PN[i].parents[1].from << "] ");
 		UG_DLOG(LIB_ALG_AMG, 4, "\nmini=" << mini << "\n");
 
 		if(mini != -1 && mini != 0) std::swap(PN[0], PN[mini]);
@@ -385,9 +401,7 @@ public:
 	/// returns some info about the node i
 	std::string info(size_t i)
 	{
-		std::stringstream ss;
-		ss << "Index " << i << ": " << nodes[i] << ", " << PN.overlap_type(i);
-		return ss.str();
+		return Stringify() << "Index [" << i << "]: " << nodes[i] << ", " << PN.overlap_type(i);
 	}
 
 	/// calculate the number of unassigned nodes
@@ -452,6 +466,19 @@ public:
 		UG_LOG("\n");
 	}
 
+	void node_reset(size_t index)
+	{
+		if(nodes[index].is_assigned())
+			m_iUnassigned++;
+		if(nodes[index].is_aggressive_fine())
+			m_iNrOfAggressiveFine--;
+		if(nodes[index].is_coarse())
+			m_iNrOfCoarse--;
+		if(nodes[index].is_fine())
+			m_iNrOfFine--;
+		nodes[index].rating = 0;
+	}
+
 	/**
 	 * this sets the node i fine.
 	 * if it wasn't fine before and i_must_assign(i) is true,
@@ -469,6 +496,7 @@ public:
 			m_iNrOfFine++;
 		}
 		nodes[index].set_fine();
+		UG_DLOG(DBG_AMG_COARSENING, 4, "set node [" << index << "] fine\n");
 	}
 
 	/**
@@ -485,6 +513,7 @@ public:
 			m_iUnassigned--;
 		m_iNrOfAggressiveFine++;
 		nodes[index].set_aggressive_fine();
+		UG_DLOG(DBG_AMG_COARSENING, 4, "set node [" << index << "] aggressive fine\n");
 	}
 
 	/**
@@ -516,10 +545,15 @@ public:
 
 			if(i_must_assign(index))
 				m_iUnassigned--;
-			P(index, index) = 1.0;
+//			P(index, index) = 1.0;
 		}
+		UG_DLOG(DBG_AMG_COARSENING, 4, "set node [" << index << "] coarse\n");
 	}
 
+	void external_uninterpolateable(size_t index)
+	{
+		nodes[index].set_uninterpolateable();
+	}
 
 	/**
 	 * asserts that we can set this node coarse in a parallel sense.
@@ -528,7 +562,7 @@ public:
 	 */
 	void set_coarse(size_t index)
 	{
-		UG_ASSERT(i_can_set_coarse(index), "Index " << index << " can not be coarse.\n");
+		UG_ASSERT(i_can_set_coarse(index), "Index " << index << " can not be coarse (" << nodes[index] << ").\n");
 		external_set_coarse(index);
 	}
 
@@ -539,6 +573,7 @@ public:
 		if(nodes[index].is_dirichlet() == false && i_must_assign(index))
 			m_iUnassigned--;
 		nodes[index].set_dirichlet();
+		UG_DLOG(DBG_AMG_COARSENING, 4, "set node [" << index << "] dirichlet\n");
 	}
 
 	void set_uninterpolateable(size_t index)
@@ -546,6 +581,7 @@ public:
 		UG_ASSERT(nodes[index].is_valid_rating() || nodes[index].is_uninterpolateable(),
 				"node " << index << " is already set to " << nodes[index].rating);
 		nodes[index].set_uninterpolateable();
+		UG_DLOG(DBG_AMG_COARSENING, 4, "set node [" << index << "] uninterpolateable\n");
 	}
 
 	size_t get_nr_of_coarse()
@@ -631,7 +667,7 @@ void GetRatings(stdvector<stdvector<neighborstruct> > &possible_neighbors,
 	UG_DLOG(LIB_ALG_AMG, 4, "\nGetRatings...\n\n");
 	for(size_t i=0; i<nodes.size(); i++)
 	{
-		UG_DLOG(LIB_ALG_AMG, 4, "node " << nodes.get_original_index(i) << ": ");
+		UG_DLOG(LIB_ALG_AMG, 4, "node [" << i << "]: ");
 		if(nodes.i_must_assign(i) && nodes[i].is_valid_rating())
 		{
 			nodes.update_rating(i, possible_neighbors[i]);

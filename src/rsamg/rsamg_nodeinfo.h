@@ -62,6 +62,7 @@ public:
 	inline bool is_parallel_dont_care() const { return rating == AMG_PARALLEL_DONT_CARE; }
 	inline bool is_coarse() const {	return rating == AMG_COARSE_RATING;}
 	inline bool is_dirichlet() const { return rating == AMG_DIRICHLET_RATING; }
+	inline bool is_interpolateable_from() const { return is_dirichlet() || is_coarse(); }
 	inline bool is_fine_direct() const {return (rating == AMG_FINE_RATING);}
 	inline bool is_fine() const {return rating==AMG_FINE_RATING;}
 	inline bool operator ==(int comp)
@@ -123,6 +124,14 @@ public:
 		return (int)rating;
 	}
 
+	bool operator != (const AMGNode &other) const
+	{
+		return rating != other.rating;
+	}
+	bool operator == (const AMGNode &other) const
+	{
+		return rating == other.rating;
+	}
 	friend class AMGNodes;
 };
 

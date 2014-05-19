@@ -216,7 +216,7 @@ class SimpleParallelCoarsening : public IParallelCoarsening
 
 		std::map<size_t, char> recv;
 		StdArrayCommunicationScheme<AMGNodes> scheme(nodes);
-		CommunicateOnInterfaces(PN.communicator(), masterOL1, slaveOL1, scheme);
+		CommunicateOnInterfaces(PN.comm(), masterOL1, slaveOL1, scheme);
 		PreventFFConnections(graphS, graphST, nodes);
 	}
 
@@ -325,7 +325,7 @@ class RS3Coarsening : public IParallelCoarsening
 
 
 		StdArrayCommunicationScheme<AMGNodes> scheme(nodes);
-		CommunicateOnInterfaces(PN.communicator(), masterOL1, slaveOL1, scheme);
+		CommunicateOnInterfaces(PN.comm(), masterOL1, slaveOL1, scheme);
 
 		// prevent strong FF-Connections
 
@@ -340,7 +340,7 @@ class RS3Coarsening : public IParallelCoarsening
 			if(b) nrOfFFCoarseNodes++;
 		}
 
-		CommunicateOnInterfaces(PN.communicator(), masterOL1, slaveOL1, scheme);
+		CommunicateOnInterfaces(PN.comm(), masterOL1, slaveOL1, scheme);
 	}
 
 	int overlap_depth_master()
@@ -419,7 +419,7 @@ class ColorCoarsening : public IParallelCoarsening
 
 		// create slave-slave-connections
 		IndexLayout OLCoarseningSendLayout, OLCoarseningReceiveLayout;
-		CreateAllToAllFromMasterSlave(PN.communicator(),
+		CreateAllToAllFromMasterSlave(PN.comm(),
 				OLCoarseningSendLayout, OLCoarseningReceiveLayout, OL1MasterLayout, OL1SlaveLayout);
 
 
@@ -438,13 +438,13 @@ class ColorCoarsening : public IParallelCoarsening
 		}
 
 		// int m_myColor =
-		ColorProcessorGraph(PN.communicator(), pidsOL, processesWithLowerColor, processesWithHigherColor);
+		ColorProcessorGraph(PN.comm(), pidsOL, processesWithLowerColor, processesWithHigherColor);
 
 		// receive from processes with lower color
 
 		std::map<size_t, char> recv;
 		RSAMGCoarseningCommunicationScheme nodesCommunication(nodes);
-		ReceiveOnInterfaces(PN.communicator(), processesWithHigherColor, OLCoarseningReceiveLayout, nodesCommunication);
+		ReceiveOnInterfaces(PN.comm(), processesWithHigherColor, OLCoarseningReceiveLayout, nodesCommunication);
 
 		nodesCommunication.set_coarse_and_fine(PQ);
 		nodesCommunication.change_ratings(graphS, graphST, PQ, bUnsymmetric);
@@ -466,12 +466,12 @@ class ColorCoarsening : public IParallelCoarsening
 
 		// send coarsening data
 
-		SendOnInterfaces(PN.communicator(), processesWithLowerColor, OLCoarseningSendLayout, nodesCommunication);
+		SendOnInterfaces(PN.comm(), processesWithLowerColor, OLCoarseningSendLayout, nodesCommunication);
 
 		//UG_LOG("phase2\n");
 		nodesCommunication.clear();
-		SendOnInterfaces(PN.communicator(), processesWithHigherColor, vMasterLayouts[1], nodesCommunication);
-		ReceiveOnInterfaces(PN.communicator(), processesWithLowerColor, vSlaveLayouts[1], nodesCommunication);
+		SendOnInterfaces(PN.comm(), processesWithHigherColor, vMasterLayouts[1], nodesCommunication);
+		ReceiveOnInterfaces(PN.comm(), processesWithLowerColor, vSlaveLayouts[1], nodesCommunication);
 		nodesCommunication.set_coarse_and_fine();
 
 		PreventFFConnections(graphS, graphST, nodes);

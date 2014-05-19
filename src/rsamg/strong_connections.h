@@ -130,7 +130,7 @@ public:
 		{
 			if(conn.index() == i) continue; // skip diag
 			double d = BlockNorm(conn.value());
-			std::cout << d << std::endl;
+//			std::cout << d << std::endl;
 			if(d > dmax) dmax = BlockNorm(conn.value());
 		}
 
@@ -160,7 +160,7 @@ public:
 
 
 template<typename matrix_type>
-void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double theta, AMGNodes &nodes)
+void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double theta)
 {
 	AMG_PROFILE_FUNC();
 	graph.resize(A.num_rows());
@@ -186,9 +186,6 @@ void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double the
 
 		// 2) Find strong connections
 		strong.find(Ai_local, i, graph);
-
-		if(graph.num_connections(i) == 0)
-			nodes.set_coarse(i);
 	}
 
 #ifdef AMG_PRINT_GRAPH
@@ -197,7 +194,7 @@ void CreateStrongConnectionGraph(const matrix_type &A, cgraph &graph, double the
 }
 
 template<typename matrix_type>
-void CreateStrongConnectionGraphForSystems(const matrix_type &A, cgraph &graph, double theta, AMGNodes &nodes)
+void CreateStrongConnectionGraphForSystems(const matrix_type &A, cgraph &graph, double theta)
 {
 	AMG_PROFILE_FUNC();
 	graph.resize(A.num_rows());
@@ -214,14 +211,17 @@ void CreateStrongConnectionGraphForSystems(const matrix_type &A, cgraph &graph, 
 		// Find strong connections
 		StrongNegativeConnectionsByBlockNorm strong(theta);
 		strong.find(Ri, i, graph);
-
-		if(graph.num_connections(i) == 0)
-			nodes.set_coarse(i);
 	}
-
 #ifdef AMG_PRINT_GRAPH
 	graph.print();
 #endif
+}
+
+inline void SetIsolatedCoarse(cgraph &graph, AMGNodes &nodes)
+{
+	for(size_t i=0; i< graph.size(); i++)
+		if(graph.num_connections(i) == 0)
+			nodes.set_coarse(i);
 }
 
 // Updates graph by including large positive connections

@@ -29,7 +29,7 @@ void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_
 void ChangeRatingOfUnassignedNeighbors(const cgraph &graph, nodeinfo_pq_type &PQ, AMGNodes &nodes, size_t i, int change);
 
 void PreventFFConnection(const cgraph &graphS, const cgraph &graphST, AMGNodes &nodes, size_t i, std::vector<bool> &marks, int &nrOfFFCoarseNodes);
-
+int SetCoarse(int i, const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bAggressiveCoarsening);
 // end group plugins_amg_rsamg
 /// \}
 

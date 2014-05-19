@@ -276,7 +276,12 @@ private:
 		AH.defragment();
 		if(m_bTiming) {UG_LOG("took " << SW.ms() << " ms");}
 
-		UG_LOG("check is " << 	CheckDiagonalInvertible(AH) << "\n");
+		if(m_famg.m_bChecks)
+		{
+			bool b = CheckDiagonalInvertible(AH);
+			if(b==false)
+			UG_LOG("ERROR: FAMG level " << level << ": Diag(AH) not invertible!!!");
+		}
 
 		PROFILE_END();
 
@@ -419,17 +424,6 @@ public:
 					<< N - rating.get_unassigned() - rating.get_nr_of_coarse() << " fine, " << rating.get_unassigned() << " unassigned.");
 
 			// set P to real size
-
-			#ifdef UG_PARALLEL
-			/*{
-				pcl::InterfaceCommunicator<IndexLayout> &communicator = (const_cast<matrix_type&>(A)).communicator();
-
-				ParallelNodes PN(OL2MasterLayout, OL2SlaveLayout, A_OL2.num_rows());
-
-				communicate_prolongation(communicator, A.layouts()->master(), A.layouts()->slave(),
-						-> fix nextLevelMasterLayout, nextLevelSlaveLayout, PN, rating);
-			}*/
-			#endif
 		}
 		else // = !(bExternalCoarsening == false && m_famg.m_fileCoarsening != m_famg.READ_COARSENING)
 		{
@@ -445,11 +439,16 @@ public:
 			UG_DLOG(DBG_AMG_COARSENING, 1, "external_coarsening_calculate_prolongation...\n");
 
 			external_coarsening_calculate_prolongation();
+
+			rs_amg_external_postcoarsening();
+			set_uninterpolateable_as_coarse();
 		}
 
 		if(m_famg.m_fileCoarsening == m_famg.WRITE_COARSENING)
 			write_coarsening();
 
+		set_uninterpolateable_as_coarse();
+		make_coarsening_consistent();
 
 //		IF_DEBUG(LIB_ALG_AMG, 3)
 //		{	rating.print(); 	}
@@ -499,10 +498,8 @@ public:
 
 		if(m_famg.m_bWriteFValues)
 		{
-			std::string path=std::string("/level") + ToString(level) + "/";
-			CreateDirectory((std::string(m_famg.m_writeMatrixPath) + path).c_str(), 0777);
-			ConnectionViewer::WriteVector(m_famg.m_writeMatrixPath + path + std::string("AMG_fvalues_L") + ToString(level) + ".vec",
-						fvalues, &m_famg.m_amghelper.positions[level][0], m_famg.m_amghelper.dimension);
+			std::string filename = m_famg.GetAMGFilenamePath(A, level, "fvalues", level, ".vec", true);
+			ConnectionViewer::WriteVector(filename, fvalues, &m_famg.m_amghelper.positions[level][0], m_famg.m_amghelper.dimension);
 		}
 	}
 
@@ -515,7 +512,8 @@ private:
 		PoldIndices.set_layouts(A.layouts());
 		m_famg.parallel_process_prolongation(PoldIndices, PnewIndices,
 				m_famg.m_dProlongationTruncation, level, rating, PN, false, nextLevelLayouts, newIndex);
-		TESTLAYOUTS(nextLevelLayouts);
+		if(m_famg.m_bChecks)
+			TESTLAYOUTS((&nextLevelLayouts));
 #else
 		m_famg.serial_process_prolongation(PoldIndices, PnewIndices, m_famg.m_dProlongationTruncation, level, rating, newIndex);
 #endif
@@ -527,6 +525,7 @@ private:
 	//! \sa set_uninterpolateable_as_coarse
 	void get_aggressive_coarsening_interpolation()
 	{
+		// ?????
 		AMG_PROFILE_FUNC();
 
 		for(size_t i=0; i<A.num_rows(); i++)
@@ -540,7 +539,7 @@ private:
 			// 2. we could then indirectly interpolate from slave1 and master2 nodes
 			// 3. on the slave side, we do not have the slave2 nodes, so we would have to add them somehow
 			if(rating.is_inner_node(i))
-				calculator.get_all_neighbors_interpolation(i, PoldIndices, rating);
+				calculator.get_all_neighbors_interpolation(i, PoldIndices, rating, true);
 			else
 				rating.set_coarse(i);
 		}
@@ -557,9 +556,17 @@ private:
 		for(size_t i=0; i<rating.size(); i++)
 		{
 			if(rating[i].is_uninterpolateable() == false || rating.i_must_assign(i) == false) continue;
+			//if(rating[i].is_fine() || rating.i_must_assign(i) == false) continue;
 			rating.set_coarse(i);
 		}
+		for(size_t i=0; i<rating.size(); i++)
+		{
+			if(rating[i].is_coarse())
+				PoldIndices(i,i)=1.0;
+		}
 	}
+
+	void make_coarsening_consistent();
 
 	void on_demand_coarsening();
 	void precalculate_coarsening();
@@ -571,11 +578,15 @@ private:
 	void send_coarsening_data_to_processes_with_higher_color();
 	void create_OL2_matrix();
 	void calculate_uncalculated_fine_nodes();
+	void rs_amg_coarsening_new(const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes);
+	void rs_amg_coarsening_LE_griebel(const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes);
 #endif
 	void external_coarsening_calculate_prolongation();
 
 	void rs_amg_external_coarsening();
-	void write_XC_coarsening(cgraph &graphS, AMGNodes &nodes);
+	void write_XC_coarsening(cgraph &graphS, AMGNodes &nodes, std::string addStr);
+	void rs_amg_external_postcoarsening();
+	void get_external_coarsening_graph(cgraph &graphS);
 
 	void smooth_testvectors();
 	void get_testvectors_on_OL2();

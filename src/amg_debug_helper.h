@@ -115,6 +115,17 @@ struct cAMG_helper
 		return dimension != 0;
 	}
 
+	MathVector<3> *get_positions(size_t level)
+	{
+		return &positions[level][0];
+	}
+
+	int get_dimension()
+	{
+		return dimension;
+	}
+
+public:
 	stdvector<stdvector<MathVector<3> > > positions; ///< positions on the AMG grid 0
 	int dimension;					///< dimension (2 or 3)
 	stdvector< stdvector<int> > *parentIndex;				///< (*parentIndex)[L][i] is the index of i on level L-1

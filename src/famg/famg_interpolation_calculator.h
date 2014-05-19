@@ -24,6 +24,7 @@
 #include "common/util/sort_util.h"
 #include "lib_algebra/small_algebra/solve_deficit.h"
 #include "lib_algebra/small_algebra/small_matrix/print.h"
+#include "misc.h"
 
 #define FAMG_SCALING
 #define FAMG_FULL_BLOCK
@@ -39,11 +40,7 @@ namespace ug
 
 #define SYS_AS_SYS 0
 //#define SYS_AS_SYS 1
-#ifdef UG_DEBUG
 #define IFI(s) if(is_watch_node(i)) { s; }
-#else
-#define IFI(s)
-#endif
 
 #define UG_LOGI(s) IFI(UG_LOG(s));
 
@@ -75,46 +72,7 @@ private:
 	FAMGInterpolationCalculator(
 			const FAMGInterpolationCalculator<TAlgebra> &other);
 
-	class two_indices : public FixedArray1<size_t, 2>
-	{
-		using FixedArray1<size_t, 2>::at;
-	public:
-		two_indices(size_t i0, size_t i1)
-		{
-			at(0) = i0;
-			at(1) = i1;
-		}
-	};
-	class three_indices : public FixedArray1<size_t, 3>
-	{
-		using FixedArray1<size_t, 3>::at;
-	public:
-		three_indices(size_t i0, size_t i1, size_t i2)
-		{
-			at(0) = i0;
-			at(1) = i1;
-			at(2) = i2;
-		}
-	};
 
-	class index_range
-	{
-	public:
-		index_range(size_t s) :
-				m_size(s)
-		{
-		}
-		inline size_t size() const
-		{
-			return m_size;
-		}
-		inline size_t operator[](size_t i) const
-		{
-			return i;
-		}
-	private:
-		const size_t m_size;
-	};
 
 public:
 
@@ -162,7 +120,7 @@ public:
 				{
 					double d = BlockRef(it.value(), k, k);
 					if (d < 0.01 || d > 1)
-						UG_LOG(	"P(" << i << ", " << it.index() << ")[" << k << "," << k <<"] = " << d << "\n");
+						UG_LOG(	"P([" << i << "], [" << it.index() << "])[" << k << "," << k <<"] = " << d << "\n");
 				}
 			}
 		}
@@ -418,8 +376,8 @@ public:
 	{
 		AMG_PROFILE_FUNC();
 		AMG_PROFILE_NEXT(FAMG_getPPP_minCalc);
-		int i_min = -1;
-		double f_min = 1e12;
+//		int i_min = -1;
+//		double f_min = 1e12;
 
 		neighborstruct_var<smallmat_ptype> s;
 		s.parents.resize(3);
@@ -508,15 +466,15 @@ public:
 	bool prepare_interpolation_calculation(size_t i, FAMGNodes<TPMatrix> rating)
 	{
 		UG_DLOG(DBG_FAMG_INTERPOLATION, 2,
-					"node " << i << " [" << rating.get_original_index(i) << "]\n");
+					"node [" << i << "] [" << rating.get_original_index(i) << "]\n");
 
-		UG_ASSERT(rating[i].is_valid_rating(),
-				"node " << i << " has no valid rating " << rating[i].get_rating());
+		UG_COND_THROW(!rating[i].is_valid_rating(),
+				"node [" << i << "] has no valid rating " << rating[i].get_rating());
 
 		if (testvectorsExtern && BlockNorm2(m_testvectors[0][i]) < 1e-12)
 		{
 			UG_DLOG(DBG_FAMG_INTERPOLATION, 2,
-					"testvector in " << i << " nearly 0, set as fine\n");
+					"testvector in [" << i << "] nearly 0, set as fine\n");
 			rating.set_fine(i);
 			return false;
 		}
@@ -527,7 +485,7 @@ public:
 		GetNeighborhood(A_OL2, i, onlyN1, onlyN2, bvisited);
 		if (onlyN1.size() == 0)
 		{
-			UG_DLOG(DBG_FAMG_INTERPOLATION, 2, "node has no connections, set as fine\n");
+			UG_DLOG(DBG_FAMG_INTERPOLATION, 2, "node [" << i << "] has no connections, set as fine\n");
 			rating.set_fine(i);
 			return false;
 		}
@@ -540,7 +498,7 @@ public:
 		{
 			for (size_t n = 0; n < onlyN1.size(); n++)
 				UG_DLOG(DBG_FAMG_INTERPOLATION, 4,
-						onlyN1[n] << " = " << rating.info(onlyN1[n]) << " ");
+						"[" << onlyN1[n] << "] = " << rating.info(onlyN1[n]) << " ");
 			UG_DLOG(DBG_FAMG_INTERPOLATION, 4, "\n");
 		}
 		return true;
@@ -561,11 +519,6 @@ public:
 	{
 
 		UG_LOGI("----------  LEVEL " << get_level() << " node " << i << "---------------\n");
-		if(false && (get_level() == 0 && (i == 1057 || i == 1056)) )
-		{
-			rating.set_uninterpolateable(i);
-			return 0.0;
-		}
 		//if(i==0)
 		{
 //			UG_LOG("\n\n####################################\n\n");
@@ -582,9 +535,10 @@ public:
 
 		if(is_watch_node(i))
 		{
-		double bestF = get_all_neighbors_interpolation(i);
+				double bestF = get_all_neighbors_interpolation(i);
+				UG_LOG("Best F is " << get_all_neighbors_interpolation(i) << "\n");
 		}
-//		IFI(UG_LOG("Best F is " << get_all_neighbors_interpolation(i) << "\n"));
+
 
 		get_possible_parent_pairs(i, rating);
 		double bestf = 1e3*m_delta;
@@ -608,7 +562,7 @@ public:
 		if(i_neighborpairs.size() == 0)
 		{
 			UG_DLOG(DBG_FAMG_INTERPOLATION, 2,
-			std::endl << rating.get_original_index(i) << ": UNINTERPOLATEABLE" << std::endl);
+			std::endl << "[" << i  << "]: UNINTERPOLATEABLE" << std::endl);
 			//UG_ASSERT(0, "node has no parents :'-(");
 			UG_ASSERT(rating.i_must_assign(i), i);
 			rating.set_uninterpolateable(i);
@@ -702,6 +656,8 @@ public:
 	 * @param indices the indices of the KKT system
 	 * @param ntv number of testvectors
 	 * @param b the block to be used in H_strong_measure
+	 *
+	 * NOT USED CURRENTLY
 	 */
 	template<typename TIndices>
 	  void reduceKKTSystem(TIndices indices, size_t b)
@@ -731,8 +687,10 @@ public:
 	 * @return true if smoother sufficient, false otherwise
 	 */
 	template<typename TIndices>
-	bool check_smoother_sufficient(TIndices &indices, size_t b, size_t blockSize, size_t i_index)
+	bool check_smoother_sufficient(TIndices &indices, size_t b)
 	{
+		size_t i_index = onlyN1.size();
+		const size_t blockSize=GetRows(H(0,0)); // assert blocksize is FIXED!!!
 		Hii = BlockRef(H(i_index, i_index), b, b);
 		const double Hiiscale = BlockRef(aii, b, b)*Hii;
 
@@ -757,6 +715,143 @@ public:
 	}
 
 	/**
+	 * set up matrix KKT and rhs
+	 * @param i			index to interpolate
+	 * @param indices	indices where to interpolate from
+	 * @param b			subblock
+	 * @return true
+	 */
+	template<typename TIndices>
+	bool  setup_KKT(size_t i, const TIndices &indices, size_t b)
+	{
+		// does NOT work!
+		if(false && check_smoother_sufficient(indices, b) == true)
+		{
+			UG_LOGI("SMOOTHER SUFFICIENT\n");
+			return false;
+
+		}
+		const double aii_bb  = BlockRef(aii, b, b);
+
+		const size_t N = indices.size();
+		size_t i_index = onlyN1.size();
+		// fill KKT matrix
+		KKT = 0.0;
+		for(size_t r=0; r<N; r++)
+			for(size_t c=0; c<N; c++)
+				KKT(r, c)=aii_bb*BlockRef(H(indices[r], indices[c]), b, b);
+
+		KKT(N, N) = 0;
+
+		for(size_t k=0; k< m_nrTestvectors; k++)
+			for(size_t j=0; j < N; j++)
+				KKT(N+k, j) = KKT(j, N+k)= BlockRef(localTestvectors[k][indices[j]], b);
+
+
+//			UG_LOG(JuliaString(KKT, "KKT"));
+		for(size_t j=0; j<N; j++)
+			rhs[j] = aii_bb*BlockRef(H(i_index, indices[j]), b, b);
+
+		for(size_t k=0; k < m_nrTestvectors; k++)
+			rhs[N+k] = BlockRef(localTestvectors[k][i_index],b);
+
+
+		// reduce to essential entries
+		// todo: do less work here (KKT system is too large)
+
+		// if(indices.size() > 4) reduceKKTSystem(indices, b);
+
+
+		return true;
+
+	}
+
+	/**
+	 * calculates the F-value out of lq and H:
+	 * F = <lq, H lq> * (A_ii)_bb
+	 * @param i			index to interpolate
+	 * @param indices	indices where to interpolate from
+	 * @param b			subblock
+	 * @return F
+	 * throws if F < 0
+	 */
+	template<typename TIndices>
+	double calculate_F(size_t i, const TIndices &indices, size_t b)
+	{
+		const size_t N = indices.size();
+		size_t i_index = onlyN1.size();
+		Hii = BlockRef(H(i_index, i_index), b, b);
+		double lF=Hii;
+
+		for(size_t k=0; k<N; k++)
+			lF -= 2*lq[k]*BlockRef(H(i_index, indices[k]), b, b);
+		for(size_t k1=0; k1<N; k1++)
+			for(size_t k2=0; k2<N; k2++)
+				lF += lq[k1]*BlockRef(H(indices[k1], indices[k2]), b, b)*lq[k2];
+		lF *= BlockRef(aii, b, b);
+
+		IFI(UG_LOGN("Fb[" << b << "] = " << lF << ")");
+				for(size_t k1=0; k1<N; k1++) { UG_LOG("lq[0] = " << lq[0] << ", lq[1] = " << lq[1]); }
+				UG_LOG("\n");
+				)
+
+		if(lF<-1e-10)
+		{
+			// ERROR: negative F !
+			// recalc KKT to display error.
+			setup_KKT(i, indices, b);
+			UG_LOG("ERROR: negative F values are impossible (i.e., find bug and fix it!)\n");
+			UG_LOG("F = " << lF << "\n");
+			UG_LOG("i = " << i << " b = " << b << "\n");
+			UG_LOG(JuliaString(KKT, "KKT"))
+			rhs.maple_print("rhs");
+			lq.maple_print("lq");
+
+			UG_LOG("WARNING: Negative entries at node [" << i << "]: ");
+			for(size_t l=0; l<indices.size(); l++)
+			{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " " << lq[l] << "\n"); }
+			UG_THROW("negative F");
+		}
+		return lF;
+	}
+
+	/**
+	 * if an interpolation value in lq is negative, this function will return its index.
+	 * values between - and +1e-5 are set to zero.
+	 * @param i			index to interpolate
+	 * @param indices	indices where to interpolate from
+	 * @param b			subblock
+	 * @return index of negative lq, else -1
+	 */
+	template<typename TIndices>
+	int check_for_negative_lq(size_t i, const TIndices &indices, size_t b)
+	{
+		IF_DEBUG(DBG_FAMG_INTERPOLATION, 5) lq.maple_print("lq");
+		//bool bHasNegative=false;
+		int iNegative=-1;
+		for(size_t k=0; k<indices.size(); k++)
+		{
+	//					if(lq[k] < 1e-8 && lq[k] > -1e-8)
+			if(lq[k] < 1e-5 && lq[k] > -1e-5)
+				lq[k] = 0.0;
+			if(lq[k] < 0)
+			{
+				IFI(UG_LOG("negative interpolation weights. aborting.\n"))
+				IF_DEBUG(DBG_FAMG_INTERPOLATION, 2)
+				{
+					UG_LOG("WARNING: Negative entries at node [" << i << "]: ");
+					for(size_t l=0; l<indices.size(); l++)
+					{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " "); }
+					UG_LOG(" solve_KKT: lq[" << k << "] = " << lq[k] << "\n");
+				}
+
+				iNegative = k;
+			}
+			BlockRef(q[k], b, b) = lq[k];
+		}
+		return iNegative;
+	}
+	/**
 	 * assemble the KKT system from H and solve for a set of interpolation parents
 	 * note that H has local indices 0 to onlyN1.size()-1
 	 * their global indices are k -> onlyN1[k]
@@ -770,158 +865,92 @@ public:
 	template<typename TIndices>
 	int solve_KKT(size_t i, const TIndices &indices, bool bCalcNegatives=false)
 	{
-		bCalcNegatives = false;
-//		AMG_PROFILE_FUNC();
+//		const size_t M = localTestvectors.size();
 
+		TemporaryDebugLevel TDL(DBG_FAMG_INTERPOLATION); IFI(TDL.set(5));
 		const size_t blockSize=GetRows(H(0,0)); // assert blocksize is FIXED!!!
-		const size_t N = indices.size();
-		const size_t M = localTestvectors.size();
-		size_t i_index = onlyN1.size();
-		for(size_t k=0; k<indices.size(); k++)
-			q[k] = 0.0;
-		UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "\n");
+		for(size_t k=0; k<indices.size(); k++) q[k] = 0.0;
 		F=0;
-
 		Fb.resize(blockSize);
-		bool bNegative=false;
+		bool bHasNegative=false;
 		for(size_t b=0; b<blockSize; b++)
 		{
 			UG_LOGI("BLOCK [ " << b << " ]\n");
-
-			if(check_smoother_sufficient(indices, b, blockSize, i_index) == true)
-			{
-				UG_LOGI("SMOOTHER SUFFICIENT\n");
-				continue;
-
-			}
-			const double aii_bb  = BlockRef(aii, b, b);
-
-			// fill KKT matrix
-			KKT = 0.0;
-			for(size_t r=0; r<N; r++)
-				for(size_t c=0; c<N; c++)
-					KKT(r, c)=aii_bb*BlockRef(H(indices[r], indices[c]), b, b);
-
-			KKT(N, N) = 0;
-
-			for(size_t k=0; k< m_nrTestvectors; k++)
-				for(size_t j=0; j < N; j++)
-					KKT(N+k, j) = KKT(j, N+k)= BlockRef(localTestvectors[k][indices[j]], b);
-
-
-//			UG_LOG(JuliaString(KKT, "KKT"));
-			for(size_t j=0; j<N; j++)
-				rhs[j] = aii_bb*BlockRef(H(i_index, indices[j]), b, b);
-
-			for(size_t k=0; k < m_nrTestvectors; k++)
-				rhs[N+k] = BlockRef(localTestvectors[k][i_index],b);
-
-
-//			IFI(rhs.maple_print("rhs"));
-//			IF_DEBUG(DBG_FAMG_INTERPOLATION, 5) UG_LOG(JuliaString(KKT, "KKT1"));
-//			IF_DEBUG(DBG_FAMG_INTERPOLATION, 5) rhs.maple_print("rhs1");
-//			IFI(UG_LOG(JuliaString(KKT, "KKT1")));
-//			IFI(rhs.maple_print("rhs1"));
-
-
-			// reduce to essential entries
-			// todo: do less work here (KKT system is too large)
-
-//			if(indices.size() > 4) reduceKKTSystem(indices, b);
-//			IF_DEBUG(DBG_FAMG_INTERPOLATION, 5) UG_LOG(JuliaString(KKT, "KKT"))
-//			IF_DEBUG(DBG_FAMG_INTERPOLATION, 5) rhs.maple_print("rhs");
-
-//			IFI(UG_LOG(JuliaString(KKT, "rKKT")));
-//			IFI(rhs.maple_print("red_rhs"));
-
-			// solve system
-			DenseMatrix<VariableArray2<double> > KKTbefore = KKT;
-			DenseVector<VariableArray1<double> > RHSbefore = rhs;
+			if(setup_KKT(i, indices, b) == false) continue;
 			if(SolveDeficit(KKT, lq, rhs, m_dDeficitSolveTolerance)==true)
 			{
-//				IFI(KKT.maple_print("KKT_After"));
-//				IFI(rhs.maple_print("rhs_after"));
-//				IFI(lq.maple_print("lq"));
-
-				IF_DEBUG(DBG_FAMG_INTERPOLATION, 5) lq.maple_print("lq");
-
-				bool bHasNegative=false;
-
-				for(size_t k=0; k<indices.size(); k++)
+				if(check_for_negative_lq(i, indices, b) != -1)
 				{
-//					if(lq[k] < 1e-8 && lq[k] > -1e-8)
-					if(lq[k] < 1e-5 && lq[k] > -1e-5)
-						lq[k] = 0.0;
-					if(lq[k] < 0)
-					{
-						IFI(UG_LOG("negative interpolation weights. aborting.\n"))
-						IF_DEBUG(DBG_FAMG_INTERPOLATION, 2)
-						{
-							UG_LOG("WARNING: Negative entries at node " << i << ": ");
-							for(size_t l=0; l<indices.size(); l++)
-							{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " "); }
-							UG_LOG(" solve_KKT: lq[" << k << "] = " << lq[k] << "\n");
-						}
-
-						if(bCalcNegatives==false)
-						{
-							F+=1e12;
-							Fb[b] = 1e12;
-							//continue; //return -1;
-						}
-						bNegative=true;
-						bHasNegative = true;
-					}
-					BlockRef(q[k], b, b) = lq[k];
+					UG_DLOG(DBG_FAMG_INTERPOLATION, 2, "[" << i << "], block " << b << " has negatives.\n");
+					if(bCalcNegatives==false) return -1;
+					bHasNegative = true;
+					continue;
 				}
-				if(bHasNegative) continue;
-//				IF_DEBUG(DBG_FAMG_INTERPOLATION, 5) rhs.maple_print("rhs");
-				//IF_DEBUG(DBG_FAMG_INTERPOLATION, 5)
-
-				Hii = BlockRef(H(i_index, i_index), b, b);
-				double lF=Hii;
-
-				for(size_t k=0; k<N; k++)
-					lF -= 2*lq[k]*BlockRef(H(i_index, indices[k]), b, b);
-				for(size_t k1=0; k1<N; k1++)
-					for(size_t k2=0; k2<N; k2++)
-						lF += lq[k1]*BlockRef(H(indices[k1], indices[k2]), b, b)*lq[k2];
-				lF *= BlockRef(aii, b, b);
-				Fb[b] = lF;
-				IFI(UG_LOGN("Fb[" << b << "] = " << lF << ")");
-						for(size_t k1=0; k1<N; k1++) { UG_LOG("lq[0] = " << lq[0] << ", lq[1] = " << lq[1]); }
-						UG_LOG("\n");
-						)
-				F += lF;
-//				UG_ASSERT(lF>-1e-10, "ERROR: negative values lF="<<lF<<" (b="<<b <<") are impossible!");
+				Fb[b] = calculate_F(i, indices, b);
+				F += Fb[b];
 			}
 			else
 			{
 				Fb[b] = 1e12;
 				F += 1e12;
-				/*if(indices.size() >= 3)
-				{
-					UG_LOG("indices = " << indices.size() << " test = " << localTestvectors.size()
-							<< " KKTNu = " << KKT.num_rows() << "\n");
-					UG_LOG(JuliaString(KKTbefore, "KKT"));
-					rhs.maple_print("rhs");
-					UG_LOG(JuliaString(KKT, "KKT_after"));
-					rhs.maple_print("rhs_after");
-					UG_LOG(" solve_KKT: could not solve KKT (decomposition failed) at node " << i << "\n--------------------------------------------------\n\n");
-				}*/
 				IF_DEBUG(DBG_FAMG_INTERPOLATION, 2)
 				{
-				  UG_LOG(" solve_KKT: could not solve KKT (decomposition failed) at node " << i << "\n");
+				  UG_LOG(" solve_KKT: could not solve KKT (decomposition failed) at node [" << i << "]\n");
 				}
-
-//				return -2;
 			}
 		}
 		IFI(UG_LOG("SUCCESS, F = " << F << "\n"));
 		// TODO: Sinvoll?
 		F /= blockSize;
 
-		return (bCalcNegatives==false && bNegative == true) ? -1 : 0;
+		return (bCalcNegatives==false && bHasNegative == true) ? -1 : 0;
+		//return 0;
+	}
+
+	/**
+	 * same as solve_KKT, only that if there are negative interpolation values, this function returns the index of them via &neg.
+	 */
+	template<typename TIndices>
+	int solve_KKT_get_neg(size_t i, const TIndices &indices, size_t &neg)
+	{
+		TemporaryDebugLevel TDL(DBG_FAMG_INTERPOLATION); IFI(TDL.set(5));
+		const size_t blockSize=GetRows(H(0,0)); // assert blocksize is FIXED!!!
+		for(size_t k=0; k<indices.size(); k++) q[k] = 0.0;
+		F=0;
+		Fb.resize(blockSize);
+//		bool bHasNegative=false;
+		for(size_t b=0; b<blockSize; b++)
+			Fb[b] = -1;
+		for(size_t b=0; b<blockSize; b++)
+		{
+			UG_LOGI("BLOCK [ " << b << " ]\n");
+			if(setup_KKT(i, indices, b) == false) continue;
+			if(SolveDeficit(KKT, lq, rhs, m_dDeficitSolveTolerance)==true)
+			{
+				int iNeg = check_for_negative_lq(i, indices, b);
+				if(iNeg != -1)
+				{
+					neg = iNeg;
+					return -1;
+				}
+				Fb[b] = calculate_F(i, indices, b);
+				F += Fb[b];
+			}
+			else
+			{
+				Fb[b] = 1e12;
+				F += 1e12;
+				IF_DEBUG(DBG_FAMG_INTERPOLATION, 2)
+				{
+				  UG_LOG(" solve_KKT: could not solve KKT (decomposition failed) at node [" << i << "]\n");
+				}
+			}
+		}
+		IFI(UG_LOG("SUCCESS, F = " << F << "\n"));
+		// TODO: Sinvoll?
+		F /= blockSize;
+
+		return 0;
 		//return 0;
 	}
 
@@ -957,6 +986,9 @@ public:
 		return newF;
 	}
 
+	/**
+	 * check if a interpolation from either p0 or p1 alone is sufficient
+	 */
 	void check_one_interpolation(size_t i, size_t p0, size_t p1)
 	{
 		double newF=0;
@@ -1003,32 +1035,6 @@ public:
 		}
 	}
 
-	bool get_N2(size_t i, std::vector<size_t> &myN1)
-	{
-		AMG_PROFILE_FUNC();
-		swap(onlyN1, myN1);
-
-		for (size_t j = 0; j < bvisited.size(); j++)
-			bvisited[j] = false;
-		bvisited[i] = true;
-		for (size_t j = 0; j < onlyN1.size(); j++)
-			bvisited[onlyN1[j]] = true;
-
-		onlyN2.clear();
-		for (size_t j = 0; j < onlyN1.size(); j++)
-		{
-			UG_LOG("Neighbhors of " << onlyN1[j] << ": ");
-			size_t k = onlyN2.size();
-			GetNeighborhoodRec(A_OL2, onlyN1[j], onlyN2, bvisited);
-			for (; k < onlyN2.size(); k++)
-				UG_LOG(onlyN2[k] << " ");
-		}
-
-		CleanupFlagArray(bvisited, onlyN1);
-		CleanupFlagArray(bvisited, onlyN2);
-		bvisited[i] = false;
-		return true;
-	}
 
 	template <typename TIndices>
 	void maple_print(TIndices v, const char *title){
@@ -1052,7 +1058,12 @@ public:
 	double H_strong_measure(int j, int b)
 	{
 		size_t i_index = onlyN1.size();
-		return BlockRef(H(i_index, j), b,b) / BlockRef(H(j, j), b,b);
+//		return BlockRef(H(i_index, j), b,b) / BlockRef(H(j, j), b,b);
+		int blockSize = GetRows(H(i_index, j));
+		double m=0;
+		for(b=0; b<blockSize; b++)
+			m=std::max(m, BlockRef(H(i_index, j), b,b) / BlockRef(H(j, j), b,b));
+		return m;
 	}
 
 
@@ -1145,40 +1156,50 @@ public:
 
 	}
 
+	std::vector<double> strongMeasure;
+	/**
+	 *
+	 * @param ind				index in onlyN1 -> onlyN1[ind[i]] is global index
+	 * @param coarseNeighbors	subset of indices of onlyN1
+	 * @param b
+	 */
 
-
-
-
-
-	template<typename TIndices>
-	std::vector<size_t> sortByStrength(const TIndices &coarseNeighbors, int b=-1)
+	void sortByStrength(std::vector<size_t> &ind, int b=-1)
 	{
-		std::vector<double> strongMeasure(coarseNeighbors.size());
+		strongMeasure.resize(onlyN1.size());
 
 		// determine maximum of offdiag/diag in i-th row
 //		double maxVal = 0.0;
 		size_t blockSize=GetRows(H(0,0));
 		// invert with - because bigger is better -> sort is small to big.
-		for (size_t j = 0; j < coarseNeighbors.size(); j++)
+		for (size_t j = 0; j < onlyN1.size(); j++)
 		{
+//			UG_LOG("onlyN1 " << j << " = " << onlyN1[j] << "\n");
 			strongMeasure[j] = 0;
 			if(b == -1)
 				for(size_t bi=0; bi<blockSize; bi++)
-					strongMeasure[j] -= fabs(H_strong_measure(coarseNeighbors[j], bi));
+					strongMeasure[j] -= fabs(H_strong_measure(j, bi));
 			else
-				strongMeasure[j] = -fabs(H_strong_measure(coarseNeighbors[j], b));
+				strongMeasure[j] = -fabs(H_strong_measure(j, b));
 		}
 
-		/*UG_LOG("Strong Measures:\n");
-		for(size_t i=0; i<strongMeasure.size(); i++)
-			UG_LOG(onlyN1[coarseNeighbors[i]] << " = " << strongMeasure[i] << "\n")*/
-		return GetSortedIndices(strongMeasure);
+//		UG_LOG("Strong M easures:\n");
+//		PRINT_VECTOR(ind, "ind");
+//		for(size_t i=0; i<ind.size(); i++)
+//			UG_LOG(onlyN1[ind[i]] << " = " << strongMeasure[ind[i]] << "\n");
+		std::sort(ind.begin(), ind.end(), CompareIndicesBy(strongMeasure));
 	}
 
-	std::vector<size_t> sortByStrength(int b=0)
+	/**
+	 * @param ind				index in onlyN1 -> onlyN1[ind[i]] is global index
+	 * @param b
+	 */
+	void sortByStrength1(std::vector<size_t> &ind, int b=0)
 	{
-		index_range r(onlyN1.size());
-		return sortByStrength(r, b);
+		ind.resize(onlyN1.size());
+		for(size_t i=0; i<onlyN1.size(); i++)
+			ind[i] = i;
+		sortByStrength(ind, b);
 	}
 
 	void getAllStrong(std::vector<size_t> &res, double tol, int nnodes=1)
@@ -1192,7 +1213,7 @@ public:
 		{
 		  markAllStrong(indices, strongMarks, tol, nnodes, b);
 		  for(size_t i=0; i<strongMarks.size(); i++)
-		    if(strongMarksAll[i]==false) strongMarksAll[i] = strongMarks[i];
+			  strongMarksAll[i] = strongMarksAll[i] && strongMarks[i];
 		}
 		res.clear();
 		for(size_t i=0; i<strongMarks.size(); i++)
@@ -1201,61 +1222,68 @@ public:
 	}
 
 
-	// select only coarse neighbors w/ sufficiently large couplings
-	void reduceToStrong(const std::vector<size_t> &coarseNeighbors,
+
+	/*
+	 * select only coarse neighbors w/ sufficiently large couplings
+	 * CURRENTLY NOT USED:
+	 * our current approach is to sort the coarse neighbors depending on their strong-connection-measure
+	 * and from this list select 2, 3, and so on.
+	 */
+#if 0
+	void reduceToStrong_H_strong_measure(const std::vector<size_t> &coarseNeighbors,
 			std::vector<size_t> &strongNeighbors, double eps, int b=0)
 	{
 
-		UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "reduceToStrong with sigma = "<<eps <<" for comp=" << b << std::endl);
-		IF_DEBUG(DBG_FAMG_INTERPOLATION, 3) {
-			maple_print(coarseNeighbors, "coarse");
-		}
+		// determine maximum among coarse neighbors
+		double maxVal = H_strong_measure(coarseNeighbors[0], b);
+		for (size_t j = 1; j < coarseNeighbors.size(); j++)
+			maxVal = std::max(H_strong_measure(coarseNeighbors[j], b), maxVal);
 
-		// determine maximum of offdiag/diag in i-th row
-		double maxVal = 0.0;
+		// select strongly coupled coarse neighbors
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
-		{
-			const double val = H_strong_measure(coarseNeighbors[j], b);
-			maxVal = std::max(maxVal, val);
-			UG_DLOG(DBG_FAMG_INTERPOLATION, 3, val<< " ")
-		}
-
-		// eliminate coarse connections with small contributions
-		maxVal *=eps;
-		for (size_t j = 0; j < coarseNeighbors.size(); j++)
-			if (fabs(H_strong_measure(coarseNeighbors[j], b)) >= maxVal )
+			if (H_strong_measure(coarseNeighbors[j], b) >= eps * maxVal)
 				strongNeighbors.push_back(coarseNeighbors[j]);
-
-
-		IF_DEBUG(DBG_FAMG_INTERPOLATION, 3) {
-			maple_print(strongNeighbors, "strong");
-		}
-
 	}
 
-	// select only coarse neighbors w/ sufficiently large couplings
-		void reduceToStrongNew(const std::vector<size_t> &coarseNeighbors,
-				std::vector<size_t> &strongNeighbors, double eps)
-		{
-			// determine maximum among coarse neighbors
-			double maxVal = BlockNorm(H(coarseNeighbors[0],coarseNeighbors[0]));
-			for (size_t j = 1; j < coarseNeighbors.size(); j++)
-				maxVal = std::max(BlockNorm(H(coarseNeighbors[j], coarseNeighbors[j])), maxVal);
+	void reduceToStrong_BlockNorm(const std::vector<size_t> &coarseNeighbors,
+			std::vector<size_t> &strongNeighbors, double eps)
+	{
+		// determine maximum among coarse neighbors
+		double maxVal = BlockNorm(H(coarseNeighbors[0],coarseNeighbors[0]));
+		for (size_t j = 1; j < coarseNeighbors.size(); j++)
+			maxVal = std::max(BlockNorm(H(coarseNeighbors[j], coarseNeighbors[j])), maxVal);
 
-			// select strongly coupled coarse neighbors
-			for (size_t j = 0; j < coarseNeighbors.size(); j++)
-				if (BlockNorm(H(coarseNeighbors[j], coarseNeighbors[j])) >= eps * maxVal)
-					strongNeighbors.push_back(coarseNeighbors[j]);
-		}
+		// select strongly coupled coarse neighbors
+		for (size_t j = 0; j < coarseNeighbors.size(); j++)
+			if (BlockNorm(H(coarseNeighbors[j], coarseNeighbors[j])) >= eps * maxVal)
+				strongNeighbors.push_back(coarseNeighbors[j]);
+	}
+#endif
+
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/// solve the KKTs from external coarsening
+	// key here is
+	// 1. we want to interpolate sufficiently well (F < F_max = delta)
+	// 2. we don't want to use too many interpolating nodes
+	// 3. we don't want negative interpolation values,
+	// (unless we are on the last multigrid level: fix this).
 
 	size_t csolve_KKT_non_neg;
+	/**
+	 * start with all indices
+	 * loop:
+	 *   try to solve with those indices
+	 *   if successfully solved, return
+	 *   else remove one index
+	 * ATTENTION! This function can have VERY LARGE runtime since it basically checks ALL configurations.
+	 */
 	int solve_KKT_non_neg(size_t i, std::vector<size_t> &indices, int tvSize, bool bCalcNegatives=false)
 	{
 		csolve_KKT_non_neg++;
 		if(csolve_KKT_non_neg > 20) return -1;
 		set_sizes(indices.size(), tvSize);
-		IFI(UG_LOG("tvSize = " << tvSize << " (");		for(size_t j=0; j<indices.size(); j++)		{ UG_LOG(onlyN1[indices[j]] << " "); }		UG_LOG(")\n");
-		)
+		IFI(UG_LOG("tvSize = " << tvSize << " (");		for(size_t j=0; j<indices.size(); j++)		{ UG_LOG(onlyN1[indices[j]] << " "); }		UG_LOG(")\n");		)
 		int ret = solve_KKT(i, indices);
 		UG_LOGI(" ret = " << ret << ": " << Fb[0] << " " << Fb[1] << "\n");
 		if(ret != -1)
@@ -1275,10 +1303,85 @@ public:
 		return -1;
 	}
 
-	bool direct_interpolation(size_t i, TPMatrix &P,
-			FAMGNodes<TPMatrix> &rating, std::vector<size_t> &coarseNeighbors)
+
+	/**
+	 * start with the best 6 indices
+	 * loop:
+	 *   try to solve with those indices
+	 *   if successfully solved, return
+	 *   else remove the index with negative values or the last one (with worse H-rating)
+	 */
+	int solve_KKT_non_neg3(size_t i, std::vector<size_t> &indices, int tvSize, bool bCalcNegatives=false)
 	{
-		UG_LOGI("direct interpolation " << i << "\n");
+		size_t neg;
+		size_t K=indices.size();
+		if(K > 6) K = 6;
+		for(; K>=2; K--)
+		{
+			IFI(PRINT_VECTOR(indices, "indices"));
+			set_sizes(K, tvSize);
+			indices.resize(K);
+			int ret = solve_KKT_get_neg(i, indices, neg);
+			if(ret == 0)
+			{
+				 if(Fb[0] < m_delta && Fb[1] < m_delta)
+					 return 0;
+				 else
+					 return -1;
+			}
+			std::swap(indices[K-1], indices[neg]);
+
+		}
+		return -1;
+	}
+
+	/**
+	 * start with the best 2 indices
+	 * loop:
+	 *   try to solve with those indices
+	 *   if successfully solved, return
+	 *   else add the next best index
+	 *   if an index was negative, remove it from list.
+	 */
+	int solve_KKT_non_neg2(size_t i, std::vector<size_t> &indices, int tvSize, bool bCalcNegatives=false)
+	{
+		size_t neg;
+		size_t nrNeg=indices.size()+1;
+
+		for(size_t K=0; K<nrNeg;)
+		{
+
+			SubVector vec(indices, K);
+			if(is_watch_node(i))
+				{PRINT_VECTOR(vec, "vec, " << i << " K = " << K); }
+			set_sizes(K, tvSize);
+			int ret = solve_KKT_get_neg(i, vec, neg);
+			if(ret == 0)
+			{
+				 if(Fb[0] < m_delta && Fb[1] < m_delta)
+				 {
+					 if(is_watch_node(i)) UG_LOG("success\n");
+					 indices.resize(K);
+					 return 0;
+				 }
+				 if(is_watch_node(i)) UG_LOG("delta\n");
+				 K++;
+			}
+			else
+			{
+				nrNeg--;
+				std::swap(indices[nrNeg-1], indices[neg]);
+				if(is_watch_node(i)) UG_LOG("neg\n");
+			}
+		}
+		return -1;
+	}
+
+
+	bool direct_interpolation(size_t i, TPMatrix &P,
+			FAMGNodes<TPMatrix> &rating, std::vector<size_t> &coarseNeighbors, bool bIndirect)
+	{
+//		UG_LOGI("direct interpolation [" << i << "]\n");
 		AMG_PROFILE_FUNC();
 
 		get_H(i, rating); // todo: not really necessary if coarseNeighbors.size() == 1
@@ -1300,20 +1403,30 @@ public:
 			return true;
 		}
 */
-		std::vector<size_t> myNeighbors = coarseNeighbors;
+//		UG_LOG("DIRECT INTERPOLATION " << i << "\n");
+		std::vector<size_t> myNeighbors;
+//		PRINT_VECTOR(coarseNeighbors, "coarseNeighbors");
+		sortByStrength(coarseNeighbors);
+
+		if(is_watch_node(i))
+		{
+			UG_LOG("sorted strong: ");
+			for(size_t j=0; j<coarseNeighbors.size(); j++) { UG_LOG(onlyN1[coarseNeighbors[j]] << ", "); }
+			UG_LOG("\n");
+		}
+		myNeighbors = coarseNeighbors;
+//		PRINT_VECTOR(myNeighbors, "myNeighbors");
+		//std::vector<size_t> myNeighbors=coarseNeighbors;
+//		reduceToStrong(coarseNeighbors, myNeighbors, 0.7);
 		csolve_KKT_non_neg=0;
-		if((solve_KKT_non_neg(i, myNeighbors, -1) == 0  && F < m_delta ) ||
+
+		if((solve_KKT_non_neg2(i, myNeighbors, -1) == 0 && F < m_delta ) ||
 				(m_bUseConstantIfFailed && solve_KKT_non_neg(i, myNeighbors, 1) == 0))
 		{
-//			if(csolve_KKT_non_neg != 1)UG_LOG("csolve_KKT_non_neg = " << csolve_KKT_non_neg << "\n");
-			UG_LOGI("csolve_KKT_non_neg = " << csolve_KKT_non_neg << "\n");
-			UG_COND_THROW(F<-1e-10, "ERROR: negative F values are impossible (i.e., find bug and fix it!)");
-
 			if(F > m_delta)
 			{
-
-				UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "direct_interpolation, had to set node " << i << " coarse: " << F << ">" << m_delta);
-				rating.external_set_coarse(i);
+				UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "direct_interpolation, had to set node [" << i << "] coarse: " << F << ">" << m_delta);
+				rating.external_uninterpolateable(i);
 			}
 			else
 			{
@@ -1323,6 +1436,7 @@ public:
 				{
 					UG_THROW("disabled due to systems");
 				}
+
 				if(m_dProlongationTruncation > 0.0)
 				 {
 					UG_THROW("no thanks");
@@ -1333,24 +1447,62 @@ public:
 					{
 						if(BlockNorm(q[j]) < dmax*m_dProlongationTruncation) continue;
 						size_t node = onlyN1[myNeighbors[j]];
-						UG_DLOG(DBG_FAMG_INTERPOLATION, 3, node << ": " << q[j] << ", ");
+						UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "[" << node << "]: " << q[j] << ", ");
 						P(i, node) = q[j];
 					}
 				 }
 				else
 				{
-					for(size_t j=0; j<N; j++)
+					// todo: modify dropping algorithm
+					// nodes should be dropped if they have (in relation) less influence than others
+					if(bIndirect)
 					{
-						size_t nodej = onlyN1[myNeighbors[j]];
-						if(!rating[i].is_coarse()) rating.set_coarse(nodej);
-						P(i, nodej) = q[j];
-						UG_DLOG(DBG_FAMG_INTERPOLATION, 3, nodej << ": " << q[j] << ", ");
+						smallmat_type sm;
+						smallmat_type droppedSum=1;
+						for(size_t j=0; j<N; j++)
+						{
+							if(BlockNorm(q[j]) < 1e-2) continue;
+							size_t nodej = onlyN1[myNeighbors[j]];
+							if(rating[nodej].is_dirichlet()) continue; // because defect is 0 in those nodes.
+							if(!rating[nodej].is_coarse())
+							{
+								for(typename prolongation_matrix_type::row_iterator it = P.begin_row(nodej); it != P.end_row(nodej); ++it)
+								{
+									sm = q[j] * it.value();
+									if(BlockNorm(sm) < 0.02) { droppedSum-=sm; continue;}
+									P(i, it.index()) += q[j] * it.value();
+								}
+							}
+							else
+								P(i, nodej) += q[j];
+							UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "[" << nodej << "]: " << q[j] << ", ");
+						}
+						Invert(droppedSum);
+						for(typename prolongation_matrix_type::row_iterator it = P.begin_row(i); it != P.end_row(i); ++it)
+							it.value() *= droppedSum;
+
+
+					}
+					else
+					{
+						for(size_t j=0; j<N; j++)
+						{
+							if(BlockNorm(q[j]) < 1e-2) continue;
+							size_t nodej = onlyN1[myNeighbors[j]];
+							if(rating[nodej].is_dirichlet()) continue; // because defect is 0 in those nodes.
+							if(!rating[nodej].is_coarse()) rating.set_coarse(nodej);
+							P(i, nodej) = q[j];
+							UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "[" << nodej << "]: " << q[j] << ", ");
+						}
 					}
 				}
 				check_weights(P, i);
 				if(fvalues.size() > i) fvalues[i] = F;
-//				UG_LOG("setting " << i << " fine.");
-				rating.set_fine(i);
+//				UG_LOG("setting [" << i << "] fine.");
+				if(bIndirect)
+					rating.set_aggressive_fine(i);
+				else
+					rating.set_fine(i);
 			}
 		}
 		else
@@ -1358,71 +1510,16 @@ public:
 //			if(csolve_KKT_non_neg != 1)UG_LOG("csolve_KKT_non_neg = " << csolve_KKT_non_neg << "\n");
 			UG_LOGI("csolve_KKT_non_neg = " << csolve_KKT_non_neg << "\n");
 			//rating.set_coarse(i);
-			rating.external_set_coarse(i);
-			UG_DLOG(DBG_FAMG_INTERPOLATION, 5, "direct_interpolation of node " << i << ": could not invert KKT system (coarse neighbors).\n");
+			rating.external_uninterpolateable(i);
+			UG_DLOG(DBG_FAMG_INTERPOLATION, 5, "direct_interpolation of node [" << i << "]: could not invert KKT system (coarse neighbors).\n");
 		}
 		return true;
 	}
 
-	bool indirect_interpolation(size_t i, TPMatrix &P,
-			FAMGNodes<TPMatrix> &rating,
-			std::vector<size_t> &interpolateNeighbors)
-	{
-		AMG_PROFILE_FUNC();
-		get_H(i, rating);
-
-		F = 0;
-		set_sizes(interpolateNeighbors.size());
-		if (solve_KKT(i, interpolateNeighbors) == 0 && F < m_delta)
-		{
-			//IF_DEBUG(DBG_FAMG_INTERPOLATION, 5)
-				//q.maple_print("q");
-			typedef typename std::map<size_t, smallmat_type> smallmat_map;
-			smallmat_map localP;
-			for (size_t j = 0; j < interpolateNeighbors.size(); j++)
-			{
-				size_t node = onlyN1[interpolateNeighbors[j]];
-				for (typename TPMatrix::row_iterator it = P.begin_row(node); it != P.end_row(node); ++it)
-					localP[it.index()] += it.value() * q[j];
-			}
-
-			if(m_dProlongationTruncation > 0.0)
-			{
-				double dmax = 0;
-				for (typename smallmat_map::iterator it = localP.begin(); it != localP.end(); ++it)
-					dmax = std::max(BlockNorm((*it).second), dmax);
-				for (typename smallmat_map::iterator it = localP.begin(); it != localP.end(); ++it)
-					if (BlockNorm((*it).second) > dmax * m_dProlongationTruncation)
-						P(i, (*it).first) = (*it).second;
-			}
-			else
-			{
-				for (typename smallmat_map::iterator it = localP.begin(); it != localP.end(); ++it)
-					P(i, (*it).first) = (*it).second;
-			}
-
-			check_weights(P, i);
-			if (fvalues.size() > i)
-				fvalues[i] = F;
-			rating.set_aggressive_fine(i);
-		}
-		else
-		{
-			rating.external_set_coarse(i);
-			UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "had to set node " << i << " coarse: ");
-			if (F == 0)
-			{
-				UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "could not invert KKT system.\n");
-			}
-			else
-			{
-				UG_DLOG(DBG_FAMG_INTERPOLATION, 3,
-						"F = " << F << " < delta = " << m_delta << "\n");
-			}
-		}
-		return true;
-	}
-
+	/**
+	 * this doesn't seem to work too well with linear elasticity, since
+	 * the AMG-connection rating is somehow wrong.
+	 */
 	void get_strong_connected_neighborhood(const TMatrix &A,
 			const FAMGNodes<TPMatrix> &rating, size_t i,
 			stdvector<size_t> &onlyN1, stdvector<size_t> &onlyN2,
@@ -1445,10 +1542,8 @@ public:
 				continue; // skip diagonal
 			onlyN1.push_back(conn.index());
 			bvisited[conn.index()] = true;
-			if (!rating[conn.index()].is_coarse())
-				continue; // only coarse
-
-			coarseNeighbors.push_back(onlyN1.size() - 1);
+			if (rating[conn.index()].is_interpolateable_from())
+				coarseNeighbors.push_back(onlyN1.size() - 1);
 		}
 
 		for (size_t i = 0; i < onlyN1.size(); i++)
@@ -1473,10 +1568,14 @@ public:
 		CleanupFlagArray(bvisited, onlyN2);
 	}
 
-	void get_strong_connected_neighborhood2(const TMatrix &A,
+	/**
+	 * just put all coarse neighbors into the list
+	 * if indirect interpolation is used, also put in "inner" direct fine nodes.
+	 */
+	void get_coarse_neighborhood(const TMatrix &A,
 			const FAMGNodes<TPMatrix> &rating, size_t i, stdvector<size_t> &onlyN1,
 			stdvector<size_t> &onlyN2, stdvector<size_t> &coarseNeighbors,
-			stdvector<bool> &bvisited)
+			stdvector<bool> &bvisited, bool bIndirect)
 	{
 
 //		bvisited.resize(0);
@@ -1485,14 +1584,21 @@ public:
 
 		for (size_t j = 0; j < onlyN1.size(); j++)
 		{
-			if (!rating[onlyN1[j]].is_fine())
+			size_t k=onlyN1[j];
+			//if (!rating[onlyN1[j]].is_fine()) // && !rating[onlyN1[j]].is_uninterpolateable())
+			if (rating[k].is_coarse())
+				coarseNeighbors.push_back(j);
+			if (bIndirect && rating[k].is_fine_direct() && rating.i_must_assign(k))
 				coarseNeighbors.push_back(j);
 		}
 	}
 
-	double get_strong_interpolation(double bestF, size_t i)
+#if 0
+	// not used
+	double print_strenght_sorted_neighbors(size_t i)
 	{
-		std::vector<size_t> strong = sortByStrength();
+		std::vector<size_t> strong;
+		sortByStrength1(strong);
 		UG_LOG("sorted strong: ");
 		for(size_t j=0; j<strong.size(); j++)
 		{UG_LOG(onlyN1[strong[j]] << ", ");}
@@ -1500,14 +1606,13 @@ public:
 
 
 	}
+#endif
+
 
 	double get_all_neighbors_interpolation(size_t i)
 	{
-		std::vector<size_t> strong = sortByStrength();
-//		UG_LOG("sorted strong: ");
-//		for(size_t j=0; j<strong.size(); j++)
-//		{UG_LOG(onlyN1[strong[j]] << ", ");}
-//		UG_LOG("\n");
+		std::vector<size_t> strong;
+		sortByStrength1(strong);
 
 		index_range ir(onlyN1.size());
 		set_sizes(onlyN1.size());
@@ -1532,29 +1637,6 @@ public:
 			return -1;
 		else
 			return -1;
-
-		/*UG_LOG("get_all_neighbors_interpolation(" << i << ")\n");
-		// H already calculated
-		std::vector<size_t> strong = sortByStrength();
-		UG_LOG("sorted strong: ");
-		for(size_t j=0; j<strong.size(); j++)
-		{UG_LOG(onlyN1[strong[j]] << ", ");}
-									UG_LOG("\n");
-		while(strong.size() > 1)
-		{
-			set_sizes(strong.size());
-			UG_LOG("trying ");
-			for(size_t j=0; j<strong.size(); j++)
-					{UG_LOG(onlyN1[strong[j]] << ", ");}
-												UG_LOG("\n");
-			int ret = solve_KKT(i, strong, true);
-			if(ret == 0 || ret == -1)
-				return F;
-			else if(ret == -2)
-				return 1000;
-			strong.resize(strong.size()-1);
-		}
-		return 1000;*/
 	}
 
 	// get_all_neighbors_interpolation: RSAMG strong
@@ -1567,48 +1649,32 @@ public:
 	 * \param indirectInterpolationLevel	if true, only use coarse neighbors
 	 */
 	bool get_all_neighbors_interpolation(size_t i, TPMatrix &P,
-			FAMGNodes<TPMatrix> &rating, int indirectInterpolationLevel = -1)
+			FAMGNodes<TPMatrix> &rating, bool bIndirect)
 	{
-		//UG_LOG("get_all_neighbors_interpolation " << i << "\n");
+		//UG_LOG("get_all_neighbors_interpolation [" << i << "]\n");
 		AMG_PROFILE_FUNC();
 //		UG_DLOG(DBG_FAMG_INTERPOLATION, 3,
 		UG_LOGI("get_all_neighbors_interpolation on node " << rating.get_original_index(i) << "\n")
 
 		stdvector<size_t> coarseNeighbors;
 
+		get_coarse_neighborhood(A_OL2, rating, i, onlyN1, onlyN2,
+				coarseNeighbors, bvisited, bIndirect);
 
-		get_strong_connected_neighborhood2(A_OL2, rating, i, onlyN1, onlyN2,
-				coarseNeighbors, bvisited);
+
 		IFI(PrintVector(onlyN1, "N1"))
 		IFI(PrintVector(coarseNeighbors, "cN1"))
 //		UG_LOG("coarseNeighbors: " << coarseNeighbors.size() << "\n");
-		if (onlyN1.size() == 0 || coarseNeighbors.size() == 0)
+		if (onlyN1.size() == 0)
 		{
-			UG_DLOG(DBG_FAMG_INTERPOLATION, 3, "no neighbors -> F");
-//			UG_LOG("setting1417 " << i << " coarse.");
 			rating.set_dirichlet(i);
 			return true;
 		}
-
-//		UG_LOG("di\n");
-		//const double &aii = A_OL2(i,i);
-
-		/*if (coarseNeighbors.size() < 2)
-			return indirect_interpolation(i, P, rating, coarseNeighbors);
-		else if (indirectInterpolationLevel >= 0)
+		else if(coarseNeighbors.size() == 0)
 		{
-			UG_DLOG(DBG_FAMG_INTERPOLATION, 3,
-					"indirectInterpolationLevel = " << indirectInterpolationLevel << ", but no coarse neighbors of this level");
-			return false;
+			rating.set_coarse(i);
 		}
-		else*/
-		{
-			/*std::vector<size_t> innerNodes;
-			for (size_t j = 0; j < onlyN1.size(); j++)
-				if (rating.is_inner_node(onlyN1[j])	|| rating.is_master(onlyN1[j]))
-					innerNodes.push_back(j);*/
-			return direct_interpolation(i, P, rating, coarseNeighbors);
-		}
+		return direct_interpolation(i, P, rating, coarseNeighbors, bIndirect);
 	}
 
 private:
@@ -1637,9 +1703,11 @@ private:
 		//AMG_PROFILE_NEXT(AMG_H_CreateN2);
 		// create N2: N2 consists of all 2-neighbors of N in this order:
 		// onlyN1, i, onlyN2
+		PROFILE_BEGIN(N2);
 		N2 = onlyN1;
 		N2.push_back(i);
 		N2.insert(N2.end(), onlyN2.begin(), onlyN2.end());
+		PROFILE_END();
 
 		PRINT_VECTOR_AMGDEBUG(2, onlyN1, "\nonlyN1");
 		PRINT_VECTOR_AMGDEBUG(2, onlyN2, "\nonlyN2");
@@ -1651,11 +1719,15 @@ private:
 		S.resize(N2.size(), N2.size());
 		S = 0.0;
 
+		PROFILE_BEGIN(GetLocalMatrix)
 		GetLocalMatrix(A_OL2, S, &N2[0], &N2[0]);
+		PROFILE_END_(GetLocalMatrix);
 
+		PROFILE_BEGIN(p2)
 		size_t i_index = onlyN1.size();
 		GetDiagSqrt(aiiSqrt, S(i_index, i_index));
 		GetDiag(aii, S(i_index, i_index));
+		PROFILE_END();
 
 		// make S symmetric
 		/*for(size_t r=0; r<S.num_rows(); r++)
@@ -1701,6 +1773,7 @@ private:
 
 	void calculate_Dinv_from_local_A(size_t i)
 	{
+		AMG_PROFILE_FUNC();
 		const size_t N = S.num_rows(); // = N2
 		
 		if (Dinv.size() != N)
@@ -1728,8 +1801,29 @@ private:
 		PRINT_VECTOR_AMGDEBUG(5, Dinv, "Dinv");
 	}
 
+	void AssignMult3(double &d, double alpha, double &a, double &b)
+	{
+		d = alpha*a*b;
+	}
+
+	template<typename A, typename B, typename C>
+	inline void AssignMult3(DenseMatrix<A> &dest, double alpha, const DenseMatrix<B> &mA, const DenseMatrix<C> &mB)
+	{
+		UG_ASSERT(mA.num_cols() == mB.num_rows(), "");
+		dest.resize(mA.num_rows(), mB.num_cols());
+		for(size_t r=0; r < mA.num_rows(); r++)
+			for(size_t c=0; c < mB.num_cols(); c++)
+			{
+				dest(r, c) = mA(r, 0)* mB(0, c);
+				for(size_t k=1; k < mB.num_rows(); k++)
+					dest(r, c) += mA(r, k) * mB(k, c);
+				dest(r, c) *= alpha;
+			}
+	}
+
 	void calculate_SF_from_Dinv_and_local_A(size_t i)
 	{
+		AMG_PROFILE_FUNC();
 		const size_t N = S.num_rows(); // = N2
 		const size_t i_index = onlyN1.size();
 
@@ -1741,12 +1835,12 @@ private:
 
 		// bei f-smoothing nie und nimmer damping (arne 3.juni)
 		if (BlockNorm(S(i_index, i_index)) < 1e-12)
-			UG_LOG("i=" << i << "S(i,i) = " << S(i,i) << "\n");
+			UG_LOG("i=[" << i << "] S(i,i) = " << S(i,i) << "\n");
 
 		// todo: only go to onlyN1.size(), since S(i_index, j) = 0 forall j > onlyN1.size()
 		// SF[i] = (1 -wD^{-1} A )_( i, N2[i])
 		for (size_t j = 0; j < N; j++)
-			SF[j] = -Dinv[i_index] * S(i_index, j);
+			AssignMult3(SF[j], -1.0, Dinv[i_index], S(i_index, j));
 		SF[i_index] += 1.0;
 
 		PRINT_VECTOR_AMGDEBUG(5, SF, "SF");
@@ -1754,14 +1848,17 @@ private:
 
 	void calculate_Sjac_from_Dinv_and_local_A()
 	{
+		AMG_PROFILE_FUNC();
 		const size_t N = S.num_rows(); // = N2
 		// get S = 1-w D^{-1} A
+		smallmat_type m;
 		for (size_t r = 0; r < N; r++)
 		{
 			// todo: only go to onlyN1.size(), since S(i_index, j) = 0 forall j > onlyN1.size()
 			for (size_t c = 0; c < N; c++)
 			{
-				S(r, c) = -m_damping * Dinv[r] * S(r, c);
+				AssignMult3(m, -m_damping, Dinv[r], S(r, c));
+				S(r, c) = m;
 				if (r == c)
 					S(r, c) += 1.0;
 			}
@@ -1773,8 +1870,10 @@ private:
 
 	void calculate_S_from_SF_and_Sjac()
 	{
+		AMG_PROFILE_FUNC();
 		const size_t N = S.num_rows(); // = N2
 		const size_t i_index = onlyN1.size();
+		smallmat_type m;
 
 		// get S' = SF S
 		// (possible without temporary since SF is mostly Id,
@@ -1784,9 +1883,10 @@ private:
 		for (size_t j = 0; j < N; j++)
 		{
 			//S(i_index, j) = SF[i_index]*S(i_index,j);
-			S(i_index, j) *= SF[i_index];
+			AssignMult(m, S(i_index, j), SF[i_index]);
+			S(i_index, j) = m;
 			for (size_t t = 0;  t<i_index; t++){
-				S(i_index, j) += SF[t] * S(t, j);
+				AddMult(S(i_index, j), SF[t], S(t, j));
 			}
 
 		}
@@ -1815,8 +1915,47 @@ private:
 				UG_LOG(cd << "(" << N2[r] << ", " << N2[c] << ") = " << H(r, c) << "\n");
 	}
 
+
+	inline void AssignMultT(double &dest, const double &mA, const double &mB)
+	{
+		dest = mA*mB;
+	}
+
+	template<typename A, typename B, typename C>
+	inline void AssignMultT(DenseMatrix<A> &dest, const DenseMatrix<B> &mA, const DenseMatrix<C> &mB)
+	{
+		UG_ASSERT(mA.num_cols() == mB.num_rows(), "");
+		dest.resize(mA.num_rows(), mB.num_cols());
+		for(size_t r=0; r < mA.num_rows(); r++)
+			for(size_t c=0; c < mB.num_cols(); c++)
+			{
+				AssignMultT(dest(r, c), mA(r, 0), MatrixTranspose(mB(c, 0)));
+				for(size_t k=1; k < mB.num_rows(); k++)
+					AddMult(dest(r, c), mA(r, k), MatrixTranspose(mB(c, k)));
+			}
+	}
+
+
+	inline void AssignT(double &dest, const double &mA)
+	{
+		dest = mA;
+	}
+
+	template<typename A, typename B>
+	inline void AssignT(DenseMatrix<A> &dest, const DenseMatrix<B> &mA)
+	{
+		UG_ASSERT(mA.num_cols() == mA.num_rows(), "");
+		dest.resize(mA.num_rows(), mA.num_cols());
+		for(size_t r=0; r < mA.num_rows(); r++)
+			for(size_t c=0; c < mA.num_cols(); c++)
+				AssignT(dest(r, c), mA(c, r));
+	}
+
+
+
 	void calculate_H_from_S_and_Dinv(size_t i)
 	{
+		PROFILE_FUNC();
 		const size_t N = S.num_rows(); // = N2
 		if (H.num_rows() != onlyN1.size() + 1)
 			H.resize(onlyN1.size() + 1, onlyN1.size() + 1);
@@ -1824,17 +1963,28 @@ private:
 		// get H = S' Y S'^T
 		// todo: use symmetric H.
 
-		for (size_t r = 0; r < onlyN1.size() + 1; r++)
-		{
-			for (size_t c = r; c < onlyN1.size() + 1; c++)
+		for (size_t c = 0; c < onlyN1.size() + 1; c++)
+			for (size_t r = c; r < onlyN1.size() + 1; r++)
+				H(r, c) = 0.0;
+
+		smallmat_type m;
+		for (size_t j = 0; j < N; j++)
+			for (size_t c = 0; c < onlyN1.size() + 1; c++)
 			{
-				smallmat_type s = 0.0;
-				for (size_t j = 0; j < N; j++)
-					s += S(r, j) * Dinv[j] * MatrixTranspose(S(c, j));
-				H(r, c) = s;
-				H(c, r) = MatrixTranspose(s);
+				AssignMultT(m, Dinv[j], S(c, j));
+				for (size_t r = c; r < onlyN1.size() + 1; r++)
+				{
+					// A_ij = B_ik C_kj
+					// M_ij = F_ik A_kj = F_ik B_km C_mj
+
+					AddMult(H(r, c), S(r, j), m);
+
+				}
 			}
-		}
+
+		for (size_t c = 0; c < onlyN1.size() + 1; c++)
+			for (size_t r = c; r < onlyN1.size() + 1; r++)
+				AssignT(H(c, r), H(r, c));
 
 		//IFI(H.maple_print("H"));
 //		IFI(NPrint(H, "H"));
@@ -1842,30 +1992,7 @@ private:
 		IF_DEBUG(DBG_FAMG_INTERPOLATION, 6)	{ H.maple_print("H"); }
 	}
 
-	template<typename T>
-	void BlockToDouble(DenseMatrix<VariableArray2<double> > &Ad, T &A)
-	{
-		size_t blockSize = GetRows(A(0,0));
-		Ad.resize(blockSize*A.num_rows(), blockSize*A.num_cols());
 
-		for(size_t i=0; i<A.num_rows(); i++)
-		{
-			for(size_t j=0; j<A.num_cols(); j++)
-				for(size_t r=0; r<blockSize; r++)
-					for(size_t c=0; c<blockSize; c++)
-						Ad(i*blockSize+r, j*blockSize+c) = BlockRef(A(i, j), r, c);
-		}
-	}
-
-	template<typename T>
-	void DoubleToBlock(T &A, DenseMatrix<VariableArray2<double> > &Ad, size_t blockSize)
-	{
-		A.resize(Ad.num_rows()/blockSize, Ad.num_cols()/blockSize);
-
-		for(size_t i=0; i<Ad.num_rows(); i++)
-			for(size_t j=0; j<Ad.num_cols(); j++)
-				BlockRef(A(i/blockSize, j/blockSize), i%blockSize, j%blockSize) = Ad(i, j);
-	}
 
 	/**
 	 * calculate_H_from_local_A
@@ -1916,56 +2043,19 @@ private:
 	// global_to_local_testvectors
 	/** calculates the local testvectors
 	 * \param node the fine node to be interpolated
-	 *	note: das mit den testvektoren ist noch nicht so sicher:
-	 *	sie m�ssen ja theoretisch 2 mal gegl�ttet werden. 1x normal jacobi,
-	 *	und dann ein 2. mal nur auf den feinen knoten. und danach muss noch
-	 *	$\frac 1 {\abs{t}_A}$ geteilt werden. Leider wei� man aber ja vorher noch nicht,
-	 *	welche Knoten fein sind. Dh. im Moment ist das so: Man macht einmal Jacobi,
-	 *	berechnet dann mal $\frac 1 {\abs{t}_A}$, und macht dann lokal nur noch so eine
-	 *	Nachgl�ttung, wenn die globalen Testvektoren in lokale Testvektoren umgerechnet werden.
 	 */
 	void global_to_local_testvectors(size_t node)
 	{
 		//AMG_PROFILE_FUNC();
 		localTestvectors.resize(m_testvectors.size());
-		//size_t level = m_amghelper.positions.size()-1;
-		//UG_LOG("Getting testvectors for node " << node << ":\n");
 		for (size_t k = 0; k < m_testvectors.size(); k++)
 		{
-			//UG_LOG(" testvector " << k << ":\n");
 			localTestvectors[k].resize(onlyN1.size() + 1);
-
 			localTestvectors[k][onlyN1.size()] = m_testvectors[k][node];
 
 			for (size_t j = 0; j < onlyN1.size(); j++)
-			{
 				localTestvectors[k][j] = m_testvectors[k][onlyN1[j]];
-				//UG_LOG(" onlyN1[" << j << "] = " << onlyN1[j] << m_testvectors[k][onlyN1[j]] <<
-					//	" position is " << m_amghelper.positions[level][onlyN1[j]] << ":\n");
-			}
-
-			// "normalize"
-			/*if(k!=0)
-				for (size_t j = 0; j < onlyN1.size(); j++)
-				{
-					localTestvectors[k][j] -= localTestvectors[k][onlyN1.size()];
-					//UG_LOG(" onlyN1[" << j << "] = " << onlyN1[j] << m_testvectors[k][onlyN1[j]] <<
-						//	" position is " << m_amghelper.positions[level][onlyN1[j]] << ":\n");
-				}*/
 		}
-
-
-
-		// smooth localTestvectors:
-		/*for (size_t k = 0; k < m_testvectors.size(); k++)
-		{
-			smallvec_type s = 0.0;
-			for (size_t j = 0; j < onlyN1.size() + 1; j++)
-				s += SF[j] * localTestvectors[k][j];
-
-			localTestvectors[k][onlyN1.size()] = s;
-			PRINT_VECTOR_AMGDEBUG(5, localTestvectors[k], "\nlocalTestvector " << k);
-		}*/
 	}
 
 	void global_to_local_testvectors2(size_t node)
@@ -2084,47 +2174,7 @@ private:
 			calculate_EV_testvectors(node);
 	}
 
-#if 0
-	template<typename T1, typename T2>
-	void add_vvT(T1 &mat, double alpha, const T2 &v1, const T2 &v2)
-	{
-		for (size_t r = 0; r < v1.size(); r++)
-		{
-			for (size_t c = 0; c < v2.size(); c++)
-			{
-				mat(r, c) += alpha * v1[r] * v2[c];
-			}
-		}
-	}
 
-	void add_vvT(double &mat, double alpha, double &v1, double &v2)
-	{
-		mat = alpha * v1 * v2;
-	}
-
-	/** add_additional_testvectors_to_H
-	 * adds additional factors from the testvectors to H, namely
-	 * H += \omega_k t^{(k)} t^{(k)}^T
-	 * for the testvectors 1 .. m_testvectors.size()-1
-	 * (testvector 0 is approximated exactly)
-	 */
-	void add_additional_testvectors_to_H()
-	{
-		//AMG_PROFILE_FUNC();
-		// skip first vector (it is approximated exactly)
-		// /test if other way round is faster/
-
-		for (size_t r = 0; r < onlyN1.size(); r++)
-			for (size_t c = 0; c < onlyN1.size(); c++)
-			{
-				for (size_t k = 1; k < m_testvectors.size(); k++)
-				{
-					add_vvT(H(r, c), m_omega[k], localTestvectors[k][r],
-							localTestvectors[k][c]);
-				}
-			}
-	}
-#endif
 private:
 	// for speedup purposes, we don't want these arrays to be re-allocated all the time,
 	// thats why they are stored here.

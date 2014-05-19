@@ -103,12 +103,6 @@ static void Algebra(Registry& reg, string grp)
 
 			.add_method("set_testvectors", &T::set_testvectors, "", "tvc")
 			.add_method("get_testvector_calculator", &T::get_testvector_calculator, "tvc")
-//			.add_method("set_testvector_from_matrix_rows", &T::set_testvector_from_matrix_rows, "", "testvector is obtained by setting 1 for dirichlet nodes (nodes with only A(i,i) != 0) and 0 everywhere else")
-//			.add_method("set_testvectors_LE_2d", &T::set_testvectors_LE_2d)
-//			.add_method("set_testvectors_LE_3d", &T::set_testvectors_LE_3d)
-//			.add_method("set_testvectors_linear_2d", &T::set_testvectors_linear_2d)
-//			.add_method("set_testvectors_linear_3d", &T::set_testvectors_linear_3d)
-//			.add_method("set_testvectors_linear_component", &T::set_testvectors_linear_component)
 			.add_method("add_watchnode", &T::add_watchnode)
 
 //			.add_method("reset_testvectors", &T::reset_testvectors, "", "removes all added testvectors")
@@ -142,6 +136,9 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_three_parents_penalty", &T::set_three_parents_penalty)
 			.add_method("check_vector", &T::check_vector)
 			.add_method("set_deficit_solve_tolerance", &T::set_deficit_solve_tolerance)
+			.add_method("set_XC_new", &T::set_XC_new)
+			.add_method("set_XC_LE_griebel", &T::set_XC_LE_griebel)
+			.add_method("set_indirect_interpolation", &T::set_indirect_interpolation)
 
 
 
