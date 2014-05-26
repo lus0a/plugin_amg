@@ -67,7 +67,11 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 {
 	try{
 	AMG_PROFILE_FUNC();
-//	create new indices
+	//	create new indices
+
+	// we may do interpolation from nodes marked as "dirichlet",
+	// but since defect on such nodes is zero, we don't bring such nodes on to the coarse grid
+	// so each node who does interpolate from dirichlet nodes just leaves out this connection.
 	newIndex.clear();
 	newIndex.resize(PoldIndices.num_cols(), -1);
 	size_t nrOfCoarse=0;
@@ -78,7 +82,7 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 		{
 			size_t c = it.index();
 			UG_COND_THROW(!amgnodes[c].is_interpolateable_from(), c);
-			if(newIndex[c] == -1)
+			if(amgnodes[c].is_coarse() && newIndex[c] == -1)
 				newIndex[c] = nrOfCoarse++;
 		}
 	}
