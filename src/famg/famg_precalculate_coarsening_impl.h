@@ -58,8 +58,8 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 	}
 
 
-	UG_LOG(HistogrammString(fvalues));
-	UG_LOG(DistributionPercentage(fvalues));
+	//UG_LOG(HistogrammString(fvalues));
+	//UG_LOG(DistributionPercentage(fvalues));
 	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms");
 }
 
