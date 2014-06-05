@@ -19,7 +19,6 @@
 #include "lib_algebra/common/graph/graph.h"
 
 #include "rsamg_prolongation.h"
-#include "rsamg_debug.h"
 #include "rsamg_nodeinfo.h"
 #include "rsamg_coarsening.h"
 #include "rsamg_eliminate.h"
@@ -430,6 +429,16 @@ RSAMG<TAlgebra>::RSAMG() :
 #endif
 }
 
+template<typename TAlgebra>
+RSAMG<TAlgebra>::RSAMG(const RSAMG<TAlgebra> &parent) :
+	base_type(parent)
+{
+	m_dProlongationTr = parent.m_dProlongationTr,
+	m_dTheta = parent.m_dTheta,
+	m_dTheta2 = parent.m_dTheta2,
+	m_bAggressiveCoarsening = parent.m_bAggressiveCoarsening,
+	m_iAggressiveCoarseningNrOfPaths = parent.m_iAggressiveCoarseningNrOfPaths;
+}
 
 
 template<typename TAlgebra>

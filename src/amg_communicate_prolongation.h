@@ -106,13 +106,16 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 				continue;
 			size_t c = conn.index();
 			UG_COND_THROW(!amgnodes[c].is_interpolateable_from(), "node " << c << " is not even coarse.");
-			UG_COND_THROW(newIndex[c] == -1, amgnodes[c]);
+
 			// assure we are only interpolating Master0 and Slave0 nodes from Master0, Slave0 or Slave1 nodes.
 			//UG_ASSERT(PN.distance_to_master_or_inner(c) <= 1
 				//	|| (PN.is_slave(r) && PN.distance_to_master_or_inner(c) == 2),
 					//c << " = " << PN.overlap_type());
 			if(!amgnodes[c].is_dirichlet())
+			{
+				UG_COND_THROW(newIndex[c] == -1, amgnodes[c]);
 				PnewIndices(r, newIndex[c]) = conn.value();
+			}
 		}
 	}
 

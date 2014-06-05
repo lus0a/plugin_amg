@@ -542,6 +542,44 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 	}UG_CATCH_THROW_FUNC();
 }
 
+/// clone constructor
+template<typename TAlgebra>
+AMGBase<TAlgebra> :: AMGBase(const AMGBase<TAlgebra> &parent) :
+	base_type(parent),
+	m_numPreSmooth(parent.m_numPreSmooth),
+	m_numPostSmooth(parent.m_numPostSmooth),
+
+	m_maxLevels(parent.m_maxLevels),
+	m_usedLevels(0),
+
+	m_pPositionProvider2d(parent.m_pPositionProvider2d),
+	m_pPositionProvider3d(parent.m_pPositionProvider3d)
+{
+	m_presmoother = parent.m_presmoother;
+	m_postsmoother = parent.m_postsmoother;
+	m_writeMatrices = parent.m_writeMatrices;
+	spYConvCheck = parent.spYConvCheck;
+	m_cycleType = parent.m_cycleType;
+	m_maxNodesForBase = parent.m_maxNodesForBase;
+	m_minNodesOnOneProcessor = parent.m_minNodesOnOneProcessor;
+	m_preferredNodesOnOneProcessor = parent.m_preferredNodesOnOneProcessor;
+	m_dMaxFillBeforeBase = parent.m_dMaxFillBeforeBase;
+	m_bChecks = parent.m_bChecks;
+	m_writeMatrixPath = parent.m_writeMatrixPath;
+	m_bFSmoothing = parent.m_bFSmoothing;
+
+	m_vec4 = NULL;
+	m_bInited = false;
+	m_dbgDimension = parent.m_dbgDimension;
+	m_bOneInit = parent.m_bOneInit;
+	m_verbose = parent.m_verbose;
+
+	iteration_glboal=0;
+	m_checkLevelPostIterations = 10;
+	m_iNrOfPreiterationsCheck = 8;
+	m_dPreiterationsMimumDefect = 1e-8;
+}
+
 //!
 //! amg constructor
 template<typename TAlgebra>
@@ -737,8 +775,8 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 
 	if(m_bDebugWriteAllVectors)
 	{
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "aa_d_L", d, level);
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "aa_c_L", c, level);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "aa_d_L", d, level);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "aa_c_L", c, level);
 	}
 
 	// presmooth
@@ -764,8 +802,8 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 
 	if(m_bDebugWriteAllVectors)
 	{
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "pa_d_L", d, level);
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "pa_c_L", c, level);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "pa_d_L", d, level);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "pa_c_L", c, level);
 	}
 
 	vector_type &cH = levels[level]->cH;
@@ -787,7 +825,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 
 
 	if(m_bDebugWriteAllVectors)
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "_dH_L", dH, level+1);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "_dH_L", dH, level+1);
 
 	// apply lmgc on coarser nodes
 
@@ -834,8 +872,8 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 
 	if(m_bDebugWriteAllVectors)
 	{
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "cc_d_L", d, level);
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "cc_c_L", c, level);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "cc_d_L", d, level);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "cc_c_L", c, level);
 	}
 
 
@@ -858,8 +896,8 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 
 	if(m_bDebugWriteAllVectors)
 	{
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "pp_d_L", d, level);
-		writevec(std::string("AMG_") + ToString(iteration_glboal++) + "pp_c_L", c, level);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "pp_d_L", d, level);
+		writevec(Stringify() << "AMG_" << iteration_glboal++ << "pp_c_L", c, level);
 	}
 
 	return true;

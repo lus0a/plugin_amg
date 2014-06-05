@@ -74,11 +74,14 @@ public:
 
 	typedef typename matrix_type::value_type value_type;
 	
+	typedef AMGBase<TAlgebra> base_type;
+
 //  functions
 	RSAMG() ;
+	RSAMG(const RSAMG<TAlgebra> &parent);
 	virtual SmartPtr<ILinearIterator<vector_type> > clone()
 	{
-		SmartPtr<RSAMG<algebra_type> > clone(new RSAMG<algebra_type>);
+		SmartPtr<RSAMG<algebra_type> > clone(new RSAMG<algebra_type>(*this));
 		return clone;
 	}
 	virtual ~RSAMG() { }

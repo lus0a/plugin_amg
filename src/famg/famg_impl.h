@@ -30,52 +30,67 @@ namespace ug{
 template<typename TAlgebra>
 FAMG<TAlgebra>::FAMG() : AMGBase<TAlgebra>()
 {
-	m_theta = 0.9;
-	m_delta = 0.1;
-
-	m_bAggressiveCoarsening = false;
-	m_writeTestvectors = false;
-	m_bWriteFValues = false;
-
-	m_dProlongationTruncation = 0.0;
-	
-	m_dPrereduceAToStrongParameter = 0.0;
-
-	m_dHReduceInterpolationNodesParameter = 0.0;
-	m_iHReduceMinParents = 1;
-
-	m_dStrongConnectionExternal = 0.1;
-	m_iPreventFFConnection=0;
-
-	m_iStrongConnectionSubMask=-1;
-
-	m_testvectorCalculator = make_sp(new TestvectorsLinearComponent<TAlgebra>());
-
-	m_bExternalCoarsening = false;
-	m_bUsePrecalculate = true;
-
-	m_bWriteFValues = false;
-	m_bProjectedEVP = false;
-	m_bInjectionRestriction = false;
-	m_fileCoarsening = NONE;
-	m_iMaxParents = 2;
-	m_threeParentsPenalty = 1.1;
-
-	m_bUseConstantIfFailed = false;
-	m_dDeficitSolveTolerance = 1e-7;
-	m_bLE_XC_Griebel = m_bXC_new = false;
-
-	m_bXCaggressive = false;
-	m_bIndirectInterpolation = true;
+	set_or_copy(NULL);
+}
 
 
-	set_testvector_smooths(2);
-	set_damping_for_smoother_in_interpolation_calculation(0.8);
-	set_testvector_smoother(make_sp(new Jacobi<TAlgebra>()));
+template<typename TAlgebra>
+FAMG<TAlgebra>::FAMG(const FAMG<TAlgebra> &parent) : base_type(parent)
+{
+	set_or_copy(&parent);
+}
 
-#ifdef UG_PARALLEL
-	set_parallel_coarsening(GetColorCoarsening());
-#endif
+template<typename TAlgebra>
+void FAMG<TAlgebra>::set_or_copy(const FAMG<TAlgebra> *parent)
+{
+#define SET_OR_COPY(variableName, defaultValue) if(parent!=NULL) variableName=parent->variableName; else variableName=defaultValue;
+
+	SET_OR_COPY(m_theta, 0.9);
+	SET_OR_COPY(m_delta, 0.1);
+	SET_OR_COPY(mDeltaAll, 0.1);
+
+	SET_OR_COPY(m_bAggressiveCoarsening, false);
+	SET_OR_COPY(m_writeTestvectors, false);
+	SET_OR_COPY(m_bWriteFValues, false);
+
+	SET_OR_COPY(m_dProlongationTruncation, 0.0);
+
+	SET_OR_COPY(m_dPrereduceAToStrongParameter, 0.0);
+
+	SET_OR_COPY(m_dHReduceInterpolationNodesParameter, 0.0);
+	SET_OR_COPY(m_iHReduceMinParents, 1);
+
+	SET_OR_COPY(m_dStrongConnectionExternal, 0.1);
+	SET_OR_COPY(m_iPreventFFConnection, 0);
+
+	SET_OR_COPY(m_iStrongConnectionSubMask, -1);
+
+	SET_OR_COPY(m_testvectorCalculator, make_sp(new TestvectorsLinearComponent<TAlgebra>()));
+
+	SET_OR_COPY(m_bExternalCoarsening, false);
+	SET_OR_COPY(m_bUsePrecalculate, true);
+
+	SET_OR_COPY(m_bWriteFValues, false);
+	SET_OR_COPY(m_bProjectedEVP, false);
+	SET_OR_COPY(m_bInjectionRestriction, false);
+	SET_OR_COPY(m_fileCoarsening, NONE);
+	SET_OR_COPY(m_iMaxParents, 2);
+	SET_OR_COPY(m_threeParentsPenalty, 1.1);
+
+	SET_OR_COPY(m_bUseConstantIfFailed, false);
+	SET_OR_COPY(m_dDeficitSolveTolerance, 1e-7);
+	SET_OR_COPY(m_bLE_XC_Griebel, false);
+	SET_OR_COPY(m_bXC_new, false);
+
+	SET_OR_COPY(m_bXCaggressive, false);
+	SET_OR_COPY(m_bIndirectInterpolation, true);
+
+	SET_OR_COPY(m_iTestvectorDamps, 2);
+	SET_OR_COPY(m_dDampingForSmootherInInterpolationCalculation, 0.8);
+	SET_OR_COPY(m_testvectorsmoother, make_sp(new Jacobi<TAlgebra>()));
+
+	SET_OR_COPY(m_pParallelCoarsening, GetColorCoarsening());
+#undef SET_OR_COPY
 }
 
 template<typename TAlgebra>
@@ -215,7 +230,7 @@ void FAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type 
 	if(m_writeMatrices && m_writeTestvectors)
 	{
 		for(size_t i=0; i<testvectors.size(); i++)
-			ConnectionViewer::WriteVector((m_writeMatrixPath + ToString("testvector") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << "testvector" << i << "_L" << level << ".vec",
 					testvectors[i], &m_amghelper.positions[level][0], m_dbgDimension);
 	}
 
@@ -390,7 +405,7 @@ void FAMG<TAlgebra>::check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > tes
 
 
 	std::string path=std::string("/level") + ToString(level) + "/";
-	CreateDirectory((std::string(m_writeMatrixPath) + path).c_str(), 0777);
+	CreateDirectory(Stringify() << m_writeMatrixPath << path);
 
 	for(size_t iTV=0; iTV<testvectors.size(); iTV++)
 	{
@@ -417,8 +432,7 @@ void FAMG<TAlgebra>::check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > tes
 
 		VecScaleAdd(Ptv, 1.0, Ptv, -1.0, testvectors[iTV]);
 
-		ConnectionViewer::WriteVector(m_writeMatrixPath + path + std::string("AMG_TV_") + desc + "_" + ToString(iTV)+ std::string("_L") +
-				ToString(level) + ".vec",
+		ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_" << desc << "_" << iTV << "_L" << level << ".vec",
 				Ptv, &m_amghelper.positions[level][0], m_amghelper.dimension);
 
 

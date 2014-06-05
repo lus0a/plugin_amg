@@ -26,7 +26,6 @@
 #include "testvector_calculators.h"
 #include "debug_ids.h"
 
-
 namespace ug{
 
 /**
@@ -84,11 +83,15 @@ public:
 	//typedef typename CPUAlgebra::matrix_type prolongation_matrix_type;
 	typedef typename TAlgebra::matrix_type prolongation_matrix_type;
 
+	typedef AMGBase<TAlgebra> base_type;
+
 //  functions
 	FAMG() ;
+	/// clone constructor
+	FAMG(const FAMG<TAlgebra> &parent);
 	virtual SmartPtr<ILinearIterator<vector_type> > clone()
 	{
-		SmartPtr<FAMG<algebra_type> > clone(new FAMG<algebra_type>);
+		SmartPtr<FAMG<algebra_type> > clone(new FAMG<algebra_type>(*this));
 		return clone;
 	}
 	//	Name of preconditioner
@@ -113,6 +116,8 @@ public:
 
 	void set_external_coarsening(bool bUse) { m_bExternalCoarsening = bUse; }
 	void set_use_precalculate(bool bUse) { m_bUsePrecalculate = bUse; }
+private:
+	void set_or_copy(const FAMG<TAlgebra> *parent);
 
 #ifdef UG_PARALLEL
 public:
@@ -262,6 +267,16 @@ public:
 		m_dDeficitSolveTolerance = d;
 	}
 
+	void adaptive_filtering(SmartPtr<ILinearOperator<vector_type, vector_type> > linOp, vector_type &x, SmartPtr<IConvergenceCheck<vector_type> > spConvCheck,
+				double expectedRate)
+	{
+		SmartPtr<TestvectorsConstant<TAlgebra> > spTV = make_sp(new TestvectorsConstant<TAlgebra>());
+		adaptive_filtering(linOp, x, spConvCheck, expectedRate, spTV);
+	}
+
+	void adaptive_filtering(SmartPtr<ILinearOperator<vector_type, vector_type> > linOp, vector_type &x, SmartPtr<IConvergenceCheck<vector_type> > spConvCheck,
+			double expectedRate, SmartPtr<ITestvectorCalculator<TAlgebra> > spTV);
+
 	std::vector<levelnode> debugWatchNodes;
 
 private:
@@ -336,6 +351,7 @@ public:
 } // namespace ug
 
 
+#include "adaptive_filtering.h"
 #include "famg_impl.h"
 
 #endif // __H__UG__LIB_DISC__AMG_SOLVER__FAMG_H__

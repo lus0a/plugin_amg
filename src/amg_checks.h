@@ -784,7 +784,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 
 
 template<typename TAlgebra>
-void AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filename)
+double AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filename)
 {
 	try{
 	double anorm = Anorm(v, 0);
@@ -799,12 +799,13 @@ void AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filename
 		writevec(std::string(filename)+std::string("_v.vec"), v, 0);
 		writevec(std::string(filename)+std::string("_Rv.vec"), vH, 1);
 		writevec(std::string(filename)+std::string("_PRv.vec"), v2, 0);
-		v2 -= v;
-		writevec(std::string(filename)+std::string("_(1-PR)v.vec"), v2, 0);
+		v -= v2;
+		writevec(std::string(filename)+std::string("_(1-PR)v.vec"), v, 0);
 	}
-	else v2 -= v;
-	double dnorm2 = Dnorm(v2, 0);
+	else v -= v2;
+	double dnorm2 = Dnorm(v, 0);
 	UG_LOG("Anorm(v) = " << anorm << " Dnorm(v) = " << dnorm << " Dnorm( (1-PR)v ) = " << dnorm2 << "\n");
+	return dnorm2;
 	}UG_CATCH_THROW_FUNC();
 }
 

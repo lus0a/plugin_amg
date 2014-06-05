@@ -81,6 +81,7 @@ public:
 	typedef MatrixOperator<matrix_type, vector_type> matrix_operator_type;
 
 	typedef typename matrix_type::value_type value_type;
+	typedef IPreconditioner<TAlgebra> base_type;
 
 
 	struct checkResult {
@@ -97,6 +98,9 @@ public:
 
 //  functions
 	AMGBase();
+	/// clone constructor
+	AMGBase(const AMGBase<TAlgebra> &parent);
+
 	virtual SmartPtr<ILinearIterator<vector_type> > clone() = 0;
 
 	//	Name of preconditioner
@@ -599,7 +603,7 @@ public:
 	}
 
 public:
-	void check_interpolation(vector_type &v, const char *filename);
+	double check_interpolation(vector_type &v, const char *filename);
 	void use_checks(bool b)
 	{
 		m_bChecks = b;

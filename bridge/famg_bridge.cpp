@@ -19,6 +19,7 @@
 #include "bridge/util_overloaded.h"
 
 #include "lib_algebra/lib_algebra.h"
+#include "named_infos.h"
 
 #include "../src/famg/famg.h"
 
@@ -98,8 +99,12 @@ static void Algebra(Registry& reg, string grp)
 //			.add_method("add_testvector", OVERLOADED_METHOD_PTR(void, T, add_testvector, (vector_type& c, double weight)),"", "testVector#weight","adds a testvector with weight")
 //			.add_method("add_testvector", OVERLOADED_METHOD_PTR(void, T, add_testvector, (IVectorWriter<vector_type> *vw, double weight)),"", "testVector#weight", "adds a testvector with weight by using the IVectorWriter interface")
 			.add_method("set_write_testvectors", &T::set_write_testvectors, "", "bWrite", "if true, write testvectors to path specified in set_matrix_write_path")
-			.add_method("set_testvector_smoother", &T::set_testvector_smoother, "", "smoother", "sets the smoother to smooth testvectors")
-			.add_method("set_testvector_smooths", &T::set_testvector_smooths, "", "n", "number of smoothing steps to smooth testvectors")
+
+			.add_(Method("set_testvector_smoother", &T::set_testvector_smoother)
+								 .parameter("smoother") .tooltip("sets the smoother to smooth testvectors"))
+
+			.add_(Method("set_testvector_smooths", &T::set_testvector_smooths)
+					 .parameter("n") .tooltip("number of smoothing steps to smooth testvectors"))
 
 			.add_method("set_testvectors", &T::set_testvectors, "", "tvc")
 			.add_method("get_testvector_calculator", &T::get_testvector_calculator, "tvc")
@@ -139,6 +144,14 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_XC_new", &T::set_XC_new)
 			.add_method("set_XC_LE_griebel", &T::set_XC_LE_griebel)
 			.add_method("set_indirect_interpolation", &T::set_indirect_interpolation)
+			.add_method("adaptive_filtering",
+					OVERLOADED_METHOD_PTR(void, T, adaptive_filtering,
+							(SmartPtr<ILinearOperator<vector_type, vector_type> > linOp, vector_type &x, SmartPtr<IConvergenceCheck<vector_type> > spConvCheck, double expectedRate) ) )
+			.add_method("adaptive_filtering",
+					OVERLOADED_METHOD_PTR(void, T, adaptive_filtering,
+							(SmartPtr<ILinearOperator<vector_type, vector_type> > linOp, vector_type &x, SmartPtr<IConvergenceCheck<vector_type> > spConvCheck, double expectedRate,
+									SmartPtr<ITestvectorCalculator<TAlgebra> > spTV) ) )
+
 
 
 
@@ -176,8 +189,8 @@ static void Algebra(Registry& reg, string grp)
 	addClassGroup<TAlgebra, TestvectorsOnlyRotation2d<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsOnlyRotation2d", grp)
 						.add_constructor() .set_construct_as_smart_pointer(true);
 	addClassGroup<TAlgebra, TestvectorsAuto<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsAuto", grp)
-				.ADD_CONSTRUCTOR( (size_t numTestvectors, SmartPtr<ILinearIterator<vector_type> > smoother, size_t numSmooths) )
-					("numTestvectors#smoother#numSmooths")
+				.ADD_CONSTRUCTOR( (size_t numTestvectors, size_t numKeep, SmartPtr<ILinearIterator<vector_type> > smoother, size_t numSmooths) )
+					("numTestvectors#keep#smoother#numSmooths")
 				.set_construct_as_smart_pointer(true);
 
 	addClassGroup<TAlgebra, TestvectorsConstantWobbled<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsConstantWobbled", grp)
@@ -185,11 +198,19 @@ static void Algebra(Registry& reg, string grp)
 						("delta")
 					.set_construct_as_smart_pointer(true);
 
-
+	{
+		typedef TestvectorsExternal<TAlgebra> T;
+		addClassGroup<TAlgebra, TestvectorsExternal<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsExternal", grp)
+						.add_constructor()
+						.ADD_CONSTRUCTOR( (vector_type &t1) ) ()
+						.ADD_CONSTRUCTOR( (vector_type &t1, vector_type &t2) ) ()
+						.ADD_CONSTRUCTOR( (vector_type &t1, vector_type &t2, vector_type &t3) ) ()
+						.ADD_CONSTRUCTOR( (std::vector<vector_type *> t) ) ()
+						.add_method("add", &T::add)
+						.set_construct_as_smart_pointer(true);
+	}
 
 }
-
-
 
 
 }; // end Functionality
