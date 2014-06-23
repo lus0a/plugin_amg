@@ -143,17 +143,20 @@ void RegisterBridge_RSAMG(Registry& reg, string grp);
 
 void RegisterBridge_AMG(Registry& reg, string grp)
 {
-	reg.add_class_<LevelInformation > ("AMGLevelInformation", grp)
-		.add_method("get_creation_time_ms", &LevelInformation::get_creation_time_ms, "creation time of this level (in ms)")
-		.add_method("get_nr_of_nodes", &LevelInformation::get_nr_of_nodes, "nr of nodes of this level, sum over all processors")
-		.add_method("get_nr_of_nodes_min", &LevelInformation::get_nr_of_nodes_min, "nr of nodes of this level, minimum over all processors")
-		.add_method("get_nr_of_nodes_max", &LevelInformation::get_nr_of_nodes_max, "nr of nodes of this level, maximum over all processors")
-		.add_method("get_nnz", &LevelInformation::get_nnz, "nr of non-zeros, sum over all processors")
-		.add_method("get_nnz_min", &LevelInformation::get_nnz_min, "nr of non-zeros, minimum over all processors")
-		.add_method("get_nnz_max", &LevelInformation::get_nnz_max, "nr of non-zeros, maximum over all processors")
-		.add_method("get_fill_in", &LevelInformation::get_fill_in, "nr of non-zeros / (nr of nodes)^2")
-		.add_method("is_valid", &LevelInformation::is_valid, "true if this is a valid level information")
-		.add_method("get_nr_of_interface_elements", &LevelInformation::get_nr_of_interface_elements, "nr of interface elements (including multiplicites)");
+	{
+		typedef AMGLevelInformation T;
+		reg.add_class_<T> ("AMGLevelInformation", grp)
+			.add_method("get_creation_time_ms", &T::get_creation_time_ms, "creation time of this level (in ms)")
+			.add_method("get_nr_of_nodes", &T::get_nr_of_nodes, "nr of nodes of this level, sum over all processors")
+			.add_method("get_nr_of_nodes_min", &T::get_nr_of_nodes_min, "nr of nodes of this level, minimum over all processors")
+			.add_method("get_nr_of_nodes_max", &T::get_nr_of_nodes_max, "nr of nodes of this level, maximum over all processors")
+			.add_method("get_nnz", &T::get_nnz, "nr of non-zeros, sum over all processors")
+			.add_method("get_nnz_min", &T::get_nnz_min, "nr of non-zeros, minimum over all processors")
+			.add_method("get_nnz_max", &T::get_nnz_max, "nr of non-zeros, maximum over all processors")
+			.add_method("get_fill_in", &T::get_fill_in, "nr of non-zeros / (nr of nodes)^2")
+			.add_method("is_valid", &T::is_valid, "true if this is a valid level information")
+			.add_method("get_nr_of_interface_elements", &T::get_nr_of_interface_elements, "nr of interface elements (including multiplicites)");
+	}
 
 	RegisterBridge_RSAMG(reg, grp);
 	RegisterBridge_FAMG(reg, grp);
