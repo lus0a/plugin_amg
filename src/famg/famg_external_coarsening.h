@@ -317,7 +317,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 				for(Prow_iterator it = PoldIndices.begin_row(i); it != PoldIndices.end_row(i); ++it)
 				{
 
-					UG_LOG(it.index() << " ");
+					//UG_LOG(it.index() << " ");
 					interpolatedFrom[it.index()] = true;
 				}
 //				UG_LOG("\n");
