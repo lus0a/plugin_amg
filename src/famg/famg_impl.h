@@ -49,6 +49,7 @@ void FAMG<TAlgebra>::set_or_copy(const FAMG<TAlgebra> *parent)
 	SET_OR_COPY(m_delta, 0.1);
 	SET_OR_COPY(mDeltaAll, 0.1);
 
+	SET_OR_COPY(m_bHAsInverse, false);
 	SET_OR_COPY(m_bAggressiveCoarsening, false);
 	SET_OR_COPY(m_writeTestvectors, false);
 	SET_OR_COPY(m_bWriteFValues, false);
@@ -125,6 +126,9 @@ std::string FAMG<TAlgebra>::config_string() const
 
 	ss << " DeficitSolveTolerance = " << m_dDeficitSolveTolerance << "\n";
 	ss << " UseConstantIfFailed = " << (m_bUseConstantIfFailed?"ON":"OFF") << "\n";
+
+	if(m_bHAsInverse)
+		ss << " USING H AS INVERSE!\n";
 	if(m_bLE_XC_Griebel)
 		ss << " GRIEBEL Linear Elasticity External Neumann-Coarsening.\n";
 	if(m_bXC_new)
