@@ -172,7 +172,8 @@ static void Algebra(Registry& reg, string grp)
 	reg.add_class_to_group(string("FAMGPreconditioner").append(suffix), "FAMGPreconditioner", tag);
 
 
-	addClassGroup<TAlgebra, ITestvectorCalculator<TAlgebra> >(reg, "ITestvectorCalculator", grp);
+	addClassGroup<TAlgebra, ITestvectorCalculator<TAlgebra> >(reg, "ITestvectorCalculator", grp)
+			.add_method("config_string", &ITestvectorCalculator<TAlgebra>::config_string);
 
 	addClassGroup<TAlgebra, TestvectorsLinearElasticity2d<TAlgebra>, ITestvectorCalculator<TAlgebra> >(reg, "TestvectorsLinearElasticity2d", grp)
 			.add_constructor() .set_construct_as_smart_pointer(true);
