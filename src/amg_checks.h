@@ -278,7 +278,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 {
 	try{
 	AMG_PROFILE_FUNC();
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 
 	UG_ASSERT(c.size() == d.size() && c.size() == A.num_rows(),
 			"c.size = " << c.size() << ", d.size = " << d.size() << ", A.size = " << A.num_rows() << ": not matching");
@@ -435,7 +435,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 #if 0
 		// tried to check basesolver here
 
-				AMGLevel &L = *levels[level+1];
+				AMGLevelType &L = *levels[level+1];
 				matrix_operator_type &A = *L.pA;
 				pcl::InterfaceCommunicator<IndexLayout> &com = A.get_communicator();
 
@@ -686,7 +686,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 {
 	try{
 	AMG_PROFILE_FUNC();
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	const matrix_operator_type &A = *L.pA;
 	UG_ASSERT(c.size() == d.size() && c.size() == A.num_rows(),
 			"c.size = " << c.size() << ", d.size = " << d.size() << ", A.size = " << A.num_rows() << ": not matching");
@@ -789,7 +789,7 @@ double AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filena
 	try{
 	double anorm = Anorm(v, 0);
 	double dnorm = Dnorm(v, 0);
-	AMGLevel &L = *levels[0];
+	AMGLevelType &L = *levels[0];
 	vector_type &vH = L.cH;
 	vector_type &v2 = L.corr;
 	L.R.apply(vH, v);

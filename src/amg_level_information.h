@@ -12,10 +12,10 @@
 
 namespace ug
 {
-class LevelInformation
+class AMGLevelInformation
 {
 	public:
-	LevelInformation(int _level = 0)
+	AMGLevelInformation(int _level = 0)
 	{
 		level = _level;
 		m_dCoarseningRate = 0.0;
@@ -114,14 +114,14 @@ public:
 	}
 
 	static void parallel_update(const pcl::ProcessCommunicator &pc,
-			std::vector<LevelInformation> &levelInformation, size_t totalUsedLevels)
+			std::vector<AMGLevelInformation> &levelInformation, size_t totalUsedLevels)
 	{
 		for(size_t i=0; i<totalUsedLevels; i++)
 		{
 			if(levelInformation.size() < i+1)
 				levelInformation.resize(i+1);
 
-			LevelInformation &li = levelInformation[i];
+			AMGLevelInformation &li = levelInformation[i];
 			li.m_iParticipating=pc.allreduce(li.m_iParticipating, PCL_RO_MAX);
 			li.level = i;
 			li.calc_parallel_data(pc);
@@ -135,7 +135,7 @@ public:
 #endif
 
 	template<typename matrix_type>
-	void calculate(matrix_type &A, int _level, double dCreationTime, LevelInformation *previousLevel)
+	void calculate(matrix_type &A, int _level, double dCreationTime, AMGLevelInformation *previousLevel)
 	{
 		level = _level;
 		m_dCreationTimeMS = dCreationTime;

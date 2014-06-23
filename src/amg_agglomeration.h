@@ -28,7 +28,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::gather_vertical(const vector_type &vec, vector_type &collectedVec, size_t level,
 		ParallelStorageType type)
 {
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 	pcl::InterfaceCommunicator<IndexLayout> &com = A.layouts()->comm();
 
@@ -56,7 +56,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::broadcast_vertical(vector_type &vec, const vector_type &collectedVec, size_t level,
 		ParallelStorageType type)
 {
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 	pcl::InterfaceCommunicator<IndexLayout> &com = A.layouts()->comm();
 
@@ -107,7 +107,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_type &d, size_t level)
 {
 	try{
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 	THROW_IF_NOT_EQUAL_3(c.size(), d.size(), A.num_rows());
 #ifdef UG_PARALLEL
@@ -148,7 +148,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::agglomerate_from(const std::map<int, int> &merge, const std::vector<int> &mergeWith, size_t level, ParallelNodes &PN)
 {
 	try{
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 
 	GlobalLayout globalMasterLayout, globalSlaveLayout;
@@ -210,7 +210,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::agglomerate_to(const std::map<int, int> &merge, int mergeTo, size_t level, ParallelNodes &PN)
 {
 	try{
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 
 	GlobalLayout globalMasterLayout, globalSlaveLayout;
@@ -257,7 +257,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::agglomerate_adjust_interfaces(const std::map<int, int> &merge, size_t level, ParallelNodes &PN)
 {
 	try{
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 
 	GlobalLayout globalMasterLayout, globalSlaveLayout;
@@ -303,7 +303,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 {
 	try{
 	//UG_ASSERT(0, "not working");
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	matrix_operator_type &A = *L.pA;
 
 	if(m_levelInformation[level].get_nr_of_nodes_min() > m_minNodesOnOneProcessor

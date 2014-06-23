@@ -61,12 +61,12 @@ template<typename TAlgebra>
 void AMGBase<TAlgebra>::calculate_level_information(size_t level, double createAMGlevelTiming)
 {
 	PROFILE_FUNC();
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	matrix_operator_type &A = *L.pAgglomeratedA;
 
 	if(m_levelInformation.size() < level+1)
 		m_levelInformation.resize(level+1);
-	LevelInformation &li = m_levelInformation[level];
+	AMGLevelInformation &li = m_levelInformation[level];
 
 
 	if(level > 0)
@@ -86,7 +86,7 @@ void AMGBase<TAlgebra>::init_smoother(size_t level)
 	PROFILE_FUNC();
 	try{
 	//if(isMergingSlave(level)) return;
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	L.presmoother = m_presmoother->clone();
 	L.presmoother->init(L.pAgglomeratedA);
 
@@ -113,7 +113,7 @@ bool AMGBase<TAlgebra>::init_smoothers()
 
 		for(size_t level=0; level < levels.size(); level++) //my_multigrid_levels(); level++)
 		{
-			AMGLevel &L = *levels[level];
+			AMGLevelType &L = *levels[level];
 			PROGRESS_UPDATE(prog, N0-L.pA->num_rows());
 			init_smoother(level);
 		}
@@ -124,33 +124,10 @@ bool AMGBase<TAlgebra>::init_smoothers()
 }
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 template<typename TAlgebra>
-bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_type> > pOp)
+void AMGBase<TAlgebra>:: preprocess_init_positions(matrix_operator_type& mat)
 {
-	try{
-	int oldOutputProcess = GetLogAssistant().get_output_process();
-	matrix_operator_type& mat = *pOp;
-
 	AMG_PROFILE_FUNC();
-
-	if(m_bOneInit && m_bInited)
-		return true;
-
-#ifdef UG_PARALLEL
-	if(mat.num_rows() == 0 && mat.layouts()->proc_comm().empty())
-	{
-		m_bInited=true;
-		m_bEmptyProcess=true;
-		return true;
-	}
-	else
-		m_bEmptyProcess=false;
-#endif
-
-	cleanup();
-
 	update_positions();
 	m_amghelper.parentIndex = &m_parentIndex;
 
@@ -203,7 +180,13 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		}
 		m_amghelper.dimension = m_dbgDimension;
 	}
+}
 
+template<typename TAlgebra>
+bool AMGBase<TAlgebra>::preprocess_check_requirements()
+{
+	try{
+	AMG_PROFILE_FUNC();
 	UG_COND_THROW(m_writeMatrices && m_dbgDimension == 0, "you need to provide position information for writing matrices");
 
 	if(m_basesolver.invalid())
@@ -230,6 +213,185 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	}
 #endif
 
+	return true;
+	}UG_CATCH_THROW_FUNC();
+
+	return false;
+}
+
+template<typename TAlgebra>
+bool AMGBase<TAlgebra>::preprocess_create_level(size_t level, double &createAMGlevelTiming, int oldOutputProcess)
+{
+	try{
+
+	AMG_PROFILE_FUNC();
+
+	AMGLevelType &L = *levels[level];
+	L.pAgglomeratedA = L.pA;
+	calculate_level_information(level, createAMGlevelTiming);
+
+	if(m_levelInformation[level].get_nr_of_nodes() < m_maxNodesForBase
+			|| m_levelInformation[level].get_fill_in() > m_dMaxFillBeforeBase
+			|| level >= m_maxLevels-1)
+	{
+		create_direct_solver(level);
+		return false;
+	}
+
+
+#ifdef UG_PARALLEL
+	//PRINTPC(L.pA->process_communicator());
+	agglomerate(level);
+	// todo: recalculate level information after agglomeration
+	/*if(L.bLevelHasMergers && m_agglomerateLevel == level
+			&& GetLogAssistant().get_output_process() != -1)
+	{
+		GetLogAssistant().set_output_process(L.agglomeratedPC.get_proc_id(0));
+		UG_LOG("New output proc is " << L.agglomeratedPC.get_proc_id(0) << "\n");
+	}*/
+		//calculate_level_information(level, createAMGlevelTiming);
+
+	// some AMGs might need data from previous, now agglomerated levels
+	precalc_level(level);
+
+	if(m_agglomerateLevel == level)
+	{
+		AMG_LOG(0, "Processor " << pcl::ProcRank() << " got agglomerated at level " << level << ".\n");
+		//if(GetLogAssistant().get_output_process() != -1)
+			//GetLogAssistant().set_output_process(pcl::ProcRank()+1);
+		return false;
+	}
+
+	const pcl::ProcessCommunicator &pc = L.pAgglomeratedA->layouts()->proc_comm();
+	if(oldOutputProcess == 0 && GetLogAssistant().get_output_process() != pcl::ProcRank()
+		&& pc.get_proc_id(0) == pcl::ProcRank())
+	{
+		GetLogAssistant().set_output_process(pcl::ProcRank());
+		UG_LOG("Processor " << pcl::ProcRank() << " is now output process.\n");
+	}
+
+#else
+	precalc_level(level);
+	L.pAgglomeratedA = L.pA;
+#endif
+
+	if(m_writeMatrices)
+	{
+		AMGWriteToFile(*L.pAgglomeratedA, level, level,
+				GetAMGFilenamePath(*L.pAgglomeratedA, level, "A", level, ".mat", true), m_amghelper);
+		//PRINTPC(L.pAgglomeratedA->get_process_communicator());
+	}
+
+	//smoothem_R[level].init(*m_A[level]);
+
+	levels.push_back(make_sp(new AMGLevelType(level+1)));
+	AMGLevelType &nextL = *levels[level+1];
+	nextL.spYConvCheck = spYConvCheck->clone();
+
+	//UG_LOG(ToString(nextL.spLayouts->proc_comm()) << "\n" << ToString(L.spAgglomeratedLayouts->proc_comm()));
+
+	init_smoother(level);
+
+	nextL.pA = make_sp(new matrix_operator_type);
+	matrix_operator_type &AH = *nextL.pA;
+	prolongation_matrix_type &R = L.R;
+	prolongation_matrix_type &P = L.P;
+
+#ifdef UG_PARALLEL
+	nextL.spLayouts->proc_comm() = L.spAgglomeratedLayouts->proc_comm();
+	nextL.spLayouts->comm() = L.spAgglomeratedLayouts->comm();
+	AH.set_storage_type(PST_ADDITIVE);
+	R.set_storage_type(PST_ADDITIVE);
+	P.set_storage_type(PST_CONSISTENT);
+
+	AH.set_layouts(nextL.spLayouts);
+#else
+	int tt;	nextL.spLayouts = &tt;
+#endif
+
+	Stopwatch SW; SW.start();
+
+	AMG_LOG(1, "===== Creating level " << level << ". (" << L.pAgglomeratedA->num_rows() << " nodes =====\n");
+
+	create_AMG_level(AH, R, *L.pAgglomeratedA, P, level, *nextL.spLayouts);
+
+	SW.stop();
+	createAMGlevelTiming = SW.ms();
+
+	// create vectors for AMG multigrid
+	/////////////////////////////////////////
+
+	L.corr.resize(L.pAgglomeratedA->num_rows());
+	L.cH.resize(AH.num_rows());
+	L.dH.resize(AH.num_rows());
+
+#ifdef UG_PARALLEL
+	if(m_bChecks)
+	{ ConsistencyCheck(levels[level]->is_fine, L.pAgglomeratedA->layouts()->comm(),
+			L.pAgglomeratedA->layouts()->proc_comm(),
+			L.pAgglomeratedA->layouts()->master(), L.pAgglomeratedA->layouts()->slave(), "fine marks");
+	}
+//			PrintLayoutIfBroken(AH.get_process_communicator(), nextL.com, nextL.masterLayout, nextL.slaveLayout);
+
+	AH.set_layouts(nextL.spLayouts);
+
+	L.corr.set_layouts(L.pAgglomeratedA->layouts());
+	L.cH.set_layouts(AH.layouts());
+	L.dH.set_layouts(AH.layouts());
+
+	L.corr.set_storage_type(PST_CONSISTENT);
+	L.cH.set_storage_type(PST_CONSISTENT);
+	L.dH.set_storage_type(PST_ADDITIVE);
+
+	/*UG_LOG("nextLevel Layouts:\n");
+			PrintLayout(nextL.pA->process_communicator(), nextL.pA->communicator(), nextL.masterLayout, nextL.slaveLayout);*/
+#endif
+
+	// todo: set size for variable sized blockvectors
+	/*for(size_t i=0; i<N; i++)
+		if(nodes[i].isCoarse())
+		{
+			int rows = GetRows(A.begin_row(i).value());
+			UG_ASSERT(newIndex[i] >= 0, "");
+			SetSize((*m_vec1[level+1])[newIndex[i]], rows);
+			SetSize((*m_vec2[level+1])[newIndex[i]], rows);
+		}*/
+	return true;
+
+	}UG_CATCH_THROW("AMGBase::preprocess_create_level(level = "<<level<<")");
+	return false;
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<typename TAlgebra>
+bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_type> > pOp)
+{
+	try{
+	int oldOutputProcess = GetLogAssistant().get_output_process();
+	matrix_operator_type& mat = *pOp;
+
+	AMG_PROFILE_FUNC();
+
+	if(m_bOneInit && m_bInited)
+		return true;
+
+#ifdef UG_PARALLEL
+	if(mat.num_rows() == 0 && mat.layouts()->proc_comm().empty())
+	{
+		m_bInited=true;
+		m_bEmptyProcess=true;
+		return true;
+	}
+	else
+		m_bEmptyProcess=false;
+#endif
+
+	cleanup();
+
+	preprocess_init_positions(mat);
+
+	if(preprocess_check_requirements()==false) return false;
+
 	UG_DLOG(LIB_ALG_AMG, 1, "Starting AMG Setup." << std::endl << std::endl);
 
 	Stopwatch SWwhole;
@@ -254,7 +416,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 #endif
 
 	levels.clear();
-	AMGLevel *pL = new AMGLevel(0);
+	AMGLevelType *pL = new AMGLevelType(0);
 	pL->pA = pOp;
 #ifdef UG_PARALLEL
 //	pL->com = mat.layouts()->comm();
@@ -268,139 +430,13 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 	PROGRESS_START(prog, pOp->num_rows(), "Creating AMG");
 	for(; ; level++)
+
 	{
-		AMGLevel &L = *levels[level];
+		AMGLevelType &L = *levels[level];
 		PROGRESS_UPDATE(prog, pOp->num_rows()-L.pA->num_rows());
 
-		L.pAgglomeratedA = L.pA;
-		calculate_level_information(level, createAMGlevelTiming);
-
-		if(m_levelInformation[level].get_nr_of_nodes() < m_maxNodesForBase
-				|| m_levelInformation[level].get_fill_in() > m_dMaxFillBeforeBase
-				|| level >= m_maxLevels-1)
-		{
-			create_direct_solver(level);
+		if(preprocess_create_level(level, createAMGlevelTiming, oldOutputProcess) == false)
 			break;
-		}
-
-
-#ifdef UG_PARALLEL
-		//PRINTPC(L.pA->process_communicator());
-		agglomerate(level);
-		// todo: recalculate level information after agglomeration
-		/*if(L.bLevelHasMergers && m_agglomerateLevel == level
-				&& GetLogAssistant().get_output_process() != -1)
-		{
-			GetLogAssistant().set_output_process(L.agglomeratedPC.get_proc_id(0));
-			UG_LOG("New output proc is " << L.agglomeratedPC.get_proc_id(0) << "\n");
-		}*/
-			//calculate_level_information(level, createAMGlevelTiming);
-
-		// some AMGs might need data from previous, now agglomerated levels
-		precalc_level(level);
-
-		if(m_agglomerateLevel == level)
-		{
-			AMG_LOG(0, "Processor " << pcl::ProcRank() << " got agglomerated at level " << level << ".\n");
-			//if(GetLogAssistant().get_output_process() != -1)
-				//GetLogAssistant().set_output_process(pcl::ProcRank()+1);
-			break;
-		}
-
-		const pcl::ProcessCommunicator &pc = L.pAgglomeratedA->layouts()->proc_comm();
-		if(oldOutputProcess == 0 && GetLogAssistant().get_output_process() != pcl::ProcRank()
-			&& pc.get_proc_id(0) == pcl::ProcRank())
-		{
-			GetLogAssistant().set_output_process(pcl::ProcRank());
-			UG_LOG("Processor " << pcl::ProcRank() << " is now output process.\n");
-		}
-
-#else
-		precalc_level(level);
-		L.pAgglomeratedA = L.pA;
-#endif
-
-		if(m_writeMatrices)
-		{
-			AMGWriteToFile(*L.pAgglomeratedA, level, level,
-					GetAMGFilenamePath(*L.pAgglomeratedA, level, "A", level, ".mat", true), m_amghelper);
-			//PRINTPC(L.pAgglomeratedA->get_process_communicator());
-		}
-
-		//smoothem_R[level].init(*m_A[level]);
-
-		levels.push_back(make_sp(new AMGLevel(level+1)));
-		AMGLevel &nextL = *levels[level+1];
-		nextL.spYConvCheck = spYConvCheck->clone();
-
-		//UG_LOG(ToString(nextL.spLayouts->proc_comm()) << "\n" << ToString(L.spAgglomeratedLayouts->proc_comm()));
-
-		init_smoother(level);
-
-		nextL.pA = make_sp(new matrix_operator_type);
-		matrix_operator_type &AH = *nextL.pA;
-		prolongation_matrix_type &R = L.R;
-		prolongation_matrix_type &P = L.P;
-
-#ifdef UG_PARALLEL
-		nextL.spLayouts->proc_comm() = L.spAgglomeratedLayouts->proc_comm();
-		nextL.spLayouts->comm() = L.spAgglomeratedLayouts->comm();
-		AH.set_storage_type(PST_ADDITIVE);
-		R.set_storage_type(PST_ADDITIVE);
-		P.set_storage_type(PST_CONSISTENT);
-
-		AH.set_layouts(nextL.spLayouts);
-#else
-		int tt;	nextL.spLayouts = &tt;
-#endif
-
-		Stopwatch SW; SW.start();
-
-		AMG_LOG(1, "===== Creating level " << level << ". (" << L.pAgglomeratedA->num_rows() << " nodes =====\n");
-
-		create_AMG_level(AH, R, *L.pAgglomeratedA, P, level, *nextL.spLayouts);
-
-		SW.stop();
-		createAMGlevelTiming = SW.ms();
-
-		// create vectors for AMG multigrid
-		/////////////////////////////////////////
-
-		L.corr.resize(L.pAgglomeratedA->num_rows());
-		L.cH.resize(AH.num_rows());
-		L.dH.resize(AH.num_rows());
-
-	#ifdef UG_PARALLEL
-		if(m_bChecks)
-		{ ConsistencyCheck(levels[level]->is_fine, L.pAgglomeratedA->layouts()->comm(),
-				L.pAgglomeratedA->layouts()->proc_comm(),
-				L.pAgglomeratedA->layouts()->master(), L.pAgglomeratedA->layouts()->slave(), "fine marks");
-		}
-//			PrintLayoutIfBroken(AH.get_process_communicator(), nextL.com, nextL.masterLayout, nextL.slaveLayout);
-
-		AH.set_layouts(nextL.spLayouts);
-
-		L.corr.set_layouts(L.pAgglomeratedA->layouts());
-		L.cH.set_layouts(AH.layouts());
-		L.dH.set_layouts(AH.layouts());
-
-		L.corr.set_storage_type(PST_CONSISTENT);
-		L.cH.set_storage_type(PST_CONSISTENT);
-		L.dH.set_storage_type(PST_ADDITIVE);
-
-		/*UG_LOG("nextLevel Layouts:\n");
-				PrintLayout(nextL.pA->process_communicator(), nextL.pA->communicator(), nextL.masterLayout, nextL.slaveLayout);*/
-	#endif
-
-		// todo: set size for variable sized blockvectors
-		/*for(size_t i=0; i<N; i++)
-			if(nodes[i].isCoarse())
-			{
-				int rows = GetRows(A.begin_row(i).value());
-				UG_ASSERT(newIndex[i] >= 0, "");
-				SetSize((*m_vec1[level+1])[newIndex[i]], rows);
-				SetSize((*m_vec2[level+1])[newIndex[i]], rows);
-			}*/
 	}
 
 	GetLogAssistant().set_output_process(oldOutputProcess);
@@ -410,10 +446,10 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	const pcl::ProcessCommunicator &pc = mat.layouts()->proc_comm(); //!
 	m_totalUsedLevels = pc.allreduce(m_usedLevels, PCL_RO_MAX);
 	AMG_LOG(1, "total used levels: " << m_totalUsedLevels << "\n");
-	LevelInformation::parallel_update(pc, m_levelInformation, m_totalUsedLevels);
+	AMGLevelInformation::parallel_update(pc, m_levelInformation, m_totalUsedLevels);
 	for(level=m_usedLevels;level<m_totalUsedLevels; level++)
 	{
-		LevelInformation &li = m_levelInformation[level];
+		AMGLevelInformation &li = m_levelInformation[level];
 		AMG_LOG(1, li.tostring() << "\n");
 		AMG_LOG(1, " level took " << li.m_dCreationTimeMS << " ms" << std::endl << std::endl);
 	}
@@ -434,7 +470,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	double totalNrOfNodes=0;
 	for(size_t i=0; i<m_totalUsedLevels; i++)
 	{
-		LevelInformation &li = m_levelInformation[i];
+		AMGLevelInformation &li = m_levelInformation[i];
 		totalNNZs += li.get_nnz();
 		totalNrOfNodes += li.get_nr_of_nodes();
 	}
@@ -462,169 +498,68 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 
 
 template<typename TAlgebra>
-void AMGBase<TAlgebra>::create_direct_solver(size_t level)
+void AMGBase<TAlgebra>::set_or_copy(const AMGBase<TAlgebra> *parent)
 {
-	try{
-	AMG_PROFILE_BEGIN(amg_createDirectSolver);
+#define SET_OR_COPY(variableName, defaultValue) if(parent!=NULL) variableName=parent->variableName; else variableName=defaultValue;
+	m_vec4 = NULL;
+	m_bInited = false;
+	m_usedLevels = 0;
+	m_dbgDimension = 0;
+	iteration_glboal=0;
 
-	UG_ASSERT(block_traits< typename vector_type::value_type >::is_static, "dynamic not yet implemented");
+	SET_OR_COPY(m_numPreSmooth, 3);
+	SET_OR_COPY(m_numPostSmooth, 3);
+	SET_OR_COPY(m_presmoother, make_sp(new SymmetricGaussSeidel<TAlgebra>));
+	SET_OR_COPY(m_postsmoother, m_presmoother);
+	SET_OR_COPY(m_bFSmoothing, true);
+	SET_OR_COPY(m_basesolver, make_sp(new LU<TAlgebra>));
 
-	AMGLevel &L = *levels[level];
-	matrix_operator_type &A = *L.pA; (void) A;
-	size_t static_nrUnknowns = block_traits< typename vector_type::value_type >::static_size;
-	AMG_LOG(2, "Creating direct solver on level " << level << " (" << A.num_rows() << " nodes, total "
-			<< A.num_rows()*static_nrUnknowns << " unknowns)" << std::endl << "Using Direct Solver on Matrix "
-			<< A.num_rows()*static_nrUnknowns << "x" << A.num_rows()*static_nrUnknowns << ". ");
-	(void) static_nrUnknowns;
-	Stopwatch SW; SW.start();
+	SET_OR_COPY(m_maxLevels, 100);
+	if(parent == NULL)
+		set_Y_cycle(4, 1e-30, 0.1);
 
-#ifdef UG_PARALLEL
-	const pcl::ProcessCommunicator &pc = A.layouts()->proc_comm(); //!
-	if(m_basesolver->supports_parallel() == false && pc.size()>1)
-	{
+	// base
+	SET_OR_COPY(m_maxNodesForBase, 1000);
+	SET_OR_COPY(m_minNodesOnOneProcessor, 100);
+	SET_OR_COPY(m_preferredNodesOnOneProcessor, 10000);
+	SET_OR_COPY(m_dMaxFillBeforeBase, 0.5);
 
-		L.bHasBeenMerged = true;
-		L.bLevelHasMergers=true;
-		// create basesolver
-//		TemporaryDebugLevel tdl(LIB_ALG_AMG, 5);
-//		TemporaryDebugLevel tdl2(LIB_ALG_MATRIX, 5);
+	// debug
+	SET_OR_COPY(m_writeMatrices, false);
+	SET_OR_COPY(m_bDebugWriteAllVectors, false);
+	SET_OR_COPY(m_verbose, 0);
+	SET_OR_COPY(m_pPositionProvider2d, SPNULL);
+	SET_OR_COPY(m_pPositionProvider3d, SPNULL);
 
-		if(m_bChecks) { TESTLAYOUTS(A.layouts()); }
+	SET_OR_COPY(m_bOneInit, false);
+	SET_OR_COPY(m_dGalerkinTruncation, 1e-12);
 
-		CollectMatrixOnOneProc(A, *L.collectedA, L.agglomerateMasterLayout, agglomerateSlaveLayout);
-		//UG_LOG("AGGLOMERATE MASTER LAYOUT\n\n" << L.agglomerateMasterLayout);
-		//UG_LOG("AGGLOMERATE SLAVE LAYOUT\n\n" << agglomerateSlaveLayout);
-		if(pcl::ProcRank() == pc.get_proc_id(0))
-		{
-			if(m_writeMatrices)
-			{
-				m_amghelper.receive_agglomerate_positions(level, A.layouts()->comm(), L.agglomerateMasterLayout, L.collectedA->num_rows());
-
-				std::string name = get_output_directory(level) + "collectedA.mat";
-				std::vector<MathVector<3> > vec = m_amghelper.positions[level];
-				ConnectionViewer::WriteMatrix(name.c_str(), *L.collectedA, &vec[0], m_amghelper.dimension);
-			}
-
-			L.spAgglomeratedLayouts->proc_comm() = pc.create_sub_communicator(true);
-			// setting empty layouts to collectedA
-			L.collectedA->set_layouts(SmartPtr<AlgebraLayouts>(new AlgebraLayouts));
-			m_basesolver->init(L.collectedA);
-
-			L.collC.resize(L.collectedA->num_rows());
-			L.collD.resize(L.collectedA->num_rows());
-			SetParallelVectorAsMatrix(L.collC, *L.collectedA, PST_ADDITIVE);
-			SetParallelVectorAsMatrix(L.collD, *L.collectedA, PST_ADDITIVE);
-		}
-		else
-		{
-			if(m_writeMatrices)
-				m_amghelper.send_agglomerate_positions(level, A.layouts()->comm(), agglomerateSlaveLayout);
-
-			m_agglomerateLevel = level;
-			L.spAgglomeratedLayouts->proc_comm() = pc.create_sub_communicator(false);
-		}
-		L.pAgglomeratedA = L.collectedA;
-	}
-	else
-	{
-		L.bLevelHasMergers=false;
-		m_basesolver->init(L.pA);
-		L.pAgglomeratedA = L.pA;
-	}
+#ifdef UG_DEBUG
+	SET_OR_COPY(m_bChecks, true);
 #else
-	m_basesolver->init(L.pA);
-	L.pAgglomeratedA = L.pA;
+	SET_OR_COPY(m_bChecks, false);
 #endif
 
-	m_dTimingCoarseSolverSetupMS = SW.ms();
-	UG_DLOG(LIB_ALG_AMG, 1, "Coarse Solver Setup took " << m_dTimingCoarseSolverSetupMS << "ms." << std::endl);
-
-	}UG_CATCH_THROW_FUNC();
+	// check
+	SET_OR_COPY(m_checkLevelPostIterations, 8);
+	SET_OR_COPY(m_iNrOfPreiterationsCheck, 8);
+	SET_OR_COPY(m_dPreiterationsMimumDefect, 1e-8);
+#undef SET_OR_COPY
 }
-
 /// clone constructor
 template<typename TAlgebra>
 AMGBase<TAlgebra> :: AMGBase(const AMGBase<TAlgebra> &parent) :
-	base_type(parent),
-	m_numPreSmooth(parent.m_numPreSmooth),
-	m_numPostSmooth(parent.m_numPostSmooth),
-
-	m_maxLevels(parent.m_maxLevels),
-	m_usedLevels(0),
-
-	m_pPositionProvider2d(parent.m_pPositionProvider2d),
-	m_pPositionProvider3d(parent.m_pPositionProvider3d)
+	base_type(parent)
 {
-	m_presmoother = parent.m_presmoother;
-	m_postsmoother = parent.m_postsmoother;
-	m_writeMatrices = parent.m_writeMatrices;
-	spYConvCheck = parent.spYConvCheck;
-	m_cycleType = parent.m_cycleType;
-	m_maxNodesForBase = parent.m_maxNodesForBase;
-	m_minNodesOnOneProcessor = parent.m_minNodesOnOneProcessor;
-	m_preferredNodesOnOneProcessor = parent.m_preferredNodesOnOneProcessor;
-	m_dMaxFillBeforeBase = parent.m_dMaxFillBeforeBase;
-	m_bChecks = parent.m_bChecks;
-	m_writeMatrixPath = parent.m_writeMatrixPath;
-	m_bFSmoothing = parent.m_bFSmoothing;
-
-	m_vec4 = NULL;
-	m_bInited = false;
-	m_dbgDimension = parent.m_dbgDimension;
-	m_bOneInit = parent.m_bOneInit;
-	m_verbose = parent.m_verbose;
-
-	iteration_glboal=0;
-	m_checkLevelPostIterations = 10;
-	m_iNrOfPreiterationsCheck = 8;
-	m_dPreiterationsMimumDefect = 1e-8;
+	set_or_copy(&parent);
 }
 
 //!
 //! amg constructor
 template<typename TAlgebra>
-AMGBase<TAlgebra>::AMGBase() :
-	m_numPreSmooth(3),
-	m_numPostSmooth(3),
-
-	m_maxLevels(100),
-	m_usedLevels(0),
-
-	m_pPositionProvider2d(NULL),
-	m_pPositionProvider3d(NULL)
+AMGBase<TAlgebra>::AMGBase()
 {
-
-	m_presmoother = m_postsmoother = make_sp(new SymmetricGaussSeidel<TAlgebra>);
-	m_basesolver = make_sp(new LU<TAlgebra>);
-	set_Y_cycle(4, 1e-30, 0.1);
-
-	m_vec4 = NULL;
-	m_bInited = false;
-
-	m_maxNodesForBase = 1000;
-	m_minNodesOnOneProcessor = 100;
-	m_preferredNodesOnOneProcessor = 10000;
-	m_dMaxFillBeforeBase = 0.5;
-
-	m_writeMatrices = false;
-	m_bFSmoothing = true;
-
-	m_dbgDimension = 0;
-	iteration_glboal=0;
-	m_checkLevelPostIterations = 10;
-	m_iNrOfPreiterationsCheck = 8;
-	m_dPreiterationsMimumDefect = 1e-8;
-	m_bOneInit = false;
-	m_verbose = 0;
-
-	m_dGalerkinTruncation = 1e-12;
-	m_bDebugWriteAllVectors = false;
-
-#ifdef UG_DEBUG
-	m_bChecks = true;
-#else
-	m_bChecks = false;
-#endif
+	set_or_copy(NULL);
 }
 
 
@@ -688,7 +623,7 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::f_smoothing(vector_type &corr, vector_type &d, size_t level)
 {
 	AMG_PROFILE_FUNC();
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 	stdvector<bool> &is_fine = L.is_fine;
 	matrix_operator_type &A = *L.pAgglomeratedA;
 
@@ -711,20 +646,13 @@ bool AMGBase<TAlgebra>::f_smoothing(vector_type &corr, vector_type &d, size_t le
 	return true;
 }
 
-template<typename TAlgebra>
-bool AMGBase<TAlgebra>::solve_on_base(vector_type &c, vector_type &d, size_t level)
-{
-	AMG_PROFILE_FUNC();
-	m_basesolver->apply_return_defect(c, d);
-	return true;
-}
 
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::calc_level_conv_rates(SmartPtr<IConvergenceCheck<vector_type> > pCheck, size_t level)
 {
 	if(is_fixed_conv_check()) return;
 
-	LevelConvergenceRates &s = m_vLvlConvRates[level];
+	AMGLevelConvergenceRates &s = m_vLvlConvRates[level];
 
 	size_t steps = pCheck->step();
 	s.avgReduction = pow(s.avgReduction, s.totalSteps/((double)s.totalSteps+steps))
@@ -754,7 +682,7 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 		return true;
 	}
 
-	AMGLevel &L = *levels[level];
+	AMGLevelType &L = *levels[level];
 
 
 #ifdef UG_PARALLEL
@@ -998,150 +926,6 @@ void AMGBase<TAlgebra>::update_positions()
 }
 
 
-
-template<typename TAlgebra>
-std::string AMGBase<TAlgebra>::GetAMGFilenamePath(const matrix_type &m, int levelDir, std::string name, int level, std::string extension, bool bWriteHeader)
-{
-#ifdef UG_PARALLEL
-	return ConnectionViewer::GetParallelName(get_output_directory(levelDir) + name + "_L" + ToString(level) + extension, m.layouts()->proc_comm(), bWriteHeader);
-#else
-	return get_output_directory(levelDir) + name + "_L" + ToString(level) + extension;
-#endif
-}
-
-template<typename TAlgebra>
-std::string AMGBase<TAlgebra>::GetAMGFilename(const matrix_type &m, std::string name, int level, std::string extension, bool bWriteHeader)
-{
-#ifdef UG_PARALLEL
-	return ConnectionViewer::GetParallelName(name + "_L" + ToString(level) + extension, m.layouts()->proc_comm(), bWriteHeader);
-#else
-	return name + "_L" + ToString(level) + extension;
-#endif
-}
-
-template<typename TAlgebra>
-template<typename TNodeType>
-void AMGBase<TAlgebra>::write_debug_matrix_markers
-	(size_t level, const TNodeType &nodes)
-{
-	if(!m_writeMatrices) return;
-	try{
-	matrix_type &A = *levels[level]->pAgglomeratedA;;
-	// todo: replace some day with something like nodes.get_mark_count(), nodes.mark_name(i), nodes.is_marked(i)
-
-
-	std::string path = get_output_directory(level);
-
-	AMG_PROFILE_FUNC();
-	std::fstream ffine((path + GetAMGFilename(A, "_fine", level, ".marks")).c_str(), std::ios::out);
-	ffine << "1 0 0 1 0\n";
-	std::fstream ffine2((path + GetAMGFilename(A, "_aggfine", level, ".marks")).c_str(), std::ios::out);
-	ffine2 << "1 0.2 1 1 0\n";
-	std::fstream fcoarse((path + GetAMGFilename(A, "_coarse", level, ".marks")).c_str(), std::ios::out);
-	fcoarse << "0 0 1 1 2\n";
-	std::fstream fother((path + GetAMGFilename(A, "_other", level, ".marks")).c_str(), std::ios::out);
-	fother << "1 1 0 1 0\n";
-	std::fstream fdirichlet((path + GetAMGFilename(A, "_dirichlet", level, ".marks")).c_str(), std::ios::out);
-	fdirichlet << "0 1 1 1 0\n";
-	for(size_t i=0; i < A.num_rows(); i++)
-	{
-		//int o = m_amghelper.GetOriginalIndex(level, i);
-		int o=i;
-		if(nodes[i].is_aggressive_fine()) ffine2 << o << "\n";
-		else if(nodes[i].is_fine_direct()) ffine << o << "\n";
-		else if(nodes[i].is_coarse()) fcoarse << o << "\n";
-		else if(nodes[i].is_dirichlet()) fdirichlet << o << "\n";
-		else fother << o << "\n";
-	}
-	}UG_CATCH_THROW("AMGBase::write_debug_matrix_markers failed, level = " << level);
-}
-
-
-
-
-template<typename TAlgebra>
-template<typename TMatrix>
-void AMGBase<TAlgebra>::
-	write_debug_matrix(TMatrix &mat, size_t fromlevel, size_t tolevel, const char *name, bool bAddMakers)
-{
-	if(!m_writeMatrices) return;
-	try{
-	AMG_PROFILE_FUNC();
-
-	int level = std::min(fromlevel, tolevel);
-
-	std::string filename = GetAMGFilenamePath(mat, level, name, fromlevel, ".mat", true);
-	AMGWriteToFile(mat, fromlevel, tolevel, filename, m_amghelper);
-	if(bAddMakers)
-	{
-		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_fine", level, ".marks"));
-		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_coarse", level, ".marks"));
-		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_other", level, ".marks"));
-		ConnectionViewer::AddMarkers(filename, GetAMGFilename(mat, "_dirichlet", level, ".marks"));
-	}
-	}UG_CATCH_THROW("AMGBase::write_debug_matrix failed, fromlevel = " << fromlevel << " tolevel = " << tolevel <<
-			" name = " << name);
-}
-
-/*template<typename TAlgebra>
-void AMGBase<TAlgebra>::save(size_t level, const vector_type &u, const vector_t &b)
-{
-	AMGLevel &L = *levels[level];
-	matrix_operator_type &A = *L.pA;
-
-	std::fstream f;
-	SerializeParallelData(f, A);
-	SerializeUniquePart(f, A);
-	SerializeUniquePart(f, u);
-	SerializeUniquePart(f, b);
-	bool b = m_amghelper.has_positions();
-	if(b)
-		Serialize(f, m_amghelper.positions[level]]);
-
-}
-
-template<typename TAlgebra>
-void AMGBase<TAlgebra>::load(size_t level, const vector_type &u, const vector_t &b)
-{
-	AMGLevel &L = *levels[level];
-	matrix_operator_type &A = *L.pA;
-
-	std::fstream f;
-	SerializeParallelData(f, A);
-	SerializeUniquePart(f, A);
-	SerializeUniquePart(f, u);
-	SerializeUniquePart(f, b);
-	bool b = m_amghelper.has_positions();
-	if(b)
-		Serialize(f, m_amghelper.positions[level]]);
-
-}
-*/
-
-
-template<typename TAlgebra>
-void AMGBase<TAlgebra>::write_debug_matrices(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
-		prolongation_matrix_type &P, size_t level)
-{
-	if(!m_writeMatrices) return;
-	try{
-	AMG_PROFILE_FUNC();
-	AMG_LOG(1, "writing 4 matrices to " << m_writeMatrixPath << ": A ");
-
-	//if(A.num_rows() < AMG_WRITE_MATRICES_MAX)
-	{
-		write_debug_matrix(A, level, level, "A", true);		AMG_LOG(1, "P ");
-		write_debug_matrix(P, level+1, level, "P", true);	AMG_LOG(1, "R ");
-		write_debug_matrix(R, level, level+1, "R", true);	AMG_LOG(1, "AH ");
-	}
-
-	AMGWriteToFile(AH, level+1, level+1,
-			GetAMGFilenamePath(AH, level, "AH", level+1, ".mat", true), m_amghelper);
-
-	AMG_LOG(1, " done.\n");
-	}UG_CATCH_THROW("AMGBase::write_debug_matrices failed, level = " << level);
-}
-
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::injection(vector_type &vH, const vector_type &v, size_t level)
 {
@@ -1156,14 +940,6 @@ bool AMGBase<TAlgebra>::injection(vector_type &vH, const vector_type &v, size_t 
 }
 
 
-template<typename TAlgebra>
-std::string
-AMGBase<TAlgebra>::get_output_directory(int level)
-{
-	std::string path = m_writeMatrixPath << "/level" << level << "/";
-	CreateDirectory(path.c_str(), 0777);
-	return path;
-}
 
 
 

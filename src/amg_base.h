@@ -37,7 +37,7 @@
 #include "lib_algebra/operator/convergence_check.h"
 
 #include "common/util/string_util.h"
-
+#include "amg_level.h"
 
 #define PRINTLAYOUT(pc, com, Layout1, Layout2) MyPrintLayout(pc, com, (Layout1), (Layout2), #Layout1, #Layout2)
 
@@ -82,7 +82,7 @@ public:
 
 	typedef typename matrix_type::value_type value_type;
 	typedef IPreconditioner<TAlgebra> base_type;
-
+	typedef AMGLevel<vector_type, prolongation_matrix_type, matrix_type> AMGLevelType;
 
 	struct checkResult {
 		double preSmoothing;
@@ -98,18 +98,34 @@ public:
 
 //  functions
 	AMGBase();
-	/// clone constructor
+	/// copy constructor
 	AMGBase(const AMGBase<TAlgebra> &parent);
-
-	virtual SmartPtr<ILinearIterator<vector_type> > clone() = 0;
+	/// helper function to unify constructor and copy constructor
+	void set_or_copy(const AMGBase<TAlgebra> *parent);
 
 	//	Name of preconditioner
 	virtual ~AMGBase();
 	void cleanup();
 
-protected:
+/////// pure virtual functions //////
+
+	virtual void create_AMG_level(matrix_type &AH, prolongation_matrix_type &R,
+			const matrix_type &A, prolongation_matrix_type &P, size_t level,
+			AMGLayouts &nextLevelLayouts) = 0;
+	virtual void precalc_level(size_t level) = 0;
+
+	virtual SmartPtr<ILinearIterator<vector_type> > clone() = 0;
+
+	/// overwrite this method if your AMG method needs positions somehow
+	virtual bool needs_positions() const { return m_writeMatrices; }
+
 	virtual const char* name() const = 0;
-	virtual bool supports_parallel() const { return true; }
+
+public:
+/////// IPreconditioner interface ///////
+
+	///	returns information about configuration parameters
+	virtual std::string config_string() const;
 
 	/**
 	 * creates MG Hierachy for with matrix_operator_type A and temporary vectors for higher levels
@@ -137,7 +153,11 @@ protected:
 #endif
 		return get_correction(c, d);
 	}
+	virtual bool supports_parallel() const { return true; }
 
+protected:
+
+/////// base ///////
 	/**
 	 * create direct solver on a specified level
 	 * @param level
@@ -154,23 +174,11 @@ protected:
 	 */
 	bool solve_on_base(vector_type &c, vector_type &d, size_t level);
 
-	/**
-	 * create fine marks for F-Smoothing
-	 * @param level		current AMG level
-	 * @param amgnodes 	for getting amgnodes[i].is_fine()
-	 * @param N			number of elements in amgnodes with is_fine() == true.
-	 */
-	template<typename TAMGNodes>
-	void create_fine_marks(int level, TAMGNodes &amgnodes, size_t N);
 
-	/**
-	 * calculate so that parentIndex[level+1][newIndex[i]] = i
-	 * @param level		 current AMG level
-	 * @param newIndex	 new indices of the nodes. -1 means node is fine.
-	 * @param nrOfCoarse nr of Coarse nodes.
-	 */
-	void create_parent_index(int level, stdvector<int> newIndex,
-			size_t nrOfCoarse);
+//////////// AMG CONSTRUCTION ////////////
+	bool preprocess_create_level(size_t level, double &createAMGlevelTiming, int oldOutputProcess);
+	void preprocess_init_positions(matrix_operator_type& mat);
+	bool preprocess_check_requirements();
 
 	/**
 	 * every coarse node c gets a unique new index newIndex[c]
@@ -313,15 +321,286 @@ protected:
 	 */
 	bool broadcast_vertical(vector_type &vec, const vector_type &collectedVec,
 			size_t level, ParallelStorageType type);
+
 #endif
+
+
+/////// public set/get functions ///////
+public:
+	void set_num_smooth(size_t n)
+	{
+		set_num_presmooth(n);
+		set_num_postsmooth(n);
+	}
+
+	void set_num_presmooth(size_t new_presmooth) 				{ m_numPreSmooth = new_presmooth; }
+	size_t get_num_presmooth() const 							{ return m_numPreSmooth; }
+
+	void set_num_postsmooth(size_t new_postsmooth) 				{ m_numPostSmooth = new_postsmooth; }
+	size_t get_num_postsmooth() const 							{ return m_numPostSmooth; }
+
+	void set_cycle_type(size_t new_cycletype) {
+		UG_ASSERT(new_cycletype > 0,
+				"cannot set cycle type " << new_cycletype << ", has to be > 0");
+		if(new_cycletype == 1)
+			m_cycleType = "V-Cycle";
+		else if(new_cycletype == 2)
+			m_cycleType = "W-Cycle";
+		else
+			m_cycleType = "Gamma=" + ToString(new_cycletype) + "-Cycle";
+		spYConvCheck = make_sp(new FixedConvergenceCheck<vector_type>(new_cycletype));
+	}
+	std::string get_cycle_type() const {
+		return m_cycleType;
+	}
+
+	void set_max_levels(size_t new_max_levels) {
+		UG_COND_THROW(new_max_levels == 0, "cannot set max levels " << new_max_levels << ", has to be > 0");
+		m_maxLevels = new_max_levels;
+	}
+	size_t get_max_levels() const 								{ return m_maxLevels; }
+
+	void set_fsmoothing(bool enable) 							{ m_bFSmoothing = enable; }
+	bool get_fsmoothing() const 								{ return m_bFSmoothing;	}
+
+	void set_max_nodes_for_base(size_t newMaxNodesForBase) 		{ m_maxNodesForBase = newMaxNodesForBase; }
+	size_t get_max_nodes_for_base() const 						{ return m_maxNodesForBase; }
+
+	void set_max_fill_before_base(double newMaxFillBeforeBase)  { m_dMaxFillBeforeBase = newMaxFillBeforeBase;	}
+	double get_max_fill_before_base() const 					{ return m_dMaxFillBeforeBase; }
+
+	void set_min_nodes_on_one_processor(size_t newMinNodes) 	{ m_minNodesOnOneProcessor = newMinNodes; }
+	size_t get_min_nodes_on_one_processor() const 				{ return m_minNodesOnOneProcessor; }
+
+	void set_preferred_nodes_on_one_processor(size_t i) 		{ m_preferredNodesOnOneProcessor = i; }
+	size_t get_preferred_nodes_on_one_processor() const 		{ return m_preferredNodesOnOneProcessor; }
+
+	void set_checkLevel_post_iterations(size_t i) 				{ m_checkLevelPostIterations = i; }
+	size_t get_checkLevel_post_iterations() const 				{ return m_checkLevelPostIterations; }
+
+	void set_verbose(int verbose) 								{ m_verbose = verbose; }
+
+	void set_presmoother(SmartPtr<ILinearIterator<vector_type> > presmoother) {
+		m_presmoother = presmoother;
+	}
+	void set_postsmoother(
+			SmartPtr<ILinearIterator<vector_type> > postsmoother) {
+		m_postsmoother = postsmoother;
+	}
+	void set_base_solver(
+		SmartPtr<ILinearOperatorInverse<vector_type> > basesolver) {
+		m_basesolver = basesolver;
+	}
+	void set_position_provider(SmartPtr<IPositionProvider<2> > ppp2d) {
+		m_pPositionProvider2d = ppp2d;
+	}
+
+	void set_position_provider(SmartPtr<IPositionProvider<3> > ppp3d) {
+		m_pPositionProvider3d = ppp3d;
+	}
+
+	void set_positions(const MathVector<2> *pos, size_t size) {
+		m_dbgPositions.resize(size);
+		for (size_t i = 0; i < size; ++i) {
+			m_dbgPositions[i].x() = pos[i].x();
+			m_dbgPositions[i].y() = pos[i].y();
+			m_dbgPositions[i].z() = 0.0;
+		}
+		m_dbgDimension = 2;
+	}
+	void set_positions(const MathVector<3> *pos, size_t size) {
+		m_dbgPositions.resize(size);
+		for (size_t i = 0; i < size; ++i)
+			m_dbgPositions[i] = pos[i];
+		m_dbgDimension = 3;
+	}
+
+	void set_matrix_write_path(const char *path) {
+		m_writeMatrixPath = path;
+		m_writeMatrices = true;
+	}
+
+	void set_debug_write_all_vectors(bool b) 				{ m_bDebugWriteAllVectors=b; 	}
+	void set_nr_of_preiterations_at_check(size_t i) 		{ m_iNrOfPreiterationsCheck = i; }
+	void set_preiterations_mimum_defect_at_check(double d) 	{ m_dPreiterationsMimumDefect = d; }
+	void	set_galerkin_truncation(double d)				{ m_dGalerkinTruncation = d; }
+	double	get_galerkin_truncation() const					{ return m_dGalerkinTruncation; }
+
+	/// if true, do not re-create AMG we preprocess is called
+	void set_one_init(bool b) 								{ m_bOneInit = b; }
+
+	void set_Y_cycle(int maxIterations, double dYminAbsDefect, double dYrelReduction) {
+		set_Y_check(make_sp(new StdConvCheck<vector_type>(maxIterations, dYminAbsDefect, dYrelReduction, false, false)));
+	}
+	void set_Y_check(SmartPtr<IConvergenceCheck<vector_type> > spCC)
+	{
+		spYConvCheck = spCC;
+		m_cycleType = std::string("YCycle (ConvCheck = ") + spCC->config_string() + std::string(")");
+	}
+
+
+////// results, output ////////
+// public results and output functions
+public:
+	/// print level informations
+	std::string level_information_str() const
+	{
+		if(m_bInited==false) return "no level information: not initialized.";
+		if(m_bEmptyProcess) return "this is an empty process.";
+		std::stringstream ss;
+		ss.setf(std::ios::fixed);
+		ss << "Operator Complexity: " << get_operator_complexity() << ", grid complexity: "
+				<< get_grid_complexity() << ".\n";
+		ss << "Whole setup took " << get_timing_whole_setup_ms() << " ms, coarse solver setup took "
+				<< get_timing_coarse_solver_setup_ms() << " ms.\n";
+
+		/*for(size_t i = 0; i<get_used_levels(); i++)
+			ss << get_level_information(i)->tostring() << "\n";*/
+		StringTableStream sts;
+		AMGLevelInformation::get_header(sts);
+		for(size_t i = 0; i<get_used_levels(); i++)
+			get_level_information(i)->add_data(sts);
+		ss << sts;
+
+		if(!is_fixed_conv_check())
+		{
+//			double totalCalls = m_vLvlConvRates[0].calls;
+			for(size_t i = 1; i<get_used_levels()-1; i++)
+			{
+//				double wSteps = pow(2, i);
+				ss << "Level " << i <<
+						" avg gamma: " << m_vLvlConvRates[i].totalSteps/((double)m_vLvlConvRates[i].calls) <<
+						" avg reduction: " << m_vLvlConvRates[i].avgReduction << "\n";
+			}
+		}
+		return ss.str();
+	}
+
+	const AMGLevelInformation *get_level_information(size_t level) const {
+		if (level < m_levelInformation.size())
+			return &m_levelInformation[level];
+		else
+			return NULL;
+	}
+
+	size_t my_multigrid_levels()
+	{
+#ifdef UG_PARALLEL
+		if(m_agglomerateLevel == (size_t)-1)
+			return m_usedLevels-1;
+		else
+			return m_agglomerateLevel;
+#else
+		return m_usedLevels-1;
+#endif
+	}
+
+	/// @return c_A = total nnz of all matrices divided by nnz of matrix A
+	double get_operator_complexity() const 					{ return m_dOperatorComplexity; }
+	/// @return c_G = total number of nodes of all levels divided by number of nodes on level 0
+	double get_grid_complexity() const 						{ return m_dGridComplexity;	}
+	/// @return the time spent on the whole setup in ms
+	double get_timing_whole_setup_ms() const 				{ return m_dTimingWholeSetupMS;	}
+	/// @return the time spent in the coarse solver setup in ms
+	double get_timing_coarse_solver_setup_ms() const 		{ return m_dTimingCoarseSolverSetupMS;	}
+
+	/*
+	 size_t get_nr_of_coarse(size_t level)
+	 {
+	 assert(level+1 < m_usedLevels);
+	 return A[level+1]->length;
+	 }
+	 */
+	/// returns the number of AMG levels
+	size_t get_used_levels() const {
+		if(m_bEmptyProcess) return 0;
+		return m_totalUsedLevels;
+	}
+
+protected:
+/////// debug ///////
+	/**
+	 * reads in the positions from the position provider
+	 * @sa set_position_provider, set_positions
+	 */
+	void update_positions();
+
+	std::string GetAMGFilenamePath(const matrix_type &m, int levelDir, std::string name, int level, std::string extension, bool bWriteHeader=false);
+	std::string GetAMGFilename(const matrix_type &m, std::string name, int level, std::string extension, bool bWriteHeader=false);
+
+	void write_debug_matrices(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A, prolongation_matrix_type &P, size_t level);
+
+	template<typename TMatrix>
+	void write_debug_matrix(TMatrix &mat, size_t fromlevel, size_t tolevel, const char *name, bool bAddMarkers=false);
+
+	template<typename TNodeType>
+	void write_debug_matrix_markers(size_t level, const TNodeType &nodes);
+	/**
+	 * writes the vector d in a connection-viewer-vec format
+	 *
+	 * @param 	filename
+	 * @param	d
+	 * @param	level
+	 */
+	template<typename TVector>
+	bool writevec(std::string filename, const TVector &d, size_t level,
+			const TVector *solution = NULL);
+	std::string get_output_directory(int level);
 
 public:
 	/// debug output of interfaces written in ConnectionViewer-format
 	void write_interfaces();
 
+/////// checks ///////
+public:
 	bool check2(const vector_type &const_c, const vector_type &const_d);
 	bool check_fsmoothing();
+	bool check_level(vector_type &c, vector_type &d, matrix_type &A,
+			size_t level, checkResult &res, const vector_type *solution = NULL);
+//	bool check(IMatrixOperator const vector_type &const_c, const vector_type &const_d);
 
+	bool check(const vector_type &const_c, const vector_type &const_d);
+	bool check();
+	bool check(vector_type &c, vector_type &d, bool bRandom);
+
+	double check_interpolation(vector_type &v, const char *filename);
+	void use_checks(bool b)
+	{
+		m_bChecks = b;
+	}
+
+
+/////// smoothing ///////
+public:
+	bool init_smoothers();
+protected:
+	void init_smoother(size_t level);
+
+	/// init f-smoothing (get consistent matrix)
+	void init_fsmoothing();
+	/// f-smoothing
+	bool f_smoothing(vector_type &corr, vector_type &d, size_t level);
+
+	/**
+	 * create fine marks for F-Smoothing
+	 * @param level		current AMG level
+	 * @param amgnodes 	for getting amgnodes[i].is_fine()
+	 * @param N			number of elements in amgnodes with is_fine() == true.
+	 */
+	template<typename TAMGNodes>
+	void create_fine_marks(int level, TAMGNodes &amgnodes, size_t N);
+
+	/**
+	 * calculate so that parentIndex[level+1][newIndex[i]] = i
+	 * @param level		 current AMG level
+	 * @param newIndex	 new indices of the nodes. -1 means node is fine.
+	 * @param nrOfCoarse nr of Coarse nodes.
+	 */
+	void create_parent_index(int level, stdvector<int> newIndex,
+			size_t nrOfCoarse);
+
+/////// cycle ///////
+protected:
 	/**
 	 * handles agglomeration, and then calls
 	 * add_correction_and_update_defect2 with collected vectors
@@ -361,320 +640,19 @@ public:
 
 	/// calculates vH[j] = v[m_parentIndex[level+1][j]];
 	bool injection(vector_type &vH, const vector_type &v, size_t level);
-	/*
-	 size_t get_nr_of_coarse(size_t level)
-	 {
-	 assert(level+1 < m_usedLevels);
-	 return A[level+1]->length;
-	 }
-	 */
-	/// returns the number of AMG levels
-	size_t get_used_levels() const {
-		if(m_bEmptyProcess) return 0;
-		return m_totalUsedLevels;
-	}
 
-	bool check_level(vector_type &c, vector_type &d, matrix_type &A,
-			size_t level, checkResult &res, const vector_type *solution = NULL);
-//	bool check(IMatrixOperator const vector_type &const_c, const vector_type &const_d);
-	bool check(const vector_type &const_c, const vector_type &const_d);
-	bool check();
-	bool check(vector_type &c, vector_type &d, bool bRandom);
-//  data
-
-	void set_num_presmooth(size_t new_presmooth) {
-		m_numPreSmooth = new_presmooth;
-	}
-	size_t get_num_presmooth() const {
-		return m_numPreSmooth;
-	}
-
-	void set_num_postsmooth(size_t new_postsmooth) {
-		m_numPostSmooth = new_postsmooth;
-	}
-	size_t get_num_postsmooth() const {
-		return m_numPostSmooth;
-	}
-
-	void set_cycle_type(size_t new_cycletype) {
-		UG_ASSERT(new_cycletype > 0,
-				"cannot set cycle type " << new_cycletype << ", has to be > 0");
-		if(new_cycletype == 1)
-			m_cycleType = "V-Cycle";
-		else if(new_cycletype == 2)
-			m_cycleType = "W-Cycle";
-		else
-			m_cycleType = "Gamma=" + ToString(new_cycletype) + "-Cycle";
-		spYConvCheck = make_sp(new FixedConvergenceCheck<vector_type>(new_cycletype));
-	}
-	std::string get_cycle_type() const {
-		return m_cycleType;
-	}
-
-	void set_max_levels(size_t new_max_levels) {
-		UG_ASSERT(new_max_levels > 0,
-				"cannot set max levels " << new_max_levels << ", has to be > 0");
-		m_maxLevels = new_max_levels;
-	}
-	size_t get_max_levels() const {
-		return m_maxLevels;
-	}
-
-	void set_fsmoothing(bool enable) {
-		m_bFSmoothing = enable;
-	}
-	bool get_fsmoothing() const {
-		return m_bFSmoothing;
-	}
-
-	void set_max_nodes_for_base(size_t newMaxNodesForBase) {
-		m_maxNodesForBase = newMaxNodesForBase;
-	}
-	size_t get_max_nodes_for_base() const {
-		return m_maxNodesForBase;
-	}
-
-	void set_max_fill_before_base(double newMaxFillBeforeBase) {
-		m_dMaxFillBeforeBase = newMaxFillBeforeBase;
-	}
-	double get_max_fill_before_base() const {
-		return m_dMaxFillBeforeBase;
-	}
-
-	void set_min_nodes_on_one_processor(size_t newMinNodes) {
-		m_minNodesOnOneProcessor = newMinNodes;
-	}
-	size_t get_min_nodes_on_one_processor() const {
-		return m_minNodesOnOneProcessor;
-	}
-
-	void set_preferred_nodes_on_one_processor(size_t i) {
-		m_preferredNodesOnOneProcessor = i;
-	}
-	size_t get_preferred_nodes_on_one_processor() const {
-		return m_preferredNodesOnOneProcessor;
-	}
-
-	void set_checkLevel_post_iterations(size_t i) {
-		m_checkLevelPostIterations = i;
-	}
-	size_t get_checkLevel_post_iterations() const {
-		return m_checkLevelPostIterations;
-	}
-
-	void set_verbose(int verbose) {
-		m_verbose = verbose;
-	}
-
-	void set_presmoother(SmartPtr<ILinearIterator<vector_type> > presmoother) {
-		m_presmoother = presmoother;
-	}
-	void set_postsmoother(
-			SmartPtr<ILinearIterator<vector_type> > postsmoother) {
-		m_postsmoother = postsmoother;
-	}
-	void set_base_solver(
-			SmartPtr<ILinearOperatorInverse<vector_type> > basesolver) {
-		m_basesolver = basesolver;
-	}
-
-	void set_position_provider(SmartPtr<IPositionProvider<2> > ppp2d) {
-		m_pPositionProvider2d = ppp2d;
-	}
-
-	void set_position_provider(SmartPtr<IPositionProvider<3> > ppp3d) {
-		m_pPositionProvider3d = ppp3d;
-	}
-
-	void set_positions(const MathVector<2> *pos, size_t size) {
-		m_dbgPositions.resize(size);
-		for (size_t i = 0; i < size; ++i) {
-			m_dbgPositions[i].x() = pos[i].x();
-			m_dbgPositions[i].y() = pos[i].y();
-			m_dbgPositions[i].z() = 0.0;
-		}
-		m_dbgDimension = 2;
-	}
-	void set_positions(const MathVector<3> *pos, size_t size) {
-		m_dbgPositions.resize(size);
-		for (size_t i = 0; i < size; ++i)
-			m_dbgPositions[i] = pos[i];
-		m_dbgDimension = 3;
-	}
-
-	void set_matrix_write_path(const char *path) {
-		m_writeMatrixPath = path;
-		m_writeMatrices = true;
-	}
-	void set_debug_write_all_vectors(bool b)
-	{
-		m_bDebugWriteAllVectors=b;
-	}
-
-	///	returns information about configuration parameters
-	virtual std::string config_string() const;
-
-	/// if true, do not re-create AMG we preprocess is called
-	void set_one_init(bool b) {
-		m_bOneInit = b;
-	}
-
-	void set_nr_of_preiterations_at_check(size_t i) {
-		m_iNrOfPreiterationsCheck = i;
-	}
-
-	void set_preiterations_mimum_defect_at_check(double d) {
-		m_dPreiterationsMimumDefect = d;
-	}
-
-	void set_Y_cycle(int maxIterations, double dYminAbsDefect, double dYrelReduction) {
-		set_Y_check(make_sp(new StdConvCheck<vector_type>(maxIterations, dYminAbsDefect, dYrelReduction, false, false)));
-	}
-
-	void set_Y_check(SmartPtr<IConvergenceCheck<vector_type> > spCC)
-	{
-		spYConvCheck = spCC;
-		m_cycleType = std::string("YCycle (ConvCheck = ") + spCC->config_string() + std::string(")");
-	}
-
-	void	set_galerkin_truncation(double d)	{ m_dGalerkinTruncation = d; }
-	double	get_galerkin_truncation() const		{ return m_dGalerkinTruncation; }
-
-
-	/// @return c_A = total nnz of all matrices divided by nnz of matrix A
-	double get_operator_complexity() const {
-		return m_dOperatorComplexity;
-	}
-
-	/// @return c_G = total number of nodes of all levels divided by number of nodes on level 0
-	double get_grid_complexity() const {
-		return m_dGridComplexity;
-	}
-
-	/// @return the time spent on the whole setup in ms
-	double get_timing_whole_setup_ms() const {
-		return m_dTimingWholeSetupMS;
-	}
-
-	/// @return the time spent in the coarse solver setup in ms
-	double get_timing_coarse_solver_setup_ms() const {
-		return m_dTimingCoarseSolverSetupMS;
-	}
-
-	/// print level informations
-	std::string level_information_str() const
-	{
-		if(m_bInited==false) return "no level information: not initialized.";
-		if(m_bEmptyProcess) return "this is an empty process.";
-		std::stringstream ss;
-		ss.setf(std::ios::fixed);
-		ss << "Operator Complexity: " << get_operator_complexity() << ", grid complexity: "
-				<< get_grid_complexity() << ".\n";
-		ss << "Whole setup took " << get_timing_whole_setup_ms() << " ms, coarse solver setup took "
-				<< get_timing_coarse_solver_setup_ms() << " ms.\n";
-
-		/*for(size_t i = 0; i<get_used_levels(); i++)
-			ss << get_level_information(i)->tostring() << "\n";*/
-		StringTableStream sts;
-		LevelInformation::get_header(sts);
-		for(size_t i = 0; i<get_used_levels(); i++)
-			get_level_information(i)->add_data(sts);
-		ss << sts;
-
-		if(!is_fixed_conv_check())
-		{
-//			double totalCalls = m_vLvlConvRates[0].calls;
-			for(size_t i = 1; i<get_used_levels()-1; i++)
-			{
-//				double wSteps = pow(2, i);
-				ss << "Level " << i <<
-						" avg gamma: " << m_vLvlConvRates[i].totalSteps/((double)m_vLvlConvRates[i].calls) <<
-						" avg reduction: " << m_vLvlConvRates[i].avgReduction << "\n";
-			}
-		}
-		return ss.str();
-	}
-
-	const LevelInformation *get_level_information(size_t level) const {
-		if (level < m_levelInformation.size())
-			return &m_levelInformation[level];
-		else
-			return NULL;
-	}
-
-public:
-	double check_interpolation(vector_type &v, const char *filename);
-	void use_checks(bool b)
-	{
-		m_bChecks = b;
-	}
-
-	bool init_smoothers();
-	void init_smoother(size_t level);
-
-	size_t my_multigrid_levels()
-	{
-#ifdef UG_PARALLEL
-		if(m_agglomerateLevel == (size_t)-1)
-			return m_usedLevels-1;
-		else
-			return m_agglomerateLevel;
-#else
-		return m_usedLevels-1;
-#endif
-	}
-protected:
-
-	double Dnorm(vector_type &t, size_t level);
-	double Anorm(vector_type &t, size_t level);
-
-	void write_debug_matrices(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A, prolongation_matrix_type &P, size_t level);
-
-	template<typename TMatrix>
-	void write_debug_matrix(TMatrix &mat, size_t fromlevel, size_t tolevel, const char *name, bool bAddMarkers=false);
-
-	template<typename TNodeType>
-	void write_debug_matrix_markers(size_t level, const TNodeType &nodes);
-
-	/// init f-smoothing (get consistent matrix)
-	void init_fsmoothing();
-	/// f-smoothing
-	bool f_smoothing(vector_type &corr, vector_type &d, size_t level);
-
-	/**
-	 * writes the vector d in a connection-viewer-vec format
-	 *
-	 * @param 	filename
-	 * @param	d
-	 * @param	level
-	 */
-	template<typename TVector>
-	bool writevec(std::string filename, const TVector &d, size_t level,
-			const TVector *solution = NULL);
-
-	std::string GetAMGFilenamePath(const matrix_type &m, int levelDir, std::string name, int level, std::string extension, bool bWriteHeader=false);
-	std::string GetAMGFilename(const matrix_type &m, std::string name, int level, std::string extension, bool bWriteHeader=false);
-
-
-	/**
-	 * reads in the positions from the position provider
-	 * @sa set_position_provider, set_positions
-	 */
-	void update_positions();
-
-// pure virtual functions
-	virtual void create_AMG_level(matrix_type &AH, prolongation_matrix_type &R,
-			const matrix_type &A, prolongation_matrix_type &P, size_t level,
-			AMGLayouts &nextLevelLayouts) = 0;
-	virtual void precalc_level(size_t level) = 0;
-
-	std::string get_output_directory(int level);
-
-private:
 	bool is_fixed_conv_check() const
 	{
 		return spYConvCheck. template cast_dynamic<FixedConvergenceCheck<vector_type> > () .valid();
 	}
+
+/////// other ///////
+	double Dnorm(vector_type &t, size_t level);
+	double Anorm(vector_type &t, size_t level);
+
+
+private:
+/////// agglomeration ///////
 #ifdef UG_PARALLEL
 	/// starts the agglomeration process
 	bool agglomerate(size_t level);
@@ -709,20 +687,13 @@ private:
 			size_t level, ParallelNodes &PN);
 #endif
 
-public:
-	int m_verbose;							///< verbose level. 0 = no output.
-
+/////// DATA ///////
 protected:
-	/// overwrite this method if your AMG method needs positions somehow
-	virtual bool needs_positions() const { return m_writeMatrices; }
-// data
-	size_t m_numPreSmooth;				///< nu_1 : nr. of pre-smoothing steps
-	size_t m_numPostSmooth;				///< nu_2: nr. of post-smoothing steps
-	std::string m_cycleType;			///< gamma: cycle type (1 = V-Cycle, 2 = W-Cycle)
 
-	size_t m_maxLevels;						///< max. nr of levels used for FAMG
-	size_t m_usedLevels;						///< nr of FAMG levels used
-	size_t m_totalUsedLevels;
+	// other options
+	double m_dGalerkinTruncation;
+
+/////// agglomeration ///////
 
 	size_t m_maxNodesForBase;///< max nr of coarse nodes before Base solver is used
 	double m_dMaxFillBeforeBase;///< max fill rate before Base solver is used
@@ -730,115 +701,80 @@ protected:
 	size_t m_preferredNodesOnOneProcessor;///< preferred nr of nodes on one processor (for agglomeration)
 	bool m_bUseCollectedSolver;
 
-	bool m_bFSmoothing;						///< if true, use F-Smoothing
-	bool m_bOneInit;///< if true, do not re-create AMG we preprocess is called
+
+
+/////// checks ///////
 
 	size_t m_iNrOfPreiterationsCheck;///< nr of mg cycles performed before checking
 	double m_dPreiterationsMimumDefect;	///< minimum defect for preiterations before checking
-
 	size_t m_checkLevelPostIterations;
 
-	vector_type *m_vec4;	///< temporary Vector for defect (in get_correction)
 
+	vector_type *m_vec4;	///< temporary Vector for defect (in get_correction)
 	int iteration_glboal;
 
-	bool m_writeMatrices;
 
-	std::string m_writeMatrixPath;
-	cAMG_helper m_amghelper;///< helper struct for viewing matrices (optional)
-	stdvector<MathVector<3> > m_dbgPositions;///< positions of geometric grid (optional)
-	int m_dbgDimension;				///< dimension of geometric grid (optional)
+/////// smoothing ///////
 
+	size_t m_numPreSmooth;				///< nu_1 : nr. of pre-smoothing steps
+	size_t m_numPostSmooth;				///< nu_2: nr. of post-smoothing steps
 	SmartPtr<ILinearIterator<vector_type> > m_presmoother;///< presmoother template
 	SmartPtr<ILinearIterator<vector_type> > m_postsmoother;	///< postsmoother template \note: may be pre=post, is optimized away.
+	bool m_bFSmoothing;						///< if true, use F-Smoothing
 
+/////// base ///////
+
+	size_t m_maxLevels;						///< max. nr of levels used for FAMG
 	SmartPtr<ILinearOperatorInverse<vector_type> > m_basesolver; ///< the base solver
 
+
+/////// cycles ///////
+
+	std::string m_cycleType;			///< gamma: cycle type (1 = V-Cycle, 2 = W-Cycle)
+	SmartPtr<IConvergenceCheck<vector_type> > spYConvCheck;
+
+	void calc_level_conv_rates(SmartPtr<IConvergenceCheck<vector_type> > pCheck, size_t level);
+	std::vector<AMGLevelConvergenceRates> m_vLvlConvRates;
+
+
+
 	bool m_bInited;	///< true if inited. needed since preprocess doesnt give us a InterfaceCommunicator atm.
+
+/////// results ///////
 	double m_dOperatorComplexity;
 	double m_dGridComplexity;
 	double m_dTimingWholeSetupMS;
 	double m_dTimingCoarseSolverSetupMS;
 
-	double m_dGalerkinTruncation;
+	size_t m_usedLevels;						///< nr of FAMG levels used
+	size_t m_totalUsedLevels;
 
+	stdvector<SmartPtr<AMGLevelType> > levels;
+
+/////// debug ///////
+	bool m_writeMatrices;
+	std::string m_writeMatrixPath;
 	SmartPtr<IPositionProvider<2> > m_pPositionProvider2d;
 	SmartPtr<IPositionProvider<3> > m_pPositionProvider3d;
-
+	cAMG_helper m_amghelper;///< helper struct for viewing matrices (optional)
+	stdvector<MathVector<3> > m_dbgPositions;///< positions of geometric grid (optional)
+	int m_dbgDimension;				///< dimension of geometric grid (optional)
+	int m_verbose;							///< verbose level. 0 = no output.
 	stdvector<stdvector<int> > m_parentIndex;///< parentIndex[i] is the index of i on the finer level
-	stdvector<LevelInformation> m_levelInformation;
+
+
+/////// misc ///////
+	stdvector<AMGLevelInformation> m_levelInformation;
+	void calculate_level_information(size_t level, double createAMGlevelTiming);
+
+
+	bool m_bOneInit;///< if true, do not re-create AMG we preprocess is called
 
 	bool m_bDebugWriteAllVectors;
 	bool m_bChecks;
 
-	class AMGLevel
-	{
-	public:
-		~AMGLevel()
-		{
-		}
-		AMGLevel(int level) :
-				pA(NULL), presmoother(NULL), postsmoother(NULL)
-#ifdef UG_PARALLEL
-						, spLayouts(new AlgebraLayouts), spAgglomeratedLayouts(new AlgebraLayouts)
-						, collectedA(new matrix_operator_type)
-#endif
-		{
-#ifdef UG_PARALLEL
-			//slaveLayout.clear();
-			//masterLayout.clear();
-			agglomerateMasterLayout.clear();
-			bHasBeenMerged = false;
-#endif
-		}
 
-		vector_type corr;///< temporary Vector for storing the correction made on this level
-		vector_type cH;						///< temporary Vector for storing rH
-		vector_type dH; 					///< temporary Vector for storing eH
-
-		stdvector<bool> is_fine;			///< fine marks for f-smoothing
-
-		prolongation_matrix_type R; 		///< R Restriction Matrices
-		prolongation_matrix_type P; 		///< P Prolongation Matrices
-		SmartPtr<matrix_operator_type> pA;	///< A Matrices
-
-		SmartPtr<ILinearIterator<vector_type> > presmoother;///< presmoothers for each level
-		SmartPtr<ILinearIterator<vector_type> > postsmoother;///< postsmoothers for each level
-
-		/// inverse for diagonal, for f-smoothing
-		stdvector<typename block_traits<typename matrix_type::value_type>::inverse_type> m_diagInv;
-
-#ifdef UG_PARALLEL
-		SmartPtr<AlgebraLayouts> spLayouts;
-		//pcl::InterfaceCommunicator<IndexLayout> com; 						///< the communicator object on this level
-		//IndexLayout slaveLayout, masterLayout;							///< layouts
-
-		SmartPtr<AlgebraLayouts> spAgglomeratedLayouts;
-		//IndexLayout slaveLayoutAfterAgglomeration, masterLayoutAfterAgglomeration;	//< since layouts can change due to neighbors merging, these are the new layouts
-		//pcl::ProcessCommunicator agglomeratedPC;			///< process Communicator if level contains mergers
-
-		// agglomeration
-		bool bHasBeenMerged;///< if true, this core is either father or child of a collected group
-		// level 0 - m_agglomerateLevel
-		pcl::ProcessCommunicator *pProcessCommunicator;	///< process Communicator on this level
-
-		// level 0 - m_agglomerateLevel-1
-		IndexLayout agglomerateMasterLayout;
-
-		vector_type collC, collD;
-		SmartPtr<matrix_operator_type> collectedA;
-		bool bLevelHasMergers;
-#else
-		int *spLayouts;
-#endif
-		SmartPtr<IConvergenceCheck<vector_type> > spYConvCheck;
-		// in contrast to collC, collD, and collectedA, this can also point to other vectors.
-		SmartPtr<matrix_operator_type> pAgglomeratedA;
-	};
-
-	stdvector<SmartPtr<AMGLevel> > levels;
-
-	SmartPtr<IConvergenceCheck<vector_type> > spYConvCheck;
+/////// agglomeration ///////
 
 #ifdef UG_PARALLEL
 	bool m_bEmptyProcess;
@@ -858,23 +794,7 @@ protected:
 	bool isNotMerging(size_t level);
 #endif
 
-	void calc_level_conv_rates(SmartPtr<IConvergenceCheck<vector_type> > pCheck, size_t level);
-	struct LevelConvergenceRates
-	{
-		LevelConvergenceRates()
-		{
-			totalSteps = 0;
-			calls = 0;
-			avgReduction = 1.0;
-		}
-		size_t totalSteps;
-		size_t calls;
-		double avgReduction;
-	};
 
-	std::vector<LevelConvergenceRates> m_vLvlConvRates;
-
-	void calculate_level_information(size_t level, double createAMGlevelTiming);
 
 protected:
 
@@ -886,5 +806,6 @@ protected:
 }// namespace ug
 
 #include "amg_base_impl.h"
+#include "amg_basesolver.h"
 
 #endif // __H__UG__LIB_ALGEBRA__AMG_SOLVER__AMG_BASE_H__
