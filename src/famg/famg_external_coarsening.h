@@ -14,7 +14,10 @@
 
 #include "common/error.h"
 #include <boost/lambda/lambda.hpp>
+
+#ifdef UG_PARALLEL
 #include "array_binary_operation_scheme.h"
+#endif
 
 #ifndef FAMG_EXTERNAL_COARSENING_H_
 #define FAMG_EXTERNAL_COARSENING_H_
@@ -168,6 +171,7 @@ static void MyCreateMeasureOfImportancePQ(const cgraph &strong, const cgraph &st
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::make_coarsening_consistent()
 {
+#ifdef UG_PARALLEL
 	AMG_PROFILE_FUNC();
 	StdArrayCommunicationScheme<FAMGNodes<prolongation_matrix_type> > scheme2(rating);
 	CommunicateOnInterfaces(PN.comm(), OL2MasterLayout, OL2SlaveLayout, scheme2);
@@ -182,7 +186,7 @@ void FAMGLevelCalculator<algebra_type>::make_coarsening_consistent()
 		rating.print();
 		UG_COND_THROW(!AllProcsTrue(scheme.isOK(), PN.proc_comm()), "amgnodes" << " not consistent!");
 	}
-
+#endif
 
 }
 
@@ -200,6 +204,7 @@ void FAMGLevelCalculator<algebra_type>::make_coarsening_consistent()
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 {
+	return;
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\nexternal post-coarsening... " );  SW.start(); }
@@ -337,7 +342,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 	set_uninterpolateable_as_coarse();
 }
 
-
+#ifdef UG_PARALLEL
 /**
  * Griebel LE strategy for neumann-coarsening
  * the idea is to detect the neumann boundary by comparing the number of connections of node i with the avg. number of connections of i's neighbors
@@ -605,6 +610,8 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_coarsening_new(const cgraph &grap
 		}
 	}
 }
+#endif
+
 
 /**
  * do the external coarsening
@@ -640,28 +647,25 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 	SetIsolatedCoarse(graphS, nodes);
 	graphST.set_as_transpose_of(graphS);
 
-	if(true)
+	CreateMeasureOfImportancePQ(graphS, graphST, PQ, nodes);
+
+#ifdef UG_PARALLEL
+	if(m_famg.m_bLE_XC_Griebel)
+		rs_amg_coarsening_LE_griebel(graphS, graphST, PQ, nodes);
+	else if(m_famg.m_bXC_new)
+		rs_amg_coarsening_new(graphS, graphST, PQ, nodes);
+
+	m_famg.m_pParallelCoarsening->coarsen(PN, masterLayouts, slaveLayouts, graphS, graphST, PQ, nodes, true);
+#else
+	Coarsen(graphS, graphST, PQ, nodes, true, false);
+
+	if (m_famg.get_prevent_ff_connection_external())
 	{
-		CreateMeasureOfImportancePQ(graphS, graphST, PQ, nodes);
-
-
-		if(m_famg.m_bLE_XC_Griebel)
-			rs_amg_coarsening_LE_griebel(graphS, graphST, PQ, nodes);
-		else if(m_famg.m_bXC_new)
-			rs_amg_coarsening_new(graphS, graphST, PQ, nodes);
-
-	#ifdef UG_PARALLEL
-		m_famg.m_pParallelCoarsening->coarsen(PN, masterLayouts, slaveLayouts, graphS, graphST, PQ, nodes, true);
-	#else
-		Coarsen(graphS, graphST, PQ, nodes, true, false);
-
-		if (m_famg.get_prevent_ff_connection_external())
-		{
-			PreventFFConnections(graphS, graphST, nodes);
-		}
-	#endif
+		PreventFFConnections(graphS, graphST, nodes);
 	}
-	else
+#endif
+
+	/*else
 	{
 		for(size_t i=0; i<258; i++)
 		{
@@ -672,7 +676,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 			else
 				nodes.set_fine(i);
 		}
-	}
+	}*/
 
 	// aggressive coarsening
 	if(m_famg.m_bXCaggressive == true && level == 0)

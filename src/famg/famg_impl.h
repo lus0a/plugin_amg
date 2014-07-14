@@ -90,7 +90,10 @@ void FAMG<TAlgebra>::set_or_copy(const FAMG<TAlgebra> *parent)
 	SET_OR_COPY(m_dDampingForSmootherInInterpolationCalculation, 0.8);
 	SET_OR_COPY(m_testvectorsmoother, make_sp(new Jacobi<TAlgebra>()));
 
+#ifdef UG_PARALLEL
 	SET_OR_COPY(m_pParallelCoarsening, GetColorCoarsening());
+#endif
+
 #undef SET_OR_COPY
 }
 
@@ -109,7 +112,12 @@ std::string FAMG<TAlgebra>::config_string() const
 	// coarsening
 	ss << " Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF") << "\n";
 	if(m_bExternalCoarsening)
+	{
 		ss << " External Coarsening: StrongConnection = " << m_dStrongConnectionExternal << ", StrongConnectionSub = " << get_strong_connection_submask_desc() << "\n";
+#ifdef UG_PARALLEL
+		ss << " ParallelCoarsening: " << ConfigShift(m_pParallelCoarsening->config_string()) << "\n";
+#endif
+	}
 	if(m_bUsePrecalculate)	ss << " precalculate Coarsening\n";
 	else					ss << " std FAMG coarsening.\n";
 
@@ -144,10 +152,13 @@ std::string FAMG<TAlgebra>::config_string() const
 		else
 			ss << " TestvectorCalculator: " << ConfigShift(m_testvectorCalculator->config_string()) << "\n";
 
+
+
+
 //	ss << m_testvectors.size() + m_vVectorWriters.size() << " test vectors" << std::endl; ?
 	if(m_writeMatrices && m_writeTestvectors)
 		ss << " Write Testvectors is on.\n";
-	ss << " AMGBase: " << ConfigShift(AMGBase<TAlgebra>::config_string());
+	ss << " AMGBase: " << ConfigShift(AMGBase<TAlgebra>::config_string()) << "\n";
 
 	return ss.str();
 }
