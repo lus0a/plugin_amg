@@ -375,6 +375,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	if(m_bOneInit && m_bInited)
 		return true;
 
+	m_bEmptyProcess=false;
 #ifdef UG_PARALLEL
 	if(mat.num_rows() == 0 && mat.layouts()->proc_comm().empty())
 	{
@@ -382,9 +383,8 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		m_bEmptyProcess=true;
 		return true;
 	}
-	else
-		m_bEmptyProcess=false;
 #endif
+
 
 	cleanup();
 
@@ -506,6 +506,7 @@ void AMGBase<TAlgebra>::set_or_copy(const AMGBase<TAlgebra> *parent)
 	m_usedLevels = 0;
 	m_dbgDimension = 0;
 	iteration_glboal=0;
+	m_bEmptyProcess=false;
 
 	SET_OR_COPY(m_numPreSmooth, 3);
 	SET_OR_COPY(m_numPostSmooth, 3);

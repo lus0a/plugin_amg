@@ -773,11 +773,12 @@ protected:
 	bool m_bDebugWriteAllVectors;
 	bool m_bChecks;
 
+	/// always false in serial
+	bool m_bEmptyProcess;
 
 /////// agglomeration ///////
 
 #ifdef UG_PARALLEL
-	bool m_bEmptyProcess;
 	// on level m_agglomerateLevel
 	IndexLayout agglomerateSlaveLayout;
 	size_t m_agglomerateLevel;
