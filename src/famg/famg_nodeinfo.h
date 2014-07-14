@@ -399,7 +399,7 @@ public:
 	}
 
 	/// returns some info about the node i
-	std::string info(size_t i)
+	std::string info(size_t i) const
 	{
 		return Stringify() << "Index [" << i << "]: " << nodes[i] << ", " << PN.overlap_type(i);
 	}
@@ -417,39 +417,39 @@ public:
 
 #else
 public:
-	std::string info(size_t i)
+	std::string info(size_t i) const
 	{
 		std::stringstream ss;
 		ss << "Index " << i << ": " << nodes[i];
 		return ss.str();
 	}
 
-	bool is_inner_node(size_t i)
+	bool is_inner_node(size_t i) const
 	{
 		return true;
 	}
 
-	bool is_master(size_t i)
+	bool is_master(size_t i) const
 	{
 		return true;
 	}
 
-	bool is_master_on(size_t i, int pid)
+	bool is_master_on(size_t i, int pid) const
 	{
 		return pid == 0;
 	}
 
-	bool is_slave(size_t i, int OLlevel=0)
+	bool is_slave(size_t i, int OLlevel=0) const
 	{
 		return false;
 	}
 
-	bool i_must_assign(size_t i)
+	bool i_must_assign(size_t i) const
 	{
 		return true;
 	}
 
-	bool i_can_set_coarse(size_t i)
+	bool i_can_set_coarse(size_t i) const
 	{
 		return nodes[i].could_be_coarse();
 	}
