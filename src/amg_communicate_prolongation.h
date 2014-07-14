@@ -81,7 +81,8 @@ void AMGBase<TAlgebra>::create_new_indices(prolongation_matrix_type &PoldIndices
 				it != PoldIndices.end_row(r); ++it)
 		{
 			size_t c = it.index();
-			UG_COND_THROW(!amgnodes[c].is_interpolateable_from(), c);
+			UG_COND_THROW(!amgnodes[c].is_interpolateable_from(),
+					"can not interpolate node " << r << " from node " << c << " (" << amgnodes[c] << ")");
 			if(amgnodes[c].is_coarse() && newIndex[c] == -1)
 				newIndex[c] = nrOfCoarse++;
 		}
