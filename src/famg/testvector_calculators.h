@@ -8,6 +8,8 @@
 #ifndef TESTVECTOR_CALCULATORS_H_
 #define TESTVECTOR_CALCULATORS_H_
 #include "lib_algebra/small_algebra/lapack/eigenvalue2.h"
+#include "common/util/sort_util.h"
+
 namespace ug{
 
 /**
