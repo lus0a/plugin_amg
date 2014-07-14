@@ -119,8 +119,8 @@ public:
 private:
 	void set_or_copy(const FAMG<TAlgebra> *parent);
 
-#ifdef UG_PARALLEL
 public:
+#ifdef UG_PARALLEL
 	void set_parallel_coarsening(IParallelCoarsening *pPC)
 	{
 		m_pParallelCoarsening = pPC;
