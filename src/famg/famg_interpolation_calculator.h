@@ -498,7 +498,7 @@ public:
 		}
 
 		// see local_eigenvalue_test_computation.h
-		calc_special(i);
+		//calc_special(i);
 
 		GetNeighborhood(A_OL2, i, onlyN1, onlyN2, bvisited);
 		if (onlyN1.size() == 0)
