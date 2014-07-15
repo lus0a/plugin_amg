@@ -369,7 +369,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 	int oldOutputProcess = GetLogAssistant().get_output_process();
 	matrix_operator_type& mat = *pOp;
 
-	AMG_PROFILE_FUNC();
+	AMG_PROFILE_BEGIN(amg_base_preprocess);
 
 	if(m_bOneInit && m_bInited)
 		return true;
