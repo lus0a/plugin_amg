@@ -210,6 +210,7 @@ private:
 
 	void create_restriction(stdvector<int> &newIndex)
 	{
+		try{
 		AMG_PROFILE_FUNC();
 		Stopwatch SW;
 		if(m_bTiming) {UG_LOG("\nrestriction... "); SW.start();}
@@ -250,10 +251,12 @@ private:
 			R.print();
 		}
 	#endif
+		}UG_CATCH_THROW_FUNC();
 	}
 
 	void create_galerkin_product()
 	{
+		try{
 		AMG_PROFILE_FUNC();
 		Stopwatch SW;
 		if(m_bTiming) { UG_LOG("Galerkin Product..."); SW.start(); }
@@ -292,6 +295,7 @@ private:
 			AH.print();
 		}
 	#endif
+		}UG_CATCH_THROW_FUNC();
 	}
 public:
 	// todo: clean up this mess of constructor
@@ -321,6 +325,7 @@ public:
 public:
 	void do_calculation()
 	{
+		try{
 		AMG_PROFILE_FUNC();
 		m_bTiming=false;
 		Stopwatch SW, SWwhole; SWwhole.start();
@@ -501,12 +506,15 @@ public:
 			std::string filename = m_famg.GetAMGFilenamePath(A, level, "fvalues", level, ".vec", true);
 			ConnectionViewer::WriteVector(filename, fvalues, &m_famg.m_amghelper.positions[level][0], m_famg.m_amghelper.dimension);
 		}
+
+		}UG_CATCH_THROW_FUNC();
 	}
 
 private:
 
 	void create_new_indices(stdvector<int> &newIndex)
 	{
+		try{
 		AMG_PROFILE_FUNC();
 #ifdef UG_PARALLEL
 		PoldIndices.set_layouts(A.layouts());
@@ -517,6 +525,7 @@ private:
 #else
 		m_famg.serial_process_prolongation(PoldIndices, PnewIndices, m_famg.m_dProlongationTruncation, level, rating, newIndex);
 #endif
+		}UG_CATCH_THROW_FUNC();
 
 	}
 
@@ -525,6 +534,7 @@ private:
 	//! \sa set_uninterpolateable_as_coarse
 	void get_aggressive_coarsening_interpolation()
 	{
+		try{
 		// ?????
 		AMG_PROFILE_FUNC();
 
@@ -543,6 +553,8 @@ private:
 			else
 				rating.set_coarse(i);
 		}
+
+		}UG_CATCH_THROW_FUNC();
 	}
 
 
@@ -551,6 +563,7 @@ private:
 	//! \sa get_aggressive_coarsening_interpolation
 	void set_uninterpolateable_as_coarse()
 	{
+		try{
 		AMG_PROFILE_FUNC();
 
 		for(size_t i=0; i<rating.size(); i++)
@@ -564,6 +577,7 @@ private:
 			if(rating[i].is_coarse())
 				PoldIndices(i,i)=1.0;
 		}
+		}UG_CATCH_THROW_FUNC();
 	}
 
 	void make_coarsening_consistent();
