@@ -104,14 +104,13 @@ void AMGBase<TAlgebra>::init_smoother(size_t level)
 template<typename TAlgebra>
 bool AMGBase<TAlgebra>::init_smoothers()
 {
-	if(levels.size() == 0) return false;
-
 	try{
+		if(levels.size() == 0) return false;
 
 		size_t N0 = levels[0]->pA->num_rows();
 		PROGRESS_START(prog, N0, "Creating AMG - Init Smoothers");
 
-		for(size_t level=0; level < levels.size(); level++) //my_multigrid_levels(); level++)
+		for(size_t level=0; level < my_multigrid_levels(); level++) //my_multigrid_levels(); level++)
 		{
 			AMGLevelType &L = *levels[level];
 			PROGRESS_UPDATE(prog, N0-L.pA->num_rows());

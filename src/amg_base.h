@@ -35,6 +35,7 @@
 
 #include "lib_algebra/operator/fixed_convergence_check.h"
 #include "lib_algebra/operator/convergence_check.h"
+#include "common/debug_print.h"
 
 #include "common/util/string_util.h"
 #include "amg_level.h"
