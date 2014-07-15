@@ -1338,7 +1338,7 @@ public:
 	{
 		size_t neg;
 		size_t K=indices.size();
-		if(K > 6) K = 6;
+		if(K > 8) K = 8;
 
 		for(; K>=2; K--)
 		{
@@ -1432,7 +1432,7 @@ public:
 */
 //		UG_LOG("DIRECT INTERPOLATION " << i << "\n");
 		std::vector<size_t> myNeighbors;
-//		PRINT_VECTOR(coarseNeighbors, "coarseNeighbors");
+		IFI(PRINT_VECTOR(coarseNeighbors, "coarseNeighbors"));
 		sortByStrength(coarseNeighbors);
 
 		if(is_watch_node(i))
@@ -1636,7 +1636,7 @@ public:
 		{
 			size_t k=onlyN1[j];
 			//if (!rating[onlyN1[j]].is_fine()) // && !rating[onlyN1[j]].is_uninterpolateable())
-			if (rating[k].is_coarse())
+			if (rating[k].is_interpolateable_from())
 				coarseNeighbors.push_back(j);
 			if (bIndirect && rating[k].is_fine_direct() && rating.i_must_assign(k))
 				coarseNeighbors.push_back(j);
