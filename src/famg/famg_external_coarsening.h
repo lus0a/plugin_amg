@@ -36,6 +36,7 @@ namespace ug{
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::external_coarsening_calculate_prolongation()
 {
+	try{
 	AMG_PROFILE_FUNC();
 
 	Stopwatch SW;
@@ -72,7 +73,7 @@ void FAMGLevelCalculator<algebra_type>::external_coarsening_calculate_prolongati
 	}
 	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms");
 
-
+	}UG_CATCH_THROW_FUNC();
 }
 
 /**
@@ -109,6 +110,7 @@ inline void AMGnodeinfoToFAMGnodeinfo(AMGNodes &amgNodes, FAMGNodes<T> &famgNode
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::get_external_coarsening_graph(cgraph &graphS)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	const int submask=m_famg.get_strong_connection_submask();
 	const double sigma = m_famg.get_strong_connection_external();
@@ -142,6 +144,7 @@ void FAMGLevelCalculator<algebra_type>::get_external_coarsening_graph(cgraph &gr
 		CreateStrongConnectionGraph(A_OL2, graphS, sigma);
 	}
 
+	}UG_CATCH_THROW_FUNC();
 }
 
 static void MyCreateMeasureOfImportancePQ(const cgraph &strong, const cgraph &strongT, nodeinfo_pq_type &PQ, AMGNodes &nodes)
@@ -428,6 +431,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_coarsening_LE_griebel(const cgrap
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::rs_amg_coarsening_new(const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes)
 {
+	try{
 	AMG_PROFILE_FUNC();
 	//return;
 	std::vector<int> mark(nodes.size(), 0);
@@ -609,6 +613,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_coarsening_new(const cgraph &grap
 			PQ.update(i);
 		}
 	}
+	}UG_CATCH_THROW_FUNC();
 }
 #endif
 
@@ -628,6 +633,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_coarsening_new(const cgraph &grap
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 {
+	try{
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\nexternal coarsening... " );  SW.start(); }
@@ -719,7 +725,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 		write_XC_coarsening(graphS, nodes, "");
 	//if(nodes[i].is_unassigned_fine_indirect())
 	//	rating.set_aggressive_fine(i);
-
+	}UG_CATCH_THROW_FUNC();
 }
 
 /**
