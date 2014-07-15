@@ -25,7 +25,7 @@ using namespace std;
 
 #include "lib_algebra/common/heap/boxsort.h"
 #include "lib_algebra/algebra_common/unsorted_sparse_vector.h"
-
+#include "common/debug_print.h"
 
 namespace ug
 {
@@ -224,7 +224,7 @@ void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_
 	}
 }
 
-int SetCoarse(int i, const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bAggressiveCoarsening)
+void SetCoarse(int i, const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bAggressiveCoarsening)
 {
 	UG_DLOG(DBG_AMG_COARSENING, 3, endl << "set coarse: " << i << " rating " << nodes[i].rating  << ". then fine: ");
 	UG_ASSERT(!nodes[i].is_assigned(), "node " << i << " is already assigned??? (rating = " << nodes[i].rating << ", unassigend = " << nodes.get_unassigned() << ")");
@@ -263,16 +263,17 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 
 #ifdef UG_DEBUG
 	size_t n=0;
+//	nodes.print();
 	for(size_t i=0; i<nodes.size(); i++)
 	{
 		if(nodes[i].is_assigned() == false)
-		{	UG_ASSERT(PQ.is_in(i), i << " ? " << nodes[i]); }
+		{	UG_COND_THROW(!PQ.is_in(i), i << " ? " << nodes[i]); }
 		if(PQ.is_in(i))
-		{ 	UG_ASSERT(nodes[i].is_assigned() == false, i << " " << nodes[i]); }
+		{ 	UG_COND_THROW(nodes[i].is_assigned(), i << " " << nodes[i]); }
 		if(nodes[i].is_assigned() == false)
 			n++;
 	}
-	UG_ASSERT(n == nodes.get_unassigned(), "");
+	UG_COND_THROW(n != nodes.get_unassigned(), "");
 #endif
 
 	while(PQ.height() > 0)
