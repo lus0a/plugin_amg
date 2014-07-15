@@ -259,7 +259,7 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 	try{
 	AMG_PROFILE_FUNC();
 	PROGRESS_START(prog, nodes.size(), "Coarsening graph size " << nodes.size());
-	UG_ASSERT(S.size() == nodes.size() && S.size() == PQ.arr_size() && S.size() == ST.size(), "");
+	THROW_IF_NOT_EQUAL_3(S.size(), nodes.size(), PQ.arr_size());
 
 #ifdef UG_DEBUG
 	size_t n=0;
