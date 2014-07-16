@@ -474,8 +474,8 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 		totalNrOfNodes += li.get_nr_of_nodes();
 	}
 
-	m_dOperatorComplexity = totalNNZs / levels[0]->pA->total_num_connections();
-	m_dGridComplexity = totalNrOfNodes / levels[0]->pA->num_rows();
+	m_dOperatorComplexity = totalNNZs / m_levelInformation[0].get_nnz();
+	m_dGridComplexity = totalNrOfNodes / m_levelInformation[0].get_nr_of_nodes();
 
 	AMG_LOG(1, "Operator Complexity: " << m_dOperatorComplexity << " grid complexity: "
 			<< m_dGridComplexity << std::endl << std::endl);
@@ -521,7 +521,7 @@ void AMGBase<TAlgebra>::set_or_copy(const AMGBase<TAlgebra> *parent)
 	// base
 	SET_OR_COPY(m_maxNodesForBase, 1000);
 	SET_OR_COPY(m_minNodesOnOneProcessor, 100);
-	SET_OR_COPY(m_preferredNodesOnOneProcessor, 10000);
+	SET_OR_COPY(m_preferredNodesOnOneProcessor, 1000);
 	SET_OR_COPY(m_dMaxFillBeforeBase, 0.5);
 
 	// debug
