@@ -2005,7 +2005,7 @@ private:
 
 	void calculate_H_from_S_and_Dinv(size_t i)
 	{
-		PROFILE_FUNC();
+//		PROFILE_FUNC();
 		const size_t N = S.num_rows(); // = N2
 		if (H.num_rows() != onlyN1.size() + 1)
 			H.resize(onlyN1.size() + 1, onlyN1.size() + 1);
