@@ -189,19 +189,19 @@ public:
 	{
 		sts << level << get_nr_of_nodes();
 		if (level != 0)
-			sts << (Stringify() << get_coarsening_rate() * 100.0 << "%");
+			sts << (Stringify() << get_coarsening_rate() * 100.0 << "%").str();
 		else
 			sts << "-";
 		sts << get_nnz();
 		sts << (Stringify() << get_fill_in() * 100 << "%").str();
 		sts << get_avg_nnz_per_row() << get_max_connections();
-		sts << (Stringify() << get_creation_time_ms() << " ms");
+		sts << (Stringify() << get_creation_time_ms() << " ms").str();
 
 #ifdef UG_PARALLEL
 		if(pcl::NumProcs() > 1)
 		{
 			sts << (Stringify() << get_nr_of_interface_elements() << " (" <<
-				(double) get_nr_of_interface_elements() / (double) get_nr_of_nodes() * 100.0 << "%)");
+				(double) get_nr_of_interface_elements() / (double) get_nr_of_nodes() * 100.0 << "%)").str();
 			sts << m_iParticipating;
 		}
 	#endif
