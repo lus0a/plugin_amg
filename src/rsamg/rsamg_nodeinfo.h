@@ -170,6 +170,22 @@ public:
 	{
 		//size_t oldsize = size();
 		m_nodes.resize(N);
+		
+	}
+
+
+	/// Appends nnew (virtually coarse)
+	void extend(size_t nnew)
+	{
+		const size_t N = size();
+		m_nodes.resize(N+nnew);
+		for (int v=0; v<nnew; ++v)
+		{
+			external_set_coarse(N+v);
+		}
+#ifdef UG_PARALLEL
+		PN.append_nodes_without_comm(nnew);
+#endif
 
 	}
 
