@@ -83,9 +83,6 @@ public:
 		return true;
 	}
 
-
-
-
 	size_t size() const
 	{ return m_size[0]*m_size[1]*m_size[2]; }
 
@@ -221,17 +218,19 @@ public:
 	      // backward search
 	      for (int nbi=ii-1; nbi>=0; --nbi)
 	      {
-		if (m_level[i][nbi]>level) // found coarse node
-		  { ncoarse[i]++; nbtensor[i].push_back(nbi); }
-		if (m_level[i][nbi]>=level) break;
+	    	  if (m_level[i][nbi]>level) // found coarse node
+	    	  { ncoarse[i]++; nbtensor[i].push_back(nbi); }
+
+	    	  if (m_level[i][nbi]>=level) break;
 	      }
 
 	      // forward search
 	      for (int nbi=ii+1; nbi<m_size[i]; ++nbi)
 	      {
-		if (m_level[i][nbi]>level)
-		  { ncoarse[i]++; nbtensor[i].push_back(nbi); }  
-		if (m_level[i][nbi]>=level) break;
+	    	  if (m_level[i][nbi]>level)
+	    	  { ncoarse[i]++; nbtensor[i].push_back(nbi); }
+
+	    	  if (m_level[i][nbi]>=level) break;
 		 
 	      }
 	    }
@@ -269,7 +268,7 @@ public:
 	    //}
 	    UG_ASSERT(ncoarse[i]>0, "No coarse dim found: "<< i);
 	    weight[i] = 1.0/nbtensor[i].size(); 
-    	  }
+      }
 
 	  // create nodes
 	  size_t indexa[3];
