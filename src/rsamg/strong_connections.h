@@ -8,8 +8,8 @@
 #ifndef STRONG_CONNECTIONS_H_
 #define STRONG_CONNECTIONS_H_
 #include "lib_algebra/common/graph/graph.h"
-#include "rsamg_nodeinfo.h"
 #include "lib_algebra/algebra_common/sparse_vector.h"
+#include "rsamg_nodeinfo.h"
 #include "rsamg_eliminate.h"
 #include "rsamg_blockvalues.h"
 
@@ -212,6 +212,50 @@ void CreateStrongConnectionGraphForSystems(const matrix_type &A, cgraph &graph, 
 		StrongNegativeConnectionsByBlockNorm strong(theta);
 		strong.find(Ri, i, graph);
 	}
+#ifdef AMG_PRINT_GRAPH
+	graph.print();
+#endif
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CreateConnectionGraph:
+//------------------------------
+/**
+ * Create graph of strong connections from a matrix A
+ * i is strong coupled to j, if \f$ -A_{ij} \ge m_dTheta {\max\limits}_{\phi_1(A_{ik}) < 0} { \phi_2(A_{ik}) }\f$
+ * at the moment, we use the function \f$\phi_1 = \phi_2 =\f$ amg_offdiag_value
+ * \param	A			matrix A for which to calculate strong connectivity graph
+ * \param 	graph		the calculated strong connectivity graph of A
+ *						graph is afterwards made up of connections from a node i to j if
+ *						j has a strong connection to i
+ * \param	m_dTheta	the smaller, the more connections are considered strong e.g. 0.25 is a reasonable default value
+ * \note	you can also pre-calculate some connectivity-measurement matrix C, and call this function with C.
+ */
+
+
+template<typename matrix_type>
+void CreateFullConnectionGraph(const matrix_type &A, cgraph &graph, double theta)
+{
+	AMG_PROFILE_FUNC();
+
+	const size_t nrows = A.num_rows();
+	graph.resize(nrows);
+
+
+	for(size_t i=0; i< nrows; ++i)
+	{
+
+		// skip isolated
+		if(A.is_isolated(i)) continue;
+
+
+		for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+		{
+			graph.set_connection(i, conn.index());
+		}
+
+	}
+
 #ifdef AMG_PRINT_GRAPH
 	graph.print();
 #endif
