@@ -12,6 +12,7 @@
 #ifndef __H__UG__LIB_ALGEBRA__SEMIAMG_SOLVER__SEMIAMG_IMPL_H__
 #define __H__UG__LIB_ALGEBRA__SEMIAMG_SOLVER__SEMIAMG_IMPL_H__
 
+#include "boost/tuple/tuple.hpp"
 
 #include "semi_amg.h"
 #include "lib_algebra/common/graph/graph.h"
@@ -62,6 +63,9 @@ size_t SemiAMG<algebra_type>::user_defined_coarsening(const cgraph &strong, size
 	cAMG_helper &helper= m_amghelper;
 
 	const size_t nnodes = helper.positions[level].size();
+	const size_t gnodes = strong.size();
+
+	UG_ASSERT(nnodes == gnodes, "Huhh: Number of nodes does not match.");
 	size_t nfine = 0;
 	for(size_t i=0; i<nnodes; i++)
 	{
@@ -77,14 +81,18 @@ size_t SemiAMG<algebra_type>::user_defined_coarsening(const cgraph &strong, size
 			nodes.external_set_coarse(i);
 		}
 	}
-	UG_LOG("\nUser defined C/F-splitting on level " << level <<": " << nfine << " fine nodes out of "<< nnodes);
+	UG_LOG("\nUser defined C/F-splitting on level " << level <<": " << nfine << " fine nodes out of "<< nnodes << "gnodes " << gnodes);
 
 	return nnodes;
 }
 
+inline static int num_ijk_coord_matches(const MathVector<3> &coordi, const MathVector<3> &coordj)
+{
+	return ((int) (coordi[0]==coordj[0])) + ((int) (coordi[1]==coordj[1])) +((int) (coordi[2]==coordj[2]));
+}
 
 template<typename algebra_type>
-void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &strong, const matrix_type &A, prolongation_matrix_type &P, size_t level, AMGNodes &nodes)
+void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const matrix_type &A, prolongation_matrix_type &P, size_t level, AMGNodes &nodes)
 {
 
 	cAMG_helper &helper= m_amghelper;
@@ -101,8 +109,19 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &strong, cons
 	PROGRESS_START(prog, 2*N, "SemiAMG::user_defined_prolongation " << N);
 	P.resize_and_clear(N, N);
 
+
+	// init virtual coarse
+	TVirtualCoarseMap & vmap = vcoarse[level];
+	size_t & vindex = vcount[level];
+	vcoarse[level] = TVirtualCoarseMap();
+	vcount[level] = 0;
+
+
+	typedef boost::tuple<int, int, double> pentry_type;
+	std::vector<pentry_type> poffd;
+	std::vector<cAMG_helper::position_type> vPositions;
+
 	// first pass
-	std::set<size_t> coarse;
 	const size_t nnodes = helper.positions[level].size();
 	size_t nskipped = 0;
 	for(size_t i=0; i<nnodes; i++)
@@ -112,22 +131,24 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &strong, cons
 		// map coarse grid points by identity
 		if (nodes[i].is_coarse())
 		  {
-		    P(i, i) = 1.0; continue;
-		    //	std::cout << "Ignoring " << i << std::endl;
+			 //	std::cout << "Ignoring " << i << std::endl;
+		     P(i, i) = 1.0; continue;
 		  }
 
 		// continue for fine nodes here
-
 		// skip off-proc nodes
 		if(!nodes.is_master_or_inner(i))
 		{
-		  //std::cout << "Skipping " << i << std::endl;
-			nskipped++;
-			continue;
+			//std::cout << "Skipping " << i << std::endl;
+			nskipped++; continue;
 		}
 
-		coarse.clear();
-
+		if (S.is_isolated(i))
+		{
+				//std::cout << "Skipping " << i << std::endl;
+				nskipped++; continue;
+		}
+/*
 		if (0) {
 
 		  
@@ -170,45 +191,156 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &strong, cons
 
 
 
-		} else {
-
-		  //std::cout << "SettingXCP for  " << i;
-		  MathVector<3> &coord =  helper.positions[level][i];
+		} else
+		*/
+		{
+		  MathVector<3> &coordi =  helper.positions[level][i];
 		  MathVector<3> nbcoords[27];
 		  double nbweights[27];
-		  const int nparents = m_tli.get_parents(coord, level, nbcoords, nbweights);
+		  const int nparents = m_tli.get_parents(coordi, level, nbcoords, nbweights);
 		  UG_ASSERT(nparents<=8, "Huhh: Too many neighbors???");
 		 
 		  double sumw = 0.0;
-		  for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
-		    {
-		      	const size_t j = conn.index();
-			if (! nodes[j].is_coarse()) continue;
-			
-			MathVector<3> &coordj =  helper.positions[level][j];
-			for (int jj=0;jj<nparents; ++jj)
+
+		  // map every (coarse) nb to best matching (fine/coarse) equivalent on graph
+		  MathVector<3> bestcoord[27];
+		  size_t bestindex[27];
+		  size_t bestmatch[27];
+		  for (int jj=0; jj<nparents; ++jj)
+		  {
+			  // default match: node i
+			  bestcoord[jj] = coordi;  //
+			  bestindex[jj] = -1;
+			  bestmatch[jj] = -1; //num_ijk_coord_matches(nbcoords[jj], coordi);
+
+			  int maxmatchjj= bestmatch[jj];
+
+			  // search graph for (unique) best coordinate match
+			  // if all coordinates match, we found a coarse grid node
+			  for(typename cgraph::const_row_iterator conn = S.begin_row(i); conn != S.end_row(i); ++conn)
 			  {
-			    if ((nbcoords[jj][0]==coordj[0]) &&
-				(nbcoords[jj][1]==coordj[1]) &&
-				(nbcoords[jj][2]==coordj[2]) )
-			      {
-				P(i, j) = nbweights[jj];
-				//		std::cout << ":" << j  << "=" << nbweights[jj]<< std::endl;
-				sumw += nbweights[jj];
-				break;
-			      }
+				  const size_t j = *conn;
+				  if (!nodes[j].is_coarse()) continue;
+
+				  // continue for coarse nodes
+				  const MathVector<3> &coordj =  helper.positions[level][j];
+				  const int matchjj = num_ijk_coord_matches(nbcoords[jj], coordj);
+
+				  if (matchjj > maxmatchjj)
+				  {
+					  maxmatchjj = matchjj;
+
+					  bestcoord[jj] = coordj;
+					  bestindex[jj] = j;
+					  bestmatch[jj] = matchjj;
+				  }
+
+			  }
+		  }
+
+
+		  // find neighbors in matrix row
+		  // for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+	/*	  for(typename cgraph::const_row_iterator conn = S.begin_row(i); conn != S.end_row(i); ++conn)
+		  {
+		      	//const size_t j = conn.index();
+			  	const size_t j = *conn;
+		      	if (!nodes[j].is_coarse()) continue;
+			
+		      	MathVector<3> &coordj =  helper.positions[level][j];
+		      	for (int jj=0; jj<nparents; ++jj)
+		      	{
+		      		if (num_ijk_coord_matches(nbcoords[jj], coordj) == 3)
+		      		{
+		      			// found neighbor
+		      			//		std::cout << ":" << j  << "=" << nbweights[jj]<< std::endl;
+		      			P(i, j) = nbweights[jj];
+		      			sumw += nbweights[jj];
+		      			break;
+		      		}
+		      	}
+
+			
+
+		   } */
+
+		  // iterate coarse parents
+		  for (int jj=0; jj<nparents; ++jj)
+		  {
+			 // if (bestindex[jj]==i) continue;
+			  UG_ASSERT(bestindex[jj]>=0, "Index should be positive");
+
+			  if (bestmatch[jj]==3)
+			  {
+				  // found existing coarse nodes, store full matches
+				  if (!S.is_isolated(bestindex[jj]))
+					  P(i, bestindex[jj]) = nbweights[jj];
+			  }
+			  else //if (bestindex[jj]!=i)
+			  {
+				  // no coarse node found in matrix graph,
+				  // thus we create a virtual one
+				  std::pair<TVirtualCoarseMap::iterator, bool> search
+				  	  = vmap.insert(TVirtualCoarseMapPair(nbcoords[jj], vindex));
+				  if (search.second)
+				  {
+					  // added a new node
+					  std::cout << "VADD: " << i << " "<< nbcoords[jj] << " "<< vindex << std::endl;
+					  vPositions.push_back(nbcoords[jj]);
+					  vindex++;
+				  }
+
+				  // add entry to matrix entry list
+				  poffd.push_back(pentry_type(i, search.first->second, nbweights[jj]));
 			  }
 
-			
+		  }
 
-		    }
-		  //std::cout <<"=" << sumw << std::endl;
-		  //UG_ASSERT(sumw<=1.0, "Huhh: Large sum???");
+
 		}
 
 
 
 	}
+
+	// DEBUG: all entries have been filled
+	for (TVirtualCoarseMap::const_iterator it = vmap.begin(); it!=vmap.end(); ++it)
+	{
+		std::cout << "VCoarse: " << it->first << "->" << it->second <<std::endl;
+	}
+
+	/////////////////////////////////////////
+	// extend by virtual coarse nodes
+	/////////////////////////////////////////
+	{
+			const int num_vcoarse = vcount[level];
+			const int num_extended = N+vcount[level];
+
+			// extend nodes vector & parallel nodes
+			// TODO: extend layouts
+			nodes.extend(num_vcoarse);
+
+
+
+			// extend position data in helper
+			std::vector<cAMG_helper::position_type> &mypositions = helper.positions[level];
+			UG_ASSERT(vPositions.size()== num_vcoarse, "Huhh: Size does not match!");
+			mypositions.insert(mypositions.end(), vPositions.begin(), vPositions.end());
+			UG_ASSERT(mypositions.size() == num_extended, "Huhh: Size does not match!");
+
+			// extend matrix
+			P.resize_and_keep_values(num_extended, num_extended);
+			for (std::vector<pentry_type>::iterator it= poffd.begin();
+					it!= poffd.end(); ++it)
+			{
+					std::cout << "P: " <<  boost::get<0>(*it) << ", " <<  N+boost::get<1>(*it)  << ", " <<  boost::get<2>(*it)  <<std::endl;
+					P(boost::get<0>(*it), N+boost::get<1>(*it)) =  boost::get<2>(*it);
+			}
+
+
+
+	}
+
 /*
 	// second pass (eliminate)
 	for(size_t i=0; i<nnodes; i++)
@@ -343,7 +475,8 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	// build graph
 	/////////////////////////////////////////
 	cgraph graphS(NOL1);
-	CreateStrongConnectionGraph(AOL1, graphS, m_dTheta);
+	//CreateStrongConnectionGraph(AOL1, graphS, m_dTheta);
+	CreateFullConnectionGraph(AOL1, graphS, m_dTheta);
 	SetIsolatedCoarse(graphS, nodes);
 
 	/////////////////////////////////////////
@@ -354,7 +487,7 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 
 	const size_t nnodes = this->user_defined_coarsening(graphS, level, nodes);
 
-	(void) nnodes; // remove unused warning.
+	(void) nnodes; // remove "unused" warning.
 
 	//UG_ASSERT(N == nnodes, "Something wrong!");
 
@@ -363,15 +496,8 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
 
 	/////////////////////////////////////////
-	// Agressive Coarsening
-	/////////////////////////////////////////
-
-
-
-	/////////////////////////////////////////
 	// construct prolongation P = I_{2h->h}
 	/////////////////////////////////////////
-
 	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "prolongation... ");
 
 	if(bTiming) SW.start();
@@ -379,6 +505,10 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 #ifdef UG_PARALLEL
 	//	this->communicate_prolongation_additive_to_consistent(PN, PoldIndices, true);
 #endif
+
+
+
+
 	/////////////////////////////////////////
 	/// create layouts
 	/////////////////////////////////////////

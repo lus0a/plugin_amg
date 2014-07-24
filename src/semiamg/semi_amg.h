@@ -110,6 +110,12 @@ protected:
 	TensorLevelInformation m_tli;
 	double m_dTheta;
 	//semi_amg_user_strategy m_strategy;
+	typedef std::map<MathVector<3>, size_t> TVirtualCoarseMap;
+	typedef std::pair<MathVector<3>, size_t> TVirtualCoarseMapPair;
+
+	TVirtualCoarseMap vcoarse[20];
+	size_t vcount[20];
+
 };
 	
 
