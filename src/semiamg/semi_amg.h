@@ -92,6 +92,8 @@ public:
 	{ m_tli.set_axis_level(axis, level, coord0);}
 
 	static const bool bTiming =true;
+	void set_virtual_nodes(bool flag)
+	{ m_bCreateVirtualNodes = flag;}
 protected:
 //  functions
 	virtual void create_AMG_level(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
@@ -115,6 +117,7 @@ protected:
 
 	TVirtualCoarseMap vcoarse[20];
 	size_t vcount[20];
+	bool m_bCreateVirtualNodes;
 
 };
 	

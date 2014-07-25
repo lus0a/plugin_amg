@@ -53,10 +53,13 @@ static void Algebra(Registry& reg, string grp)
 	typedef TAlgebra algebra_type;
 	typedef typename algebra_type::vector_type vector_type;
 	typedef typename algebra_type::matrix_type matrix_type;
-
-	reg.add_class_<	SemiAMG<algebra_type>, AMGBase<algebra_type> > (string("SemiAMGPreconditioner").append(suffix), grp, "Ruge-Stueben Algebraic Multigrid Preconditioner")
-		.add_constructor()
-		//.set_tensor_axis("set_tensor_axis", &SemiAMG<algebra_type>::set_tensor_axis, "", "axis|coord|level", "sets epsilon_strong, a measure for strong connectivity")
+	{
+		typedef SemiAMG<algebra_type> T;
+		typedef AMGBase<algebra_type> TBase;
+		reg.add_class_<T, TBase > (string("SemiAMGPreconditioner").append(suffix), grp, "Ruge-Stueben Algebraic Multigrid Preconditioner")
+				.add_constructor()
+				.add_method("set_virtual_nodes",&T::set_virtual_nodes, "", "flag", "if true, then we will construct virtual")
+				//.add_method("set_tensor_axis", &T::set_tensor_axis, "", "axis|coord|level", "sets epsilon_strong, a measure for strong connectivity")
 #ifdef UG_PARALLEL
 		//.add_method("set_parallel_coarsening", &SemiAMG<algebra_type>::set_parallel_coarsening)
 #endif
@@ -64,7 +67,7 @@ static void Algebra(Registry& reg, string grp)
 		;
 
 	reg.add_class_to_group(string("SemiAMGPreconditioner").append(suffix), "SemiAMGPreconditioner", tag);
-
+	}
 }
 }; // end Functionality
 }// end AMG
@@ -87,20 +90,11 @@ void RegisterBridge_SemiAMG(Registry& reg, string grp)
 #endif
 
 	typedef registerSemiAMG::Functionality Functionality;
-#ifdef UG_CPU_1
-	typedef boost::mpl::list<CPUAlgebra> AlgList;
+	//typedef boost::mpl::list<CPUAlgebra> AlgList;
 	try{
-		RegisterAlgebraDependent<Functionality, AlgList>(reg,grp);
+		RegisterAlgebraDependent<Functionality>(reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
-#endif
-/*#ifdef UG_CRS_1
-    typedef boost::mpl::list<CRSAlgebra> AlgList2;
-	try{
-		RegisterAlgebraDependent<Functionality, AlgList2>(reg,grp);
-	}
-	UG_REGISTRY_CATCH_THROW(grp);
-#endif*/
 
 }
 

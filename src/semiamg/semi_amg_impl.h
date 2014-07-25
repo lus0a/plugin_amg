@@ -48,7 +48,7 @@ namespace ug{
 //! amg constructor
 template<typename TAlgebra>
 SemiAMG<TAlgebra>::SemiAMG()
-: AMGBase<TAlgebra>(), m_tli(), m_dTheta(0.25)
+: AMGBase<TAlgebra>(), m_tli(), m_dTheta(0.25), m_bCreateVirtualNodes(false)
 {
 #ifdef UG_PARALLEL
 
@@ -96,6 +96,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 {
 
 	cAMG_helper &helper= m_amghelper;
+
 
 	AMG_PROFILE_FUNC();
 //	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
@@ -148,51 +149,8 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 				//std::cout << "Skipping " << i << std::endl;
 				nskipped++; continue;
 		}
-/*
-		if (0) {
-
 		  
-		std::cout << "Setting " << i;
-		for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
-		{
-			size_t j = conn.index();
-			if (nodes[j].is_coarse() && strong.has_connection(i,j))
-			{ coarse.insert(j);}
-		}
-
-		// nodes without neighbors are coarse
-		const size_t ncoarse=coarse.size();
-		if (ncoarse == 0)
-		{
-			// treat in second step
-			continue;
-		}
-
-		// determine interpolation weights
-		MathVector<3> &coord =  helper.positions[level][i];
-		size_t flevels[3];
-		m_tli.template get_node_levels<3>(coord, flevels);
-
-		double weight = 1.0;
-		for (size_t j=0; j<3; j++)
-		{
-			if (flevels[j] == level) weight*=0.5;
-		}
-
 		
-		// set weight
-		for(std::set<size_t>::iterator citer=coarse.begin(); citer!=coarse.end(); citer++)
-		{
-			std::cout << ":" << *citer << std::endl;
-			P(i, *citer) = 1.0/ncoarse;//weight;
-		}
-		std::cout <<std::endl;
-
-
-
-
-		} else
-		*/
 		{
 		  MathVector<3> &coordi =  helper.positions[level][i];
 		  MathVector<3> nbcoords[27];
@@ -202,10 +160,12 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 		 
 		  double sumw = 0.0;
 
+
 		  // map every (coarse) nb to best matching (fine/coarse) equivalent on graph
 		  MathVector<3> bestcoord[27];
 		  size_t bestindex[27];
 		  size_t bestmatch[27];
+
 		  for (int jj=0; jj<nparents; ++jj)
 		  {
 			  // default match: node i
@@ -238,33 +198,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 			  }
 		  }
 
-
-		  // find neighbors in matrix row
-		  // for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
-	/*	  for(typename cgraph::const_row_iterator conn = S.begin_row(i); conn != S.end_row(i); ++conn)
-		  {
-		      	//const size_t j = conn.index();
-			  	const size_t j = *conn;
-		      	if (!nodes[j].is_coarse()) continue;
-			
-		      	MathVector<3> &coordj =  helper.positions[level][j];
-		      	for (int jj=0; jj<nparents; ++jj)
-		      	{
-		      		if (num_ijk_coord_matches(nbcoords[jj], coordj) == 3)
-		      		{
-		      			// found neighbor
-		      			//		std::cout << ":" << j  << "=" << nbweights[jj]<< std::endl;
-		      			P(i, j) = nbweights[jj];
-		      			sumw += nbweights[jj];
-		      			break;
-		      		}
-		      	}
-
-			
-
-		   } */
-
-		  // iterate coarse parents
+	  // iterate coarse parents
 		  for (int jj=0; jj<nparents; ++jj)
 		  {
 			 // if (bestindex[jj]==i) continue;
@@ -276,7 +210,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 				  if (!S.is_isolated(bestindex[jj]))
 					  P(i, bestindex[jj]) = nbweights[jj];
 			  }
-			  else //if (bestindex[jj]!=i)
+			  else if (m_bCreateVirtualNodes)//if (bestindex[jj]!=i)
 			  {
 				  // no coarse node found in matrix graph,
 				  // thus we create a virtual one
@@ -293,110 +227,45 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 				  // add entry to matrix entry list
 				  poffd.push_back(pentry_type(i, search.first->second, nbweights[jj]));
 			  }
-
 		  }
-
-
 		}
+	} // for all nodes i
 
-
-
-	}
-
-	// DEBUG: all entries have been filled
-	for (TVirtualCoarseMap::const_iterator it = vmap.begin(); it!=vmap.end(); ++it)
+	if (m_bCreateVirtualNodes)
 	{
-		std::cout << "VCoarse: " << it->first << "->" << it->second <<std::endl;
-	}
-
-	/////////////////////////////////////////
-	// extend by virtual coarse nodes
-	/////////////////////////////////////////
-	{
-			const int num_vcoarse = vcount[level];
-			const int num_extended = N+vcount[level];
-
-			// extend nodes vector & parallel nodes
-			// TODO: extend layouts
-			nodes.extend(num_vcoarse);
-
-
-
-			// extend position data in helper
-			std::vector<cAMG_helper::position_type> &mypositions = helper.positions[level];
-			UG_ASSERT(vPositions.size()== num_vcoarse, "Huhh: Size does not match!");
-			mypositions.insert(mypositions.end(), vPositions.begin(), vPositions.end());
-			UG_ASSERT(mypositions.size() == num_extended, "Huhh: Size does not match!");
-
-			// extend matrix
-			P.resize_and_keep_values(num_extended, num_extended);
-			for (std::vector<pentry_type>::iterator it= poffd.begin();
-					it!= poffd.end(); ++it)
-			{
-					std::cout << "P: " <<  boost::get<0>(*it) << ", " <<  N+boost::get<1>(*it)  << ", " <<  boost::get<2>(*it)  <<std::endl;
-					P(boost::get<0>(*it), N+boost::get<1>(*it)) =  boost::get<2>(*it);
-			}
-
-
-
-	}
-
-/*
-	// second pass (eliminate)
-	for(size_t i=0; i<nnodes; i++)
-	{
-		if (nodes[i].is_coarse()) continue;
-
-		// continue for fine nodes here
-		coarse.clear();
-
-		for(typename matrix_type::const_row_iterator conn = A.begin_row(i); conn != A.end_row(i); ++conn)
+		// DEBUG: all entries have been filled
+		for (TVirtualCoarseMap::const_iterator it = vmap.begin(); it!=vmap.end(); ++it)
 		{
-			size_t j = conn.index();
-			if (nodes[j].is_coarse() && strong.has_connection(i,j))
-			{ coarse.insert(j);}
+			std::cout << "VCoarse: " << it->first << "->" << it->second <<std::endl;
 		}
 
-		// nodes without neighbors are caorse
-		const size_t ncoarse=coarse.size();
-		if (ncoarse == 0)
+		/////////////////////////////////////////
+		// extend by virtual coarse nodes
+		/////////////////////////////////////////
+		const int num_vcoarse = vcount[level];
+		const int num_extended = N+vcount[level];
+
+		// extend nodes vector & parallel nodes
+		// TODO: extend layouts
+		nodes.extend(num_vcoarse);
+
+		// extend position data in helper
+		std::vector<cAMG_helper::position_type> &mypositions = helper.positions[level];
+		UG_ASSERT(vPositions.size()== num_vcoarse, "Huhh: Size does not match!");
+		mypositions.insert(mypositions.end(), vPositions.begin(), vPositions.end());
+		UG_ASSERT(mypositions.size() == num_extended, "Huhh: Size does not match!");
+
+		// extend matrix
+		P.resize_and_keep_values(num_extended, num_extended);
+		for (std::vector<pentry_type>::iterator it= poffd.begin();
+				it!= poffd.end(); ++it)
 		{
-
-			nodes.external_set_coarse(i);
-			P(i, i) = 1.0;
-			continue;
+			std::cout << "P: " <<  boost::get<0>(*it) << ", " <<  N+boost::get<1>(*it)  << ", " <<  boost::get<2>(*it)  <<std::endl;
+			P(boost::get<0>(*it), N+boost::get<1>(*it)) =  boost::get<2>(*it);
 		}
-	}
-	*/
-	// second pass (indirect interpolation)
-	/*for(size_t i=0; i<N; i++)
-	{
-		// indirect interpolation
-		PROGRESS_UPDATE(prog, N+i);
-
-		coarse.clear();
-		for(typename matrix_type::const_row_iterator conni = A.begin_row(i);
-				conni != A.end_row(i); ++conni)
-		{
-			const size_t j = conni.index();
-
-			for(typename matrix_type::const_row_iterator connj = A.begin_row(j);
-							connj != A.end_row(j); ++connj)
-			{
-				const size_t k = connj.index();
-				if (nodes[k].is_coarse()) { coarse.push_back(k);}
-			}
-		}
-
-		const size_t ncoarse=coarse.size();
-		if (ncoarse == 0)
-		{ nodes.set_coarse(i); continue; }
-
-		for(size_t k=0; k<ncoarse; k++)
-		{ P(i, coarse[k]) = 1.0/ncoarse; }
 
 	}
-*/
+
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
 }
 
