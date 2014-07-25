@@ -1375,7 +1375,7 @@ public:
 		size_t neg;
 		size_t nrNeg=indices.size()+1;
 
-		for(size_t K=0; K<nrNeg;)
+		for(size_t K=2; K<nrNeg;)
 		{
 
 			SubVector vec(indices, K);
@@ -1402,6 +1402,32 @@ public:
 			}
 		}
 		return -1;
+	}
+
+	int check_if_with_less(size_t i, std::vector<size_t> &myNeighbors)
+	{
+		double bmax = 0;
+		for(size_t j=0; j<myNeighbors.size(); j++)
+			bmax = std::max(bmax, BlockNorm(q[j]));
+		std::vector<size_t> newNeighbors;
+		for(size_t j=0; j<myNeighbors.size(); j++)
+		{
+			if(BlockNorm(q[j]) > bmax*0.01)
+				newNeighbors.push_back(j);
+		}
+		if(newNeighbors.size() != myNeighbors.size())
+		{
+			set_sizes(newNeighbors.size(), -1);
+			size_t neg;
+			int ret = solve_KKT_get_neg(i, newNeighbors, neg);
+			if(ret == 0 && all_Fb_smaller_delta())
+				myNeighbors = newNeighbors;
+			else
+			{
+				set_sizes(myNeighbors.size(), -1);
+				solve_KKT_get_neg(i, myNeighbors, neg);
+			}
+		}
 	}
 
 
@@ -1456,6 +1482,7 @@ public:
 				bSuccess = false;
 				UG_DLOGI(0, "node [" << i << "] direct interpolation not good enough\n");
 			}
+//			else check_if_with_less(i, myNeighbors);
 		}
 		else
 		{
@@ -1737,6 +1764,9 @@ private:
 	 */
 	bool get_H(size_t i, FAMGNodes<TPMatrix> &rating)
 	{
+		TemporaryDebugLevel TDL(LIB_ALG_AMG); IFI(TDL.set(5));
+		TemporaryDebugLevel TDL2(DBG_FAMG_INTERPOLATION); IFI(TDL2.set(6));
+
 		AMG_PROFILE_FUNC();
 		// replace this with
 		// stdvector<stdvector<size_t> > neighbors(3);
@@ -2106,6 +2136,8 @@ private:
 
 			for (size_t j = 0; j < onlyN1.size(); j++)
 				localTestvectors[k][j] = m_testvectors[k][onlyN1[j]];
+
+			// todo: localTestvectors in i mit vollem(damp = 1.0) Jacobi glŠtten
 		}
 	}
 

@@ -276,7 +276,9 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type &A,
 		size_t level, checkResult &res, const vector_type *solution)
 {
+	size_t line;
 	try{
+		d.layouts()->proc_comm().barrier();
 	AMG_PROFILE_FUNC();
 	AMGLevelType &L = *levels[level];
 
@@ -291,6 +293,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 	}
 #endif
 
+	line=__LINE__;
 	std::stringstream reason;
 	//UG_LOG("preprenorm: " << d.norm() << std::endl);
 	vector_type &corr = levels[level]->corr;
@@ -351,7 +354,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 	}
 
 
-
+	line=__LINE__;
 	corr.set(0.0);
 
 	for(size_t iterations=0; iterations<1; iterations++)
@@ -386,7 +389,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 						"    " << std::scientific << n2/prenorm << "\n");
 		n1 = n2;
 	}
-
+	line=__LINE__;
 	res.preSmoothing = n2/prenorm;
 
 	if(m_writeMatrices) writevec(ToString(iterations)+"S1_d_presmoothed", d, level);
@@ -402,7 +405,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 								"    " << std::scientific << n2/prenorm << "\n");
 		n1 = n2;
 	}
-
+	line=__LINE__;
 	res.preFSmoothing = n2/prenorm;
 
 	if(m_writeMatrices) writevec(ToString(iterations)+"S1_d_fpresmoothed", d, level);
@@ -425,7 +428,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 	//double preHnorm=nH1;
 	size_t i=0;
-
+	line=__LINE__;
 #ifdef UG_PARALLEL
 	if(level+1 == m_usedLevels-1 && level+1 != m_agglomerateLevel)
 #else
@@ -490,12 +493,13 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 #endif
 		double nH2 = ConstTwoNorm(dH);
 		UG_LOG("\tbase solver reduced by " << nH2/nH1 << " (on coarse)" << std::endl);
-
+		line=__LINE__;
 		res.coarseDefect = nH2;
 		res.lastCoarseReduction = nH2/nH1;
 	}
 	else
 	{
+		//UG_LOG_ALL_PROCS(__LINE__);
 		cH.set(0.0);
 		double pre_nH=nH1;
 		double nH2=nH1;
@@ -533,6 +537,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		}*/
 	}
 
+	line=__LINE__;
 	// interpolate correction
 	// corr = m_P[level]*cH
 	if(m_writeMatrices) writevec(ToString(iterations)+"S3_dH_solved", dH, level+1);
@@ -545,13 +550,13 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 #endif
 
 	// add coarse grid correction to level correction
-
+	line=__LINE__;
 	c += corr;
 
 	//update defect
 	// d = d - Ah*corr
 	A.matmul_minus(d, corr);
-
+	line=__LINE__;
 	n2 = ConstTwoNorm(d);
 	UG_LOG("\tcomplete coarse correction " << i+1 << ": " << n2/prenorm << "\t" <<n2/n1 << "\n");	n1 = n2;
 	res.coarseCorrection = n2/prenorm;
@@ -567,12 +572,12 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		c+=corr;
 	}
 	n2 = ConstTwoNorm(d);
-
+	line=__LINE__;
 	UG_LOG("\tpostFSm " << std::setw(4) << 0 << ":    " << std::scientific << n2 <<
 									"    " << std::scientific << n2/n1 <<
 									"    " << std::scientific << n2/prenorm << "\n");
 	res.postFSmoothing = n2/prenorm;
-
+	line=__LINE__;
 	if(m_writeMatrices) writevec(ToString(iterations)+"S5_d_fpost", d, level);
 	if(m_writeMatrices) writevec(ToString(iterations)+"S5_c_fpost", c, level, solution);
 
@@ -590,7 +595,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 	res.postSmoothing = n2/prenorm;
 
-
+	line=__LINE__;
 	if(res.postSmoothing > 0.1)
 	{
 		UG_LOG("\n ERROR: Level " << level << " not working: total correction is " << res.postSmoothing << "\n");
@@ -608,7 +613,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 	double postnorm = ConstTwoNorm(d);
 	UG_LOG(" Level " << level << " reduction: " << postnorm/prenorm << std::endl);
-
+	line=__LINE__;
 	if(m_writeMatrices) writevec(ToString(iterations)+"S5_d_postsmoothed", d, level);
 	if(m_writeMatrices) writevec(ToString(iterations)+"S5_c_postsmoothed", c, level, solution);
 
@@ -617,7 +622,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 	}
 
 
-	}UG_CATCH_THROW_FUNC();
+	}UG_CATCH_THROW(PRETTY_FUNCTION << ", level = " << level << ", failed at line " << line );
 	//return postnorm/prenorm;
 	return 0;
 }

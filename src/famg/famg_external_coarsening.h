@@ -655,6 +655,8 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 
 	CreateMeasureOfImportancePQ(graphS, graphST, PQ, nodes);
 
+	if(true)
+	{
 #ifdef UG_PARALLEL
 	if(m_famg.m_bLE_XC_Griebel)
 		rs_amg_coarsening_LE_griebel(graphS, graphST, PQ, nodes);
@@ -670,10 +672,10 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 		PreventFFConnections(graphS, graphST, nodes);
 	}
 #endif
-
-	/*else
+	}
+	else
 	{
-		for(size_t i=0; i<258; i++)
+		for(size_t i=4; i<250; i++)
 		{
 			if(i == 0 || i == 1 || i == 256 || i == 257)
 				nodes.set_dirichlet(i);
@@ -682,7 +684,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 			else
 				nodes.set_fine(i);
 		}
-	}*/
+	}
 
 	// aggressive coarsening
 	if(m_famg.m_bXCaggressive == true && level == 0)

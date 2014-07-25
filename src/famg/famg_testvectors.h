@@ -80,7 +80,7 @@ void FAMGLevelCalculator<algebra_type>::smooth_testvectors()
 	// output before smoothing of testvector
 	if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
 		for(size_t i=0; i<m_testvectors.size(); i++)
-			ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_pS") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
+			ConnectionViewer::WriteVectorPar((m_famg.m_writeMatrixPath + ToString("/testvector_pS") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
 					m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
 
 	for(size_t i=0; i<m_testvectors.size(); i++)
@@ -97,7 +97,12 @@ void FAMGLevelCalculator<algebra_type>::smooth_testvectors()
 			d.set(0.0);
 			c.set(0.0);
 			A.apply(d, m_testvectors[i]);
+			// don't change dirichlet nodes
+			for(size_t i=0; i<A.num_rows(); i++)
+				if(A.is_isolated(i)) d[i] = 0.0;
 			m_famg.m_testvectorsmoother->apply(c, d);
+			for(size_t i=0; i<A.num_rows(); i++)
+				if(A.is_isolated(i)) c[i] = 0.0;
 			m_testvectors[i] -= c;
 		}
 
@@ -111,7 +116,7 @@ void FAMGLevelCalculator<algebra_type>::smooth_testvectors()
 	// output after smoothing of testvector
 	if(m_famg.m_writeMatrices && m_famg.m_writeTestvectors)
 			for(size_t i=0; i<m_testvectors.size(); i++)
-				ConnectionViewer::WriteVector((m_famg.m_writeMatrixPath + ToString("/testvector_S") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
+				ConnectionViewer::WriteVectorPar((m_famg.m_writeMatrixPath + ToString("/testvector_S") + ToString(i) + ToString("_L") + ToString(level) + ".vec").c_str(),
 					m_testvectors[i], &m_famg.m_amghelper.positions[level][0], m_famg.m_dbgDimension);
 
 

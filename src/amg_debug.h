@@ -252,7 +252,7 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const TVector &const_d, s
 	line=__LINE__;
 	CloneVector(d, const_d);
 	line=__LINE__;
-	d = const_d;
+	VecScaleAssign(d, 1.0, const_d);
 	line=__LINE__;
 	d.change_storage_type(PST_CONSISTENT);
 	line=__LINE__;
@@ -318,7 +318,7 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const TVector &const_d, s
 			AMGWriteVecToFile(d, level, name, m_amghelper);
 	}
 	line=__LINE__;
-	}UG_CATCH_THROW(PRETTY_FUNCTION << "failed at line " << line );
+	}UG_CATCH_THROW(PRETTY_FUNCTION << "failed at line " << line << " " << *const_d.layouts());
 	return true;
 }
 
