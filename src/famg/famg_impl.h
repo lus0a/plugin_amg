@@ -90,6 +90,9 @@ void FAMG<TAlgebra>::set_or_copy(const FAMG<TAlgebra> *parent)
 	SET_OR_COPY(m_dDampingForSmootherInInterpolationCalculation, 0.8);
 	SET_OR_COPY(m_testvectorsmoother, make_sp(new Jacobi<TAlgebra>()));
 
+	SET_OR_COPY(m_iXCCalcInterpolationRoutine, 3);
+	SET_OR_COPY(m_bBeam, false);
+
 #ifdef UG_PARALLEL
 	SET_OR_COPY(m_pParallelCoarsening, GetColorCoarsening());
 #endif
@@ -411,46 +414,59 @@ void FAMG<TAlgebra>::check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > tes
 		return;
 	}
 #endif
-	size_t level =0;
-	if(super::levels.size() <= 1) return;
-	testvectors.clear();
-	MathVector<3> *pos = m_amghelper.has_positions() ? &(m_amghelper.positions[0][0]) : NULL;
 
-	testvectorCalculator->calc(levels[level]->pAgglomeratedA, pos, testvectors);
-
-
-	std::string path=std::string("/level") + ToString(level) + "/";
-	CreateDirectory(Stringify() << m_writeMatrixPath << path);
-
-	for(size_t iTV=0; iTV<testvectors.size(); iTV++)
+	for(size_t level=0; level < super::levels.size()-1; level++)
 	{
-		SmartPtr<matrix_type> pA, pAH;
-		pA = super::levels[level]->pAgglomeratedA;
-		pAH = super::levels[level+1]->pAgglomeratedA;
+		if(super::levels.size() <= 1) return;
+		testvectors.clear();
+		MathVector<3> *pos = m_amghelper.has_positions() ? m_amghelper.get_positions(level) : NULL;
 
-		matrix_type &A = *pA;
-		matrix_type &AH = *pAH;
-//		prolongation_matrix_type &R = super::levels[level]->R;
-		prolongation_matrix_type &P = super::levels[level]->P;
-		vector_type tvH, Ptv;
-
-	#ifdef UG_PARALLEL
-		SetParallelVectorAsMatrix(tvH, A, PST_CONSISTENT);
-		SetParallelVectorAsMatrix(Ptv, AH, PST_CONSISTENT);
-	#endif
-		tvH.resize(AH.num_rows());
-		Ptv.resize(A.num_rows());
-
-		super::injection(tvH, testvectors[iTV], level);
-
-		P.apply(Ptv, tvH);
-
-		VecScaleAdd(Ptv, 1.0, Ptv, -1.0, testvectors[iTV]);
-
-		ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_" << desc << "_" << iTV << "_L" << level << ".vec",
-				Ptv, &m_amghelper.positions[level][0], m_amghelper.dimension);
+		testvectorCalculator->calc(levels[level]->pAgglomeratedA, pos, testvectors);
 
 
+		std::string path=std::string("/level") + ToString(level) + "/";
+		CreateDirectory(Stringify() << m_writeMatrixPath << path);
+
+		for(size_t iTV=0; iTV<testvectors.size(); iTV++)
+		{
+			SmartPtr<matrix_type> pA, pAH;
+			pA = super::levels[level]->pAgglomeratedA;
+			pAH = super::levels[level+1]->pAgglomeratedA;
+
+			matrix_type &A = *pA;
+			matrix_type &AH = *pAH;
+	//		prolongation_matrix_type &R = super::levels[level]->R;
+			prolongation_matrix_type &P = super::levels[level]->P;
+			vector_type tvH, Ptv;
+
+		#ifdef UG_PARALLEL
+			SetParallelVectorAsMatrix(tvH, A, PST_CONSISTENT);
+			SetParallelVectorAsMatrix(Ptv, AH, PST_CONSISTENT);
+		#endif
+			tvH.resize(AH.num_rows());
+			Ptv.resize(A.num_rows());
+
+
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_" << desc << "_" << iTV << "_L" << level << ".vec",
+					testvectors[iTV], pos, m_amghelper.dimension);
+
+			super::injection(tvH, testvectors[iTV], level);
+
+			P.apply(Ptv, tvH);
+
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_PRinj_" << desc << "_" << iTV << "_L" << level << ".vec",
+														tvH, pos, m_amghelper.dimension);
+
+			VecScaleAdd(Ptv, 1.0, Ptv, -1.0, testvectors[iTV]);
+
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_1-PRinj_" << desc << "_" << iTV << "_L" << level << ".vec",
+								Ptv, pos, m_amghelper.dimension);
+
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_Rinj_" << desc << "_" << iTV << "_L" << level << ".vec",
+											tvH, pos, m_amghelper.dimension);
+
+
+		}
 	}
 
 	}UG_CATCH_THROW("FAMG::check_vector failed");

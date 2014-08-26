@@ -106,6 +106,7 @@ public:
 		testvectorsExtern = (m_testvectors.size() > 0);
 		m_bUseConstantIfFailed = famg.m_bUseConstantIfFailed;
 		m_dDeficitSolveTolerance = famg.m_dDeficitSolveTolerance;
+		m_iXCCalcInterpolationRoutine = famg.m_iXCCalcInterpolationRoutine;
 	}
 
 	void init()
@@ -1362,6 +1363,62 @@ public:
 		return -1;
 	}
 
+
+	int solve_KKT_non_neg4(size_t i, std::vector<size_t> &indices, int tvSize, bool bCalcNegatives=false)
+	{
+		std::vector<size_t> minIndices;
+		stdvector<smallmat_type> minq;
+		std::vector<double> minFb;
+		double minF=-1;
+
+
+		size_t neg;
+		size_t K=indices.size();
+		if(K > 8) K = 8;
+
+		for(; K>=2; K--)
+		{
+
+			IFI(PRINT_VECTOR(indices, "indices"));
+			set_sizes(K, tvSize);
+			indices.resize(K);
+			int ret = solve_KKT_get_neg(i, indices, neg);
+			UG_DLOGI(3, "node [" << i << "], K = " << K << " ret = " << ret << " F = " << F << "\n");
+			if(ret == 0)
+			{
+				bool b = all_Fb_smaller_delta();
+				if(b)
+				{
+					if(minF < 0 || minF > F)
+					{
+						minq = q;
+						minFb = Fb;
+						minF = F;
+						minIndices = indices;
+					}
+				}
+				if(!b || K == 2)
+				{
+					if(minF > 0)
+					{
+						q = minq;
+						Fb = minFb;
+						F = minF;
+						indices = minIndices;
+						return 0;
+					}
+					else
+						return -1;
+				}
+			}
+			else
+				std::swap(indices[K-1], indices[neg]);
+
+		}
+		UG_DLOGI(3, "get_neg -1\n");
+		return -1;
+	}
+
 	/**
 	 * start with the best 2 indices
 	 * loop:
@@ -1473,7 +1530,13 @@ public:
 //		reduceToStrong(coarseNeighbors, myNeighbors, 0.7);
 		csolve_KKT_non_neg=0;
 
-		bool bSuccess = (solve_KKT_non_neg3(i, myNeighbors, -1) == 0);
+		bool bSuccess;
+		if(m_iXCCalcInterpolationRoutine == 2)
+			bSuccess = (solve_KKT_non_neg2(i, myNeighbors, -1) == 0);
+		else if(m_iXCCalcInterpolationRoutine == 3)
+			bSuccess = (solve_KKT_non_neg3(i, myNeighbors, -1) == 0);
+		else if(m_iXCCalcInterpolationRoutine == 4)
+			bSuccess = (solve_KKT_non_neg4(i, myNeighbors, -1) == 0);
 
 		if(bSuccess)
 		{
@@ -2357,6 +2420,7 @@ private:
 
 	const std::vector<levelnode> &debugWatchNodes;
 	double m_dDeficitSolveTolerance;
+	int m_iXCCalcInterpolationRoutine;
 
 	bool is_watch_node(size_t node)
 	{

@@ -198,7 +198,7 @@ public:
 	}
 
 	void	set_prevent_ff_connection_external(int i) 	{ m_iPreventFFConnection = i; }
-	double	get_prevent_ff_connection_external() 		{ return m_iPreventFFConnection; }
+	int		get_prevent_ff_connection_external() 		{ return m_iPreventFFConnection; }
 
 	void	set_write_f_values(bool b)	{ m_bWriteFValues = b; }
 	void	set_injection_restriction(bool b) { m_bInjectionRestriction = b; }
@@ -218,6 +218,17 @@ public:
 	void	set_XC_new(bool b)
 	{
 		m_bXC_new = b;
+	}
+
+	void	set_beam(bool b)
+	{
+		m_bBeam = b;
+	}
+
+
+	void	set_xc_calc_interpolation_routine(size_t i)
+	{
+		m_iXCCalcInterpolationRoutine = i;
 	}
 
 	void check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > testvectorCalculator, std::string desc);
@@ -334,6 +345,9 @@ private:
 
 	bool m_bXCaggressive;
 	bool m_bIndirectInterpolation;
+
+	bool m_bBeam; //< special external coarsening for a beam (experimental)
+	int m_iXCCalcInterpolationRoutine;
 
 	vector_type evpU, evpB;
 	bool m_bProjectedEVP;

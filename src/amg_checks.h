@@ -797,7 +797,8 @@ double AMGBase<TAlgebra>::check_interpolation(vector_type &v, const char *filena
 	AMGLevelType &L = *levels[0];
 	vector_type &vH = L.cH;
 	vector_type &v2 = L.corr;
-	L.R.apply(vH, v);
+	//L.R.apply(vH, v);
+	injection(vH, v, 0);
 	L.P.apply(v2, vH);
 	if(m_writeMatrices)
 	{

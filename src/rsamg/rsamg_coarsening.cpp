@@ -207,7 +207,7 @@ void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_
 		{
 			UG_LOG(indexN << " ");
 			if(nodes[indexN].is_assigned())
-				UG_LOG((nodes[indexN].is_coarse() ? "(c) " : "(f) "));
+				UG_LOG((nodes[indexN].is_coarse() ? "=c " : "=f "));
 		}
 
 		if(nodes[indexN].is_parallel_dont_care() == false && nodes[indexN].is_assigned()) continue;
@@ -219,6 +219,11 @@ void MarkUnassignedNeighborsFine(const cgraph &S, const cgraph &ST, nodeinfo_pq_
 			nodes.set_unassigned_fine_indirect(indexN);
 		else
 			nodes.set_fine_direct(indexN);
+
+		IF_DEBUG(DBG_AMG_COARSENING, 3)
+		{
+			UG_LOG("->f ");
+		}
 
 		ChangeRatingOfUnassignedNeighbors(S, PQ, nodes, indexN, +1);
 	}
@@ -289,6 +294,13 @@ int Coarsen(const cgraph &S, const cgraph &ST, nodeinfo_pq_type &PQ, AMGNodes &n
 
 //	UG_ASSERT(nodes.get_nr_of_coarse() > 0, "no coarse nodes???");
 	UG_DLOG(DBG_AMG_COARSENING, 1, nodes.get_nr_of_coarse() << " Coarse Nodes. ");
+
+	IF_DEBUG(DBG_AMG_COARSENING, 3)
+	{
+		UG_LINE_LOG();
+		nodes.print();
+	}
+
 	return nodes.get_nr_of_coarse();
 
 	}UG_CATCH_THROW_FUNC();

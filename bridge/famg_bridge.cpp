@@ -145,6 +145,8 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("set_XC_LE_griebel", &T::set_XC_LE_griebel)
 			.add_method("set_indirect_interpolation", &T::set_indirect_interpolation)
 			.add_method("set_use_constant_if_failed", &T::set_use_constant_if_failed)
+			.add_method("set_xc_calc_interpolation_routine", &T::set_xc_calc_interpolation_routine)
+			.add_method("set_beam", &T::set_beam)
 			.add_method("adaptive_filtering",
 					OVERLOADED_METHOD_PTR(void, T, adaptive_filtering,
 							(SmartPtr<ILinearOperator<vector_type, vector_type> > linOp, vector_type &x, SmartPtr<IConvergenceCheck<vector_type> > spConvCheck, double expectedRate) ) )

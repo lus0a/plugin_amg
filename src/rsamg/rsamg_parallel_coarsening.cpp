@@ -50,7 +50,7 @@ class FullSubdomainBlocking : public IParallelCoarsening
 {
 public:
 	void coarsen(ParallelNodes &PN, stdvector<IndexLayout> vMasterLayouts, stdvector<IndexLayout> vSlaveLayouts,
-		const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric)
+		const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bPreventFF)
 	{
 		AMG_PROFILE_FUNC();
 		size_t N = nodes.size();
@@ -71,7 +71,8 @@ public:
 		 * this COULD be OK if used with aggressive coarsening.
 		 * */
 		Coarsen(graphS, graphST, PQ, nodes, bUnsymmetric, false);
-		PreventFFConnections(graphS, graphST, nodes);
+		if(bPreventFF)
+			PreventFFConnections(graphS, graphST, nodes);
 	}
 
 	int overlap_depth_master()
@@ -202,7 +203,7 @@ private:
 class SimpleParallelCoarsening : public IParallelCoarsening
 {
 	void coarsen(ParallelNodes &PN, stdvector<IndexLayout> vMasterLayouts, stdvector<IndexLayout> vSlaveLayouts,
-			const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric)
+			const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bPreventFF)
 	{
 		AMG_PROFILE_FUNC();
 
@@ -217,7 +218,8 @@ class SimpleParallelCoarsening : public IParallelCoarsening
 		std::map<size_t, char> recv;
 		StdArrayCommunicationScheme<AMGNodes> scheme(nodes);
 		CommunicateOnInterfaces(PN.comm(), masterOL1, slaveOL1, scheme);
-		PreventFFConnections(graphS, graphST, nodes);
+		if(bPreventFF)
+			PreventFFConnections(graphS, graphST, nodes);
 	}
 
 	int overlap_depth_master()
@@ -301,7 +303,7 @@ bool PreventFFConnectionPar(const cgraph &graphS, const cgraph &graphST, AMGNode
 class RS3Coarsening : public IParallelCoarsening
 {
 	void coarsen(ParallelNodes &PN, stdvector<IndexLayout> vMasterLayouts, stdvector<IndexLayout> vSlaveLayouts,
-			const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric)
+			const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bPreventFF)
 	{
 		AMG_PROFILE_FUNC();
 
@@ -405,7 +407,7 @@ IParallelCoarsening *GetCoarseGridClassificationCoarsening()
 class ColorCoarsening : public IParallelCoarsening
 {
 	void coarsen(ParallelNodes &PN, stdvector<IndexLayout> vMasterLayouts, stdvector<IndexLayout> vSlaveLayouts,
-			const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric)
+			const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bPreventFF)
 	{
 		AMG_PROFILE_FUNC();
 
@@ -474,7 +476,8 @@ class ColorCoarsening : public IParallelCoarsening
 		ReceiveOnInterfaces(PN.comm(), processesWithLowerColor, vSlaveLayouts[1], nodesCommunication);
 		nodesCommunication.set_coarse_and_fine();
 
-		PreventFFConnections(graphS, graphST, nodes);
+		if(bPreventFF)
+			PreventFFConnections(graphS, graphST, nodes);
 	}
 
 	int overlap_depth_master()

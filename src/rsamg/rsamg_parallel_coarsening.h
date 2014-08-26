@@ -31,7 +31,7 @@ class IParallelCoarsening
 public:
 	virtual ~IParallelCoarsening() {}
 	virtual void coarsen(ParallelNodes &PN, stdvector<IndexLayout> vMasterLayouts, stdvector<IndexLayout> vSlaveLayouts,
-				const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric) = 0;
+				const cgraph &graphS, const cgraph &graphST, nodeinfo_pq_type &PQ, AMGNodes &nodes, bool bUnsymmetric, bool bPreventFF) = 0;
 	virtual int overlap_depth_master() = 0;
 	virtual int overlap_depth_slave() = 0;
 	virtual const char *config_string() = 0;

@@ -250,8 +250,10 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 
 	bool bUnsymmetric = true;
 #ifdef UG_PARALLEL
+	bool bPreventFF = false;
 	m_pParallelCoarsening->coarsen(PN, vMasterLayouts, vSlaveLayouts,
-			graphS, graphST, PQ, nodes, bUnsymmetric);
+			graphS, graphST, PQ, nodes, bUnsymmetric,
+			bPreventFF);
 #else
 	Coarsen(graphS, graphST, PQ, nodes, bUnsymmetric, false);
 #endif

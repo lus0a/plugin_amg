@@ -193,6 +193,50 @@ void FAMGLevelCalculator<algebra_type>::make_coarsening_consistent()
 
 }
 
+/*
+template<typename TPMatrix>
+class FAMGSendCoarseNodes :
+	public CommunicationScheme<FAMGCoarseningCommunicationScheme<TPMatrix>, bool>
+{
+public:
+	FAMGCommunicateCoarsening(FAMGNodes<TPMatrix> &r) : rating(r)
+	{
+
+	}
+	bool send(int pid, size_t index) const
+	{
+		int state = rating[index].get_state();
+		if(state == FAMG_COARSE_RATING)
+			return 1;
+		else
+			return 0;
+	}
+	void receive(int pid, size_t index, bool state)
+	{
+		if(state == 0)
+		{
+			//rating.external_set_uncalculated_fine(index);
+			rating.set_fine(index);
+		}
+		else if(state == 1)
+			rating.external_set_coarse(index);
+		else if(state == 3)
+		{
+			rating.set_dirichlet(index);
+		}
+		// else ; // nothing
+
+	}
+
+	inline int get_element_size() const
+	{
+		return sizeof(int);
+	}
+private:
+	FAMGNodes<TPMatrix> &rating;
+};
+*/
+
 /**
  * will perform a post-coarsening step on all uninterpolateable nodes.
  * ex 2d neumann:
@@ -207,7 +251,7 @@ void FAMGLevelCalculator<algebra_type>::make_coarsening_consistent()
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 {
-	return;
+
 	AMG_PROFILE_FUNC();
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\nexternal post-coarsening... " );  SW.start(); }
@@ -226,6 +270,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 	cgraph graphS, graphST, graphS0;
 	get_external_coarsening_graph(graphS0);
 	SetIsolatedCoarse(graphS0, nodes);
+
 
 	//UG_COND_THROW(pcl::ProcRank() > 1, "communicate uninterpolateable nodes");
 
@@ -267,7 +312,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 	}
 
 #ifdef UG_PARALLEL
-	m_famg.m_pParallelCoarsening->coarsen(PN, masterLayouts, slaveLayouts, graphS, graphST, PQ, nodes, true);
+	m_famg.m_pParallelCoarsening->coarsen(PN, masterLayouts, slaveLayouts, graphS, graphST, PQ, nodes, true, false);
 #else
 	Coarsen(graphS, graphST, PQ, nodes, true, false);
 
@@ -300,20 +345,30 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 			calculator.get_all_neighbors_interpolation(i, PoldIndices, rating, false);
 	}
 
+
+	// if there are still coarse nodes left, which are not used in the interpolation, try to interpolate them again because
+	// there might be more coarse nodes now
+
 	typedef typename prolongation_matrix_type::row_iterator Prow_iterator;
-	std::vector<bool> interpolatedFrom(N, false);
+	/*std::vector<bool> interpolatedFrom(N, false);
 	for(size_t i=0; i<N; i++)
 	{
 
-		if(PoldIndices.is_isolated(i)) continue;
+		if(nodes[i].is_coarse()) continue;
 		for(Prow_iterator it = PoldIndices.begin_row(i); it != PoldIndices.end_row(i); ++it)
 			interpolatedFrom[it.index()] = true;
 	}
 
+	//return;
+	SendVecFromTo(PN.comm(), PN.slave_layout(), PN.master_layout(), interpolatedFrom, boost::lambda::_1 || boost::lambda::_2);*/
 	for(size_t i=0; i<N; i++)
 	{
-		if(interpolatedFrom[i] == false &&
-				(rating[i].is_coarse() || rating[i].is_uninterpolateable()))
+		//if(interpolatedFrom[i] == false &&
+				/*rating[i].is_coarse() ||*/
+		if(rating[i].is_uninterpolateable()
+
+				/*&& rating.i_must_assign(i))*/
+				&& rating.is_inner_node(i))
 		{
 			rating.node_reset(i);
 			calculator.get_all_neighbors_interpolation(i, PoldIndices, rating, false);
@@ -322,12 +377,14 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 			{
 				//UG_LOG(". interpolating from ")
 				// adjust interpolatedFrom
+				/*
 				for(Prow_iterator it = PoldIndices.begin_row(i); it != PoldIndices.end_row(i); ++it)
 				{
 
 					//UG_LOG(it.index() << " ");
 					interpolatedFrom[it.index()] = true;
 				}
+				*/
 //				UG_LOG("\n");
 			}
 			else
@@ -342,7 +399,7 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_postcoarsening()
 	}
 
 
-	set_uninterpolateable_as_coarse();
+//	set_uninterpolateable_as_coarse();
 }
 
 #ifdef UG_PARALLEL
@@ -655,35 +712,40 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 
 	CreateMeasureOfImportancePQ(graphS, graphST, PQ, nodes);
 
-	if(true)
+	if(!m_famg.m_bBeam)
 	{
 #ifdef UG_PARALLEL
-	if(m_famg.m_bLE_XC_Griebel)
-		rs_amg_coarsening_LE_griebel(graphS, graphST, PQ, nodes);
-	else if(m_famg.m_bXC_new)
-		rs_amg_coarsening_new(graphS, graphST, PQ, nodes);
+		if(m_famg.m_bLE_XC_Griebel)
+			rs_amg_coarsening_LE_griebel(graphS, graphST, PQ, nodes);
+		else if(m_famg.m_bXC_new)
+			rs_amg_coarsening_new(graphS, graphST, PQ, nodes);
 
-	m_famg.m_pParallelCoarsening->coarsen(PN, masterLayouts, slaveLayouts, graphS, graphST, PQ, nodes, true);
+		m_famg.m_pParallelCoarsening->coarsen(PN, masterLayouts, slaveLayouts, graphS, graphST, PQ, nodes, true,
+				m_famg.get_prevent_ff_connection_external() != 0);
 #else
-	Coarsen(graphS, graphST, PQ, nodes, true, false);
+		Coarsen(graphS, graphST, PQ, nodes, true, false);
 
-	if (m_famg.get_prevent_ff_connection_external())
-	{
-		PreventFFConnections(graphS, graphST, nodes);
-	}
+		if (m_famg.get_prevent_ff_connection_external())
+		{
+			PreventFFConnections(graphS, graphST, nodes);
+		}
 #endif
+
+
+
 	}
 	else
 	{
-		for(size_t i=4; i<250; i++)
+		for(size_t i=0; i<nodes.size(); i++)
 		{
 			if(i == 0 || i == 1 || i == 256 || i == 257)
 				nodes.set_dirichlet(i);
-			else if( (i/2) % 2 == 0 || i < 10 || i > 250)
+			else if( (i/2) % 2 == 0 || i < 60 || i > 131)
 				nodes.set_coarse(i);
 			else
 				nodes.set_fine(i);
 		}
+
 	}
 
 	// aggressive coarsening
