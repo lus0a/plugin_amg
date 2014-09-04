@@ -113,54 +113,66 @@ std::string FAMG<TAlgebra>::config_string() const
 	ss << "FAMG Preconditioner:\n";
 
 	// coarsening
-	ss << " Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF") << "\n";
+
+	ss << "  Injection Restriction = " << (m_bInjectionRestriction ? "[ON]" : "OFF")
+			<< ", submask = " << get_strong_connection_submask_desc()
+			<< ",  m_bIndirectInterpolation = " << (m_bIndirectInterpolation ? "[ON]" : "OFF")
+			<< "\n";
+
+
+	ss << " TRUNCATION PARAMETERS:\n";
+	ss << "  Prereduce A parameter: " << m_dPrereduceAToStrongParameter << "\n";
+	ss << "  Truncation of interpolation = " << m_dProlongationTruncation << "\n";
+	ss << "  DeficitSolveTolerance = " << m_dDeficitSolveTolerance << "\n";
+
+	ss << " COARSENING:\n";
+	ss << "  Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF") << "\n";
 	if(m_bExternalCoarsening)
 	{
-		ss << " External Coarsening: StrongConnection = " << m_dStrongConnectionExternal << ", StrongConnectionSub = " << get_strong_connection_submask_desc() << "\n";
+		ss << "  External Coarsening: StrongConnection = " << m_dStrongConnectionExternal << ", StrongConnectionSub = " << get_strong_connection_submask_desc() << "\n";
+		ss << "  XC Calc Interpolation Routine = " << m_iXCCalcInterpolationRoutine << "\n";
 #ifdef UG_PARALLEL
-		ss << " ParallelCoarsening: " << ConfigShift(m_pParallelCoarsening->config_string()) << "\n";
+		ss << "  ParallelCoarsening: " << ConfigShift(m_pParallelCoarsening->config_string()) << "\n";
 #endif
 	}
-	if(m_bUsePrecalculate)	ss << " precalculate Coarsening\n";
-	else					ss << " std FAMG coarsening.\n";
-
-	ss << " Truncation of interpolation = " << m_dProlongationTruncation << "\n";
-	ss << " Prereduce A parameter: " << m_dPrereduceAToStrongParameter << "\n";
-
-	ss << " Injection Restriction " << (m_bInjectionRestriction ? "[ON]" : "OFF") << "\n";
-
-	ss << " Delta: " << mDeltaAll << " (forces interpolation quality measure F < delta.) " << std::endl;
-	ss << " Theta: " << m_theta << " (with multiple parents pairs, discard pairs with m_theta * F > min F.) " << std::endl;
-	ss << " Damping for Smoother in interpolation calculation: " << m_dDampingForSmootherInInterpolationCalculation << std::endl;
-	ss << " max parents: " << m_iMaxParents << ", ";
-	ss << " H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n";
-
-	ss << " DeficitSolveTolerance = " << m_dDeficitSolveTolerance << "\n";
-	ss << " UseConstantIfFailed = " << (m_bUseConstantIfFailed?"ON":"OFF") << "\n";
-
-	if(m_bHAsInverse)
-		ss << " USING H AS INVERSE!\n";
-	if(m_bLE_XC_Griebel)
-		ss << " GRIEBEL Linear Elasticity External Neumann-Coarsening.\n";
-	if(m_bXC_new)
-		ss << " New External Neumann-Coarsening.\n";
-
-	if(m_testvectorsmoother == SPNULL)
-		ss << " No testvectorsmoother set!!!;\n";
 	else
-		ss << " Testvector Smoother (" << m_iTestvectorDamps << "x): " << m_testvectorsmoother->config_string() << "\n";
+	{
+		if(m_bUsePrecalculate)	ss << "  precalculate Coarsening\n";
+		else					ss << "  std FAMG coarsening.\n";
+	}
+
+	if(m_bLE_XC_Griebel)
+		ss << "  GRIEBEL Linear Elasticity External Neumann-Coarsening.\n";
+	if(m_bXC_new)
+		ss << "  New External Neumann-Coarsening.\n";
+
+	ss << " INTERPOLATION CALCULATION:\n";
+	if(m_bHAsInverse)
+		ss << "  USING H AS INVERSE!\n";
+	ss << "  Delta: " << mDeltaAll << " (forces interpolation quality measure F < delta.) " << std::endl;
+	ss << "  Theta: " << m_theta << " (with multiple parents pairs, discard pairs with m_theta * F > min F.) " << std::endl;
+	ss << "  Damping for Smoother in interpolation calculation: " << m_dDampingForSmootherInInterpolationCalculation << std::endl;
+	ss << "  max parents: " << m_iMaxParents << ", ";
+	ss << "  H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n";
+
+	ss << " TESTVECTORS:\n";
+	if(m_testvectorsmoother == SPNULL)
+		ss << "  No testvectorsmoother set!!!;\n";
+	else
+		ss << "  Testvector Smoother (" << m_iTestvectorDamps << "x): " << m_testvectorsmoother->config_string() << "\n";
 
 	if(m_testvectorCalculator == SPNULL)
-			ss << " No testvector set!!!;\n";
+			ss << "  No testvector set!!!;\n";
 		else
-			ss << " TestvectorCalculator: " << ConfigShift(m_testvectorCalculator->config_string()) << "\n";
+			ss << "  TestvectorCalculator: " << ConfigShift(m_testvectorCalculator->config_string()) << "\n";
+	ss << "  UseConstantIfFailed = " << (m_bUseConstantIfFailed?"ON":"OFF") << "\n";
+	if(m_writeMatrices && m_writeTestvectors)
+		ss << "  Write Testvectors is on.\n";
 
 
 
 
 //	ss << m_testvectors.size() + m_vVectorWriters.size() << " test vectors" << std::endl; ?
-	if(m_writeMatrices && m_writeTestvectors)
-		ss << " Write Testvectors is on.\n";
 	ss << " AMGBase: " << ConfigShift(AMGBase<TAlgebra>::config_string()) << "\n";
 
 	return ss.str();
