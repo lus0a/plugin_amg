@@ -28,7 +28,7 @@
 
 #define FAMG_SCALING
 #define FAMG_FULL_BLOCK
-#define FAMG_USE_DIRCHLET_AS_PARENTS 1
+#define FAMG_USE_DIRCHLET_AS_PARENTS 0
 
 #define FAMG_FULL_BLOCK
 
@@ -159,6 +159,15 @@ public:
 	double adjust(double &doo)
 	{
 		if(doo < 0.6 && doo > 0.4) doo = 0.5;
+	}
+
+	double max_Fb_delta()
+	{
+		double fmax=Fb[0];
+		for(size_t i=1; i<Fb.size(); i++)
+			if(Fb[i] > fmax)
+				fmax = Fb[i];
+		return fmax;
 	}
 
 	bool all_Fb_smaller_delta()
@@ -1432,9 +1441,9 @@ public:
 		size_t neg;
 		size_t nrNeg=indices.size()+1;
 
+
 		for(size_t K=2; K<nrNeg;)
 		{
-
 			SubVector vec(indices, K);
 			if(is_watch_node(i))
 				{PRINT_VECTOR(vec, "vec, " << i << " K = " << K); }
@@ -1442,21 +1451,43 @@ public:
 			int ret = solve_KKT_get_neg(i, vec, neg);
 			if(ret == 0)
 			{
-				 if(all_Fb_smaller_delta())
-				 {
-					 if(is_watch_node(i)) UG_LOG("success\n");
-					 indices.resize(K);
-					 return 0;
-				 }
-				 if(is_watch_node(i)) UG_LOG("delta\n");
-				 K++;
+				if(all_Fb_smaller_delta())
+				{
+					if(is_watch_node(i)) UG_LOG("success\n");
+
+					double f=max_Fb_delta();
+
+					if(K+1<nrNeg)
+					{
+						SubVector vec2(indices, K+1);
+						set_sizes(K+1, tvSize);
+						int ret = solve_KKT_get_neg(i, vec2, neg);
+
+						if(ret == 0 && max_Fb_delta() < f*0.7)
+						{
+							indices.resize(K+1);
+							return 0;
+						}
+						else
+						{
+							set_sizes(K, tvSize);
+							solve_KKT_get_neg(i, vec, neg);
+						}
+					}
+					indices.resize(K);
+					return 0;
+				}
+				if(is_watch_node(i)) UG_LOG("delta\n");
+				K++;
 			}
-			else
+			else if(K>4)
 			{
 				nrNeg--;
 				std::swap(indices[nrNeg-1], indices[neg]);
 				if(is_watch_node(i)) UG_LOG("neg\n");
 			}
+			else
+				K++;
 		}
 		return -1;
 	}
