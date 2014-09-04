@@ -137,7 +137,7 @@ void AMGBase<TAlgebra>:: preprocess_init_positions(matrix_operator_type& mat)
 		if(dbgW.valid())
 		{
 			const char *errStr =
-					"debug size and size of matrixnot matching.\n"
+					"debug size and size of matrix not matching.\n"
 					"if you are using GridFunctionDebugWriter, make sure you selected the right base level:\n"
 					"   dbgW=GridFunctionDebugWriter(approxSpace)\n"
 					"   dbgW:set_grid_level(GridLevel(baseLev))\n"
@@ -172,6 +172,7 @@ void AMGBase<TAlgebra>:: preprocess_init_positions(matrix_operator_type& mat)
 	if(needs_positions())
 	{
 		UG_COND_THROW(m_dbgDimension == 0, "AMG method needs positions");
+		THROW_IF_NOT_EQUAL(m_dbgPositions.size(), mat.num_rows());
 		if(m_dbgPositions.size() > 0)
 		{
 			m_amghelper.positions.resize(1);

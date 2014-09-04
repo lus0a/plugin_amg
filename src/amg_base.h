@@ -340,17 +340,30 @@ public:
 	void set_num_postsmooth(size_t new_postsmooth) 				{ m_numPostSmooth = new_postsmooth; }
 	size_t get_num_postsmooth() const 							{ return m_numPostSmooth; }
 
-	void set_cycle_type(size_t new_cycletype) {
-		UG_ASSERT(new_cycletype > 0,
-				"cannot set cycle type " << new_cycletype << ", has to be > 0");
+	void set_cycle_type(size_t new_cycletype)
+	{
+		UG_COND_THROW(new_cycletype <= 0, "cannot set cycle type " << new_cycletype << ", has to be > 0");
+		set_Y_check(make_sp(new FixedConvergenceCheck<vector_type>(new_cycletype)));
 		if(new_cycletype == 1)
 			m_cycleType = "V-Cycle";
 		else if(new_cycletype == 2)
 			m_cycleType = "W-Cycle";
 		else
 			m_cycleType = "Gamma=" + ToString(new_cycletype) + "-Cycle";
-		spYConvCheck = make_sp(new FixedConvergenceCheck<vector_type>(new_cycletype));
 	}
+	void set_Y_cycle(int maxIterations, double dYminAbsDefect, double dYrelReduction)
+	{
+		set_Y_check(make_sp(new StdConvCheck<vector_type>(maxIterations, dYminAbsDefect, dYrelReduction, false, false)));
+	}
+	void set_Y_check(SmartPtr<IConvergenceCheck<vector_type> > spCC)
+	{
+		spYConvCheck = spCC;
+		for(size_t i=0; i<levels.size(); i++)
+			levels[i]->spYConvCheck = spCC->clone();
+		m_cycleType = std::string("YCycle (ConvCheck = ") + spCC->config_string() + std::string(")");
+	}
+
+
 	std::string get_cycle_type() const {
 		return m_cycleType;
 	}
@@ -429,15 +442,6 @@ public:
 
 	/// if true, do not re-create AMG we preprocess is called
 	void set_one_init(bool b) 								{ m_bOneInit = b; }
-
-	void set_Y_cycle(int maxIterations, double dYminAbsDefect, double dYrelReduction) {
-		set_Y_check(make_sp(new StdConvCheck<vector_type>(maxIterations, dYminAbsDefect, dYrelReduction, false, false)));
-	}
-	void set_Y_check(SmartPtr<IConvergenceCheck<vector_type> > spCC)
-	{
-		spYConvCheck = spCC;
-		m_cycleType = std::string("YCycle (ConvCheck = ") + spCC->config_string() + std::string(")");
-	}
 
 
 ////// results, output ////////
