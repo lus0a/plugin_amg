@@ -1428,6 +1428,38 @@ public:
 		return -1;
 	}
 
+	int solve_KKT_non_neg2(size_t i, std::vector<size_t> &indices, int tvSize, bool bCalcNegatives=false)
+	{
+		size_t neg;
+		size_t nrNeg=indices.size()+1;
+
+
+		for(size_t K=2; K<nrNeg;)
+		{
+			SubVector vec(indices, K);
+			if(is_watch_node(i))
+				{PRINT_VECTOR(vec, "vec, " << i << " K = " << K); }
+			set_sizes(K, tvSize);
+			int ret = solve_KKT_get_neg(i, vec, neg);
+			if(ret == 0)
+			{
+				if(all_Fb_smaller_delta())
+				{
+					indices.resize(K);
+					return 0;
+				}
+				if(is_watch_node(i)) UG_LOG("delta\n");
+				K++;
+			}
+			else
+			{
+				nrNeg--;
+				std::swap(indices[nrNeg-1], indices[neg]);
+				if(is_watch_node(i)) UG_LOG("neg\n");
+			}
+		}
+		return -1;
+	}
 	/**
 	 * start with the best 2 indices
 	 * loop:
@@ -1436,7 +1468,7 @@ public:
 	 *   else add the next best index
 	 *   if an index was negative, remove it from list.
 	 */
-	int solve_KKT_non_neg2(size_t i, std::vector<size_t> &indices, int tvSize, bool bCalcNegatives=false)
+	int solve_KKT_non_neg5(size_t i, std::vector<size_t> &indices, int tvSize, bool bCalcNegatives=false)
 	{
 		size_t neg;
 		size_t nrNeg=indices.size()+1;
@@ -1568,6 +1600,8 @@ public:
 			bSuccess = (solve_KKT_non_neg3(i, myNeighbors, -1) == 0);
 		else if(m_iXCCalcInterpolationRoutine == 4)
 			bSuccess = (solve_KKT_non_neg4(i, myNeighbors, -1) == 0);
+		else if(m_iXCCalcInterpolationRoutine == 5)
+			bSuccess = (solve_KKT_non_neg5(i, myNeighbors, -1) == 0);
 
 		if(bSuccess)
 		{
