@@ -739,8 +739,9 @@ void FAMGLevelCalculator<algebra_type>::rs_amg_external_coarsening()
 		for(size_t i=0; i<nodes.size(); i++)
 		{
 			if(i == 0 || i == 1 || i == 256 || i == 257)
-				nodes.set_dirichlet(i);
-			else if( (i/2) % 2 == 0 || i < 60 || i > 131)
+				//nodes.set_dirichlet(i);
+				nodes.set_coarse(i);
+			else if( (i/2) % 2 == 0 || i%2 == 0 || i < 100 || i > 130)
 				nodes.set_coarse(i);
 			else
 				nodes.set_fine(i);
