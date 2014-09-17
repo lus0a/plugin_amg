@@ -118,7 +118,7 @@ public:
 	  for (unsigned int i=0; i < dim; ++i)
 	    {
 	       int indexi = get_axis_index(i, center[i]);
-	       for (int ii=std::min(indexi-1,0); ii<m_size[i];++ii)
+	       for (size_t ii=std::min(indexi-1,0); ii<m_size[i];++ii)
 		 { nbtensor[i].push_back(ii);}
 	    }	
 	  
@@ -225,7 +225,7 @@ public:
 	      }
 
 	      // forward search
-	      for (int nbi=ii+1; nbi<m_size[i]; ++nbi)
+	      for (size_t nbi=ii+1; nbi<m_size[i]; ++nbi)
 	      {
 	    	  if (m_level[i][nbi]>level)
 	    	  { ncoarse[i]++; nbtensor[i].push_back(nbi); }

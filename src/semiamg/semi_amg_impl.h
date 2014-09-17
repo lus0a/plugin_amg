@@ -65,7 +65,7 @@ size_t SemiAMG<algebra_type>::user_defined_coarsening(const cgraph &strong, size
 	const size_t nnodes = helper.positions[level].size();
 	const size_t gnodes = strong.size();
 
-	UG_ASSERT(nnodes == gnodes, "Huhh: Number of nodes does not match.");
+	THROW_IF_NOT_EQUAL(nnodes == gnodes);
 	size_t nfine = 0;
 	for(size_t i=0; i<nnodes; i++)
 	{
@@ -158,8 +158,6 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 		  const int nparents = m_tli.get_parents(coordi, level, nbcoords, nbweights);
 		  UG_ASSERT(nparents<=8, "Huhh: Too many neighbors???");
 		 
-		  double sumw = 0.0;
-
 
 		  // map every (coarse) nb to best matching (fine/coarse) equivalent on graph
 		  MathVector<3> bestcoord[27];
@@ -251,9 +249,9 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 
 		// extend position data in helper
 		std::vector<cAMG_helper::position_type> &mypositions = helper.positions[level];
-		UG_ASSERT(vPositions.size()== num_vcoarse, "Huhh: Size does not match!");
+		THROW_IF_NOT_EQUAL(vPositions.size(), (size_t)num_vcoarse);
 		mypositions.insert(mypositions.end(), vPositions.begin(), vPositions.end());
-		UG_ASSERT(mypositions.size() == num_extended, "Huhh: Size does not match!");
+		THROW_IF_NOT_EQUAL(mypositions.size(), (size_t)num_extended);
 
 		// extend matrix
 		P.resize_and_keep_values(num_extended, num_extended);
