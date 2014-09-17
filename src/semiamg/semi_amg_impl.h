@@ -29,6 +29,8 @@
 #include "../rsamg/rsamg_nodeinfo.h"
 #include "../rsamg/strong_connections.h"
 
+#include "common/error.h"
+
 #ifdef UG_PARALLEL
 #include "pcl/pcl.h"
 #include "lib_algebra/parallelization/parallelization_util.h"
@@ -65,7 +67,7 @@ size_t SemiAMG<algebra_type>::user_defined_coarsening(const cgraph &strong, size
 	const size_t nnodes = helper.positions[level].size();
 	const size_t gnodes = strong.size();
 
-	THROW_IF_NOT_EQUAL(nnodes == gnodes);
+	THROW_IF_NOT_EQUAL(nnodes, gnodes);
 	size_t nfine = 0;
 	for(size_t i=0; i<nnodes; i++)
 	{
