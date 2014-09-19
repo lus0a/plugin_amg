@@ -1238,7 +1238,7 @@ public:
 	void getAllStrong(size_t i, std::vector<size_t> &res, double tol, int nnodes=1)
 	{
 		std::vector<size_t> indices;
-		for(size_t i=0; i<onlyN1.size(); i++) indices.push_back(i);
+		for(size_t j=0; j<onlyN1.size(); j++) indices.push_back(j);
 		std::vector<bool> strongMarksAll(indices.size(), false);
 		std::vector<bool> strongMarks(indices.size(), false);
 		size_t blockSize=GetRows(H(0,0));
