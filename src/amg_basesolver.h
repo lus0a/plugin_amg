@@ -49,8 +49,10 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 			L.collectedA->set_layouts(SmartPtr<AlgebraLayouts>(new AlgebraLayouts));
 			m_basesolver->init(L.collectedA);
 
+			L.corr.resize(L.collectedA->num_rows());
 			L.collC.resize(L.collectedA->num_rows());
 			L.collD.resize(L.collectedA->num_rows());
+			SetParallelVectorAsMatrix(L.corr, *L.collectedA, PST_ADDITIVE);
 			SetParallelVectorAsMatrix(L.collC, *L.collectedA, PST_ADDITIVE);
 			SetParallelVectorAsMatrix(L.collD, *L.collectedA, PST_ADDITIVE);
 		}
@@ -69,6 +71,8 @@ void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 		L.bLevelHasMergers=false;
 		m_basesolver->init(L.pA);
 		L.pAgglomeratedA = L.pA;
+		L.corr.resize(L.pAgglomeratedA->num_rows());
+		SetParallelVectorAsMatrix(L.corr, *L.pAgglomeratedA, PST_ADDITIVE);
 	}
 #else
 	m_basesolver->init(L.pA);

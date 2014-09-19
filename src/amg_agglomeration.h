@@ -18,7 +18,6 @@
 namespace ug
 {
 
-extern DebugID DBG_AMG_COARSENING; // SetDebugLevel(debugID.RSAMG.Agglomeration, 0)
 /// \addtogroup plugins_amg
 /// \{
 
@@ -34,13 +33,14 @@ bool AMGBase<TAlgebra>::gather_vertical(const vector_type &vec, vector_type &col
 
 	if(!levels[level]->bHasBeenMerged)
 	{
-		//UG_LOG("gather_vertical: not merging at level " << level << "\n");
+		UG_COND_THROW(!vec.has_storage_type(type), "storage type is " << vec.get_storage_type() << ", not " << type);
 		if(&vec == &collectedVec) return true;
 		else
 		{
 			for(size_t i=0; i<vec.size(); i++)
 				collectedVec[i] = vec[i]; // don't use that
 		}
+		collectedVec.set_storage_type(type);
 	}
 	else
 	{
@@ -62,13 +62,15 @@ bool AMGBase<TAlgebra>::broadcast_vertical(vector_type &vec, const vector_type &
 
 	if(!levels[level]->bHasBeenMerged)
 	{
-		//UG_LOG("broadcast_vertical: not merging at level " << level << "\n");
+		UG_COND_THROW(!collectedVec.has_storage_type(type), "storage type is " << collectedVec.get_storage_type() << ", not " << type);
+		//UG_LOG(collectedVec.get_storage_type() << " " << vec.get_storage_type() << " "<< type << "\n");
 		if(&vec == &collectedVec) return true;
 		else
 		{
 			for(size_t i=0; i<vec.size(); i++)
 				vec[i] = collectedVec[i]; // don't use that
 		}
+		vec.set_storage_type(type);
 	}
 	else
 	{
@@ -108,34 +110,62 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 {
 	try{
 	AMGLevelType &L = *levels[level];
-	matrix_operator_type &A = *L.pA;
-	THROW_IF_NOT_EQUAL_3(c.size(), d.size(), A.num_rows());
+
+
 #ifdef UG_PARALLEL
 	if(levels[level]->bLevelHasMergers)
 	{
 		//matrix_operator_type &collA = *L.pAgglomeratedA;
+		if(m_bDebugWriteAllVectors)
+		{
+			writevec(Stringify() << "AMG_" << iteration_glboal << "gd_L", d, level);
+			writevec(Stringify() << "AMG_" << iteration_glboal << "gc_L", c, level);
+		}
 		gather_vertical(d, L.collD, level, PST_ADDITIVE);
+		gather_vertical(c, L.collC, level, PST_CONSISTENT);
+
+		if(m_bDebugWriteAllVectors)
+		{
+			if(!isMergingSlave(level))
+			{
+				writevec(Stringify() << "AMG_" << iteration_glboal << "coll_gd_L", L.collD, level);
+				writevec(Stringify() << "AMG_" << iteration_glboal << "coll_gc_L", L.collC, level);
+			}
+		}
 
 		// set 0 anyway
 		//gather_vertical(c, L.collC, level, PST_CONSISTENT);
 
 		bool b=true;
 		if(!isMergingSlave(level))
-		{
-			L.collC.set(0.0);
 			b = add_correction_and_update_defect2(L.collC, L.collD, *L.pAgglomeratedA, level);
+
+		if(m_bDebugWriteAllVectors)
+		{
+			if(!isMergingSlave(level))
+			{
+				writevec(Stringify() << "AMG_" << iteration_glboal << "coll2_gd_L", L.collD, level);
+				writevec(Stringify() << "AMG_" << iteration_glboal << "coll2_gc_L", L.collC, level);
+			}
 		}
 
 		broadcast_vertical(c, L.collC, level, PST_CONSISTENT);
 		broadcast_vertical(d, L.collD, level, PST_ADDITIVE);
 
+		if(m_bDebugWriteAllVectors)
+		{
+			writevec(Stringify() << "AMG_" << iteration_glboal << "gd2_L", d, level);
+			writevec(Stringify() << "AMG_" << iteration_glboal << "gc2_L", c, level);
+			iteration_glboal++;
+		}
+
 		return b;
 	}
 	else
-		return add_correction_and_update_defect2(c, d, A, level);
+		return add_correction_and_update_defect2(c, d, *L.pA, level);
 	}UG_CATCH_THROW("AMGBase::add_correction_and_update_defect failed, level = " << level << " hasMergers = " << (levels[level]->bLevelHasMergers ? "true" : "false"));
 #else
-	return add_correction_and_update_defect2(c, d, A, level);
+	return add_correction_and_update_defect2(c, d, *L.pA, level);
 }UG_CATCH_THROW("AMGBase::add_correction_and_update_defect failed, level = " << level);
 #endif
 
@@ -156,7 +186,7 @@ bool AMGBase<TAlgebra>::agglomerate_from(const std::map<int, int> &merge, const 
 	CreateGlobalLayout(globalSlaveLayout, A.layouts()->slave(), PN);
 
 	L.bHasBeenMerged = true;
-	IF_DEBUG(DBG_AMG_COARSENING, 2)
+	IF_DEBUG(DBG_AMG_AGGLOMERATION, 2)
 	{
 		UG_LOG("I am the merging father for pids ");
 		for(size_t i=0; i<mergeWith.size(); i++) { UG_LOG(mergeWith[i] << " "); }
@@ -218,7 +248,7 @@ bool AMGBase<TAlgebra>::agglomerate_to(const std::map<int, int> &merge, int merg
 	CreateGlobalLayout(globalSlaveLayout, A.layouts()->slave(), PN);
 
 	L.bHasBeenMerged = true;
-	UG_DLOG(DBG_AMG_COARSENING, 2, "MERGING to " << mergeTo << "\n");
+	UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "MERGING to " << mergeTo << "\n");
 
 	SendMatrix(A, agglomerateSlaveLayout, mergeTo, PN);
 
@@ -265,7 +295,7 @@ bool AMGBase<TAlgebra>::agglomerate_adjust_interfaces(const std::map<int, int> &
 	CreateGlobalLayout(globalSlaveLayout, A.layouts()->slave(), PN);
 
 	L.bHasBeenMerged = false;
-	UG_DLOG(DBG_AMG_COARSENING, 2, "Not merging.\n");
+	UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "Not merging.\n");
 	L.spAgglomeratedLayouts->proc_comm() = A.layouts()->proc_comm().create_sub_communicator(true);
 
 	MergeGlobalLayout(globalMasterLayout, merge);
@@ -313,10 +343,13 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 		L.pAgglomeratedA = L.pA;
 		L.bLevelHasMergers = false;
 		L.spAgglomeratedLayouts = L.spLayouts;
+
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 1, "No Agglomeration. Minimal nodes over all processes is " << m_levelInformation[level].get_nr_of_nodes_min()
+					<< " < " << m_minNodesOnOneProcessor << ".\n");
 		return true;
 	}
 
-	UG_DLOG(DBG_AMG_COARSENING, 1, "Minimal nodes over all processes is " << m_levelInformation[level].get_nr_of_nodes_min()
+	UG_DLOG(DBG_AMG_AGGLOMERATION, 1, "Minimal nodes over all processes is " << m_levelInformation[level].get_nr_of_nodes_min()
 			<< " < " << m_minNodesOnOneProcessor << ": agglomerating.\n"
 			<< pcl::ToString(A.layouts()->proc_comm()));
 
@@ -344,7 +377,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 
 	if(pcl::ProcRank() == pc.get_proc_id(0))
 	{
-		UG_DLOG(DBG_AMG_COARSENING, 2, "Receiving interface information.\n");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "Receiving interface information.\n");
 
 		// receive interface information and
 		typedef std::map<int, BinaryBuffer> BufferMap;
@@ -372,7 +405,8 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 		std::vector<std::map<int, size_t> > connections;
 		connections.resize(pc.size());
 
-		sizes[0] = A.num_rows();
+		sizes[0] = m_levelInformation[level].get_nr_of_master_nodes();
+		//sizes[0] = A.num_rows();
 		for(IndexLayout::const_iterator iter = A.layouts()->master().begin(); iter != A.layouts()->master().end(); ++iter)
 		{
 			size_t s = A.layouts()->master().interface(iter).size();
@@ -399,15 +433,15 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 			}
 		}
 
-		IF_DEBUG(DBG_AMG_COARSENING, 2)
+		IF_DEBUG(DBG_AMG_AGGLOMERATION, 2)
 		{
 			for(size_t i=0; i<pc.size(); i++)
 			{
-				UG_DLOG(DBG_AMG_COARSENING, 2, "Processor nr. " << i << " has PID " << pc.get_proc_id(i) << ", " << sizes[i] << " nodes and connections to ");
+				UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "Processor nr. " << i << " has PID " << pc.get_proc_id(i) << ", " << sizes[i] << " nodes and connections to ");
 				for(std::map<int, size_t>::iterator it = connections[i].begin(); it != connections[i].end(); ++it){
-					UG_DLOG(DBG_AMG_COARSENING, 2, "processor nr. " << (*it).first << " PID " << pc.get_proc_id((*it).first) << " (" << (*it).second << " connections) ");
+					UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "processor nr. " << (*it).first << " PID " << pc.get_proc_id((*it).first) << " (" << (*it).second << " connections) ");
 				}
-				UG_DLOG(DBG_AMG_COARSENING, 2, "\n");
+				UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "\n");
 			}
 		}
 
@@ -456,9 +490,11 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 	}
 	else
 	{
-		UG_DLOG(DBG_AMG_COARSENING, 2, "Sending interface information.\n");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "Sending interface information.\n");
 		BinaryBuffer sstream;
-		Serialize(sstream, A.num_rows());
+		size_t s = m_levelInformation[level].get_nr_of_master_nodes();
+		//s = A.num_rows();
+		Serialize(sstream, s);
 		for(IndexLayout::const_iterator iter = A.layouts()->master().begin(); iter != A.layouts()->master().end(); ++iter)
 		{
 			int pid = A.layouts()->master().proc_id(iter);
@@ -467,7 +503,7 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 			Serialize(sstream, pid);
 			Serialize(sstream, s);
 
-			UG_DLOG(DBG_AMG_COARSENING, 2, "Sending " << s << " bytes to processor " << pid << ".\n");
+			UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "Sending " << s << " bytes to processor " << pid << ".\n");
 		}
 		communicator.send_raw(pc.get_proc_id(0), sstream.buffer(), sstream.write_pos(), false);
 		communicator.communicate();

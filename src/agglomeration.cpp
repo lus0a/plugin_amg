@@ -19,7 +19,7 @@ namespace ug
 
 /// \addtogroup plugins_amg
 /// \{
-extern DebugID DBG_AMG_COARSENING; // SetDebugLevel(debugID.RSAMG.Agglomeration, 0)
+extern DebugID DBG_AMG_AGGLOMERATION; // SetDebugLevel(debugID.RSAMG.Agglomeration, 0)
 
 struct supernode
 {
@@ -36,24 +36,24 @@ struct supernode
 
 	void print()
 	{
-		UG_DLOG(DBG_AMG_COARSENING, 4, " size: " << size << "\n components: ")
-		for(size_t i=0; i<components.size(); i++) UG_DLOG(DBG_AMG_COARSENING, 4, components[i] << " ");
-		UG_DLOG(DBG_AMG_COARSENING, 4, "\n");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 4, " size: " << size << "\n components: ")
+		for(size_t i=0; i<components.size(); i++) UG_DLOG(DBG_AMG_AGGLOMERATION, 4, components[i] << " ");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "\n");
 	}
 	void print(std::vector<supernode> &supernodes)
 	{
 		print();
-		UG_DLOG(DBG_AMG_COARSENING, 4, " connections to: ");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 4, " connections to: ");
 		for(size_t i=0; i<connections.size(); i++)
 		{
 			size_t j = connections[i];
 			UG_ASSERT(supernodes[j].size != -1, j);
-			UG_DLOG(DBG_AMG_COARSENING, 4, "{");
+			UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "{");
 			for(size_t k=0; k<supernodes[j].components.size(); k++)
-				UG_DLOG(DBG_AMG_COARSENING, 4, supernodes[j].components[k] << " ");
-			UG_DLOG(DBG_AMG_COARSENING, 4, "} ");
+				UG_DLOG(DBG_AMG_AGGLOMERATION, 4, supernodes[j].components[k] << " ");
+			UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "} ");
 		}
-		UG_DLOG(DBG_AMG_COARSENING, 4, "\n");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "\n");
 	}
 };
 
@@ -87,7 +87,7 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 	size_t smallest;
 	do
 	{
-		UG_DLOG(DBG_AMG_COARSENING, 4, "========================\n");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "========================\n");
 		// get smallest supernode
 		size_t ismallest = 0;
 		smallest = 0;
@@ -95,7 +95,7 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 		for(size_t i=0; i<sizes.size(); i++)
 		{
 			if(supernodes[i].size == -1) continue; // node deleted
-			UG_DLOG(DBG_AMG_COARSENING, 4, i << ":\n");
+			UG_DLOG(DBG_AMG_AGGLOMERATION, 4, i << ":\n");
 			supernodes[i].print(supernodes);
 
 			if(smallest == 0 || supernodes[i].size < (int)smallest)
@@ -114,7 +114,7 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 		// agglomerate with the smallest neighbor connection
 		supernode &snSmallest = supernodes[ismallest];
 
-		UG_DLOG(DBG_AMG_COARSENING, 4, "\nsmallest supernode is " << ismallest << "\n");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "\nsmallest supernode is " << ismallest << "\n");
 		supernodes[ismallest].print(supernodes);
 
 		int iAgglo = snSmallest.connections[0];
@@ -126,7 +126,7 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 		}
 		supernode &snAgglo = supernodes[iAgglo];
 
-		UG_DLOG(DBG_AMG_COARSENING, 4, "\nagglomerating with node " << iAgglo << "\n");
+		UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "\nagglomerating with node " << iAgglo << "\n");
 		supernodes[iAgglo].print(supernodes);
 
 		nrAgglomerated++;
@@ -177,9 +177,9 @@ void EasyAgglomeration(const std::vector<size_t> sizes,
 
 
 	if(cnt==1)
-		{ UG_DLOG(DBG_AMG_COARSENING, 4, "\nOnly one node left. Result\n"); }
+		{ UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "\nOnly one node left. Result\n"); }
 	else
-		{ UG_DLOG(DBG_AMG_COARSENING, 4, "\nSmallest supernode has size " << smallest << " < "
+		{ UG_DLOG(DBG_AMG_AGGLOMERATION, 4, "\nSmallest supernode has size " << smallest << " < "
 				<< preferredSize << " nodes. Result:\n"); }
 	for(size_t i=0; i<sizes.size(); i++)
 	{

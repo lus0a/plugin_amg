@@ -655,6 +655,12 @@ protected:
 	double Dnorm(vector_type &t, size_t level);
 	double Anorm(vector_type &t, size_t level);
 
+	double AnormConst(const vector_type &t, size_t level)
+	{
+		SmartPtr<vector_type> tmp = t.clone();
+		return Anorm(*tmp, level);
+	}
+
 
 private:
 /////// agglomeration ///////
@@ -798,6 +804,11 @@ protected:
 	bool isMergingMaster(size_t level);
 	/// return true if we are neither horizontal master nor slave on this level
 	bool isNotMerging(size_t level);
+
+	bool isMasterBaseLevel(size_t level)
+	{
+		return level == m_usedLevels-1 && isMergingSlave(level) == false;
+	}
 #endif
 
 

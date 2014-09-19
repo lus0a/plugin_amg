@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include "common/util/file_util.h"
 #include "common/util/stringify.h"
-
+#include "lib_algebra/operator/energy_convergence_check.h"
 namespace ug
 {
 
@@ -94,6 +94,8 @@ template<typename TAlgebra>
 bool AMGBase<TAlgebra>::check()
 {
 	vector_type c, d;
+//	UG_LOG_ALL_PROCS("check\n");
+
 	CloneVector(c, levels[0]->corr);
 	CloneVector(d, levels[0]->corr);
 	return check(c, d, true);
@@ -125,6 +127,8 @@ bool AMGBase<TAlgebra>::check(vector_type &c, vector_type &d, bool bRandom)
 	std::vector<checkResult> checkRes(m_usedLevels-1);
 	for(size_t level=0; level<m_usedLevels-1; level++)
 	{
+//		UG_LOG_ALL_PROCS((Stringify() << "level " << level << "\n").str());
+
 		vector_type *pC, *pD;
 
 		if(level==0)
@@ -144,12 +148,12 @@ bool AMGBase<TAlgebra>::check(vector_type &c, vector_type &d, bool bRandom)
 #ifdef UG_PARALLEL
 		if(m_agglomerateLevel==(unsigned int)(-1) && level == m_usedLevels-1)
 		{
-			UG_LOG("breaking2 " << level << "\n");
+//			UG_LOG_ALL_PROCS("breaking2 " << level << "\n");
 			break;
 		}
 		if(levels[level]->bLevelHasMergers)
 		{
-			UG_LOG("level " << level << " has mergers\n");
+			UG_LOG_ALL_PROCS("level " << level << " has mergers\n");
 			if(!bRandom)
 			{
 				gather_vertical(*pD, levels[level]->collD, level, PST_ADDITIVE);
@@ -157,7 +161,7 @@ bool AMGBase<TAlgebra>::check(vector_type &c, vector_type &d, bool bRandom)
 			}
 			if(isMergingSlave(level))
 			{
-				UG_LOG("breaking, because i'm slave on level " << level << "\n");
+//				UG_LOG_ALL_PROCS("breaking, because i'm slave on level " << level << "\n");
 				break;
 			}
 			pD = &levels[level]->collD;
@@ -168,30 +172,32 @@ bool AMGBase<TAlgebra>::check(vector_type &c, vector_type &d, bool bRandom)
 			if(oldOutputProcess == 0 && GetLogAssistant().get_output_process() != pcl::ProcRank()
 				&& pc.get_proc_id(0) == pcl::ProcRank())
 			{
-				//GetLogAssistant().set_output_process(pcl::ProcRank());
-				UG_LOG("Processor " << pcl::ProcRank() << " is now output process.\n");
+				GetLogAssistant().set_output_process(pcl::ProcRank());
+//				UG_LOG_ALL_PROCS("Processor " << pcl::ProcRank() << " is now output process.\n");
 			}
 		}
 #endif
 
-		vector_type d2;
+		vector_type c2, d2;
 		CloneVector(d2, *pD);
+		CloneVector(c2, *pC);
 		d2 = *pD;
+		c2 = *pC;
 
 		UG_LOG("--[[ CHECKING LEVEL" << level << " ]]--\n");
 		if(bRandom)
 		{
 			// Ac = 0
-			pD->set(0.0);
-			pC->set_random(-1.0, 1.0);
+			d2.set(0.0);
+			c2.set_random(-1.0, 1.0);
 			// d = 0 - Ac
-			pA->matmul_minus(*pD, *pC);
+			pA->matmul_minus(d2, c2);
 #ifdef UG_PARALLEL
-			pC->change_storage_type(PST_CONSISTENT);
-			pD->change_storage_type(PST_ADDITIVE);
+			c2.change_storage_type(PST_CONSISTENT);
+			d2.change_storage_type(PST_ADDITIVE);
 #endif
 		}
-		check_level(*pC, *pD, *pA, level, checkRes[level]);
+		check_level(c2, d2, *pA, level, checkRes[level]);
 
 
 		if(!bRandom)
@@ -307,9 +313,15 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 	UG_LOG("\tType    " << "  Iter#     Defect         Rate\n");
 	UG_LOG("\t                 " << std::scientific << firstnorm << "\n");
+	SmartPtr<IConvergenceCheck<vector_type> > pCheckOld = levels[level]->spYConvCheck;
+	levels[level]->spYConvCheck = make_sp(new StdConvCheck<vector_type>(m_iNrOfPreiterationsCheck, m_dPreiterationsMimumDefect, 1e-10, false, true));
+
+	line=__LINE__;
 	for(size_t i=0; i<m_iNrOfPreiterationsCheck; i++)
 	{
+		line=__LINE__;
 		add_correction_and_update_defect2(c, d, *L.pAgglomeratedA, level);
+		line=__LINE__;
 
 		if(m_writeMatrices) writevec(Stringify() << "cc" << i+1, c, level, solution);
 		if(m_writeMatrices) writevec(Stringify() << "c" << i+1, c, level);
@@ -318,20 +330,25 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		n1 = n2;
 		n2 = ConstTwoNorm(d);
 
-		if(n2 < m_dPreiterationsMimumDefect|| (prevrate/ (n2/n1) < 1.01 && prevrate/ (n2/n1) > 0.99) )
+		const double deltaRate=0.005;
+		double rate = n2/n1;
+		d *= 1/n2;
+		c *= 1/n2;
+		n2 = 1.0;
+		if((prevrate/rate < (1+deltaRate) && prevrate/rate > (1-deltaRate)) )
 			break;
 
-		prevrate = n2/n1;
+		prevrate = rate;
 
-		UG_LOG("\tpreIter " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
-				"    " << std::scientific << n2/n1 << "\n");
+		UG_LOG("\tpreIter " << std::setw(4) << i+1 << ":    " << std::scientific << "            " <<
+				"    " << std::scientific << rate << "\n");
 
 /*#ifdef UG_PARALLEL
 		if(level+1 < levels.size() && !levels[level]->bLevelHasMergers)
 #else
 			if(level+1 < levels.size())
 #endif*/
-
+		if(pcl::NumProcs() == 1)
 		{
 			vector_type vH;
 			CloneVector(vH, L.cH);
@@ -353,272 +370,214 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		}
 	}
 
+	levels[level]->spYConvCheck = pCheckOld;
 
 	line=__LINE__;
 	corr.set(0.0);
 
+	double n1A = AnormConst(d, level);
+
 	for(size_t iterations=0; iterations<1; iterations++)
 	{
 
-		double prenorm = ConstTwoNorm(d);
-			UG_LOG("\tdefect below is in relation to " << std::scientific << prenorm << ".\n");
-			UG_LOG("\tType    " << "  Iter#     Defect         Rate            RelDefect \n");
-			//UG_LOG("Prenorm = " << prenorm << "\n");
+			double prenorm = ConstTwoNorm(d);
+				UG_LOG("\tdefect below is in relation to " << std::scientific << prenorm << ".\n");
+				UG_LOG("\tType    " << "  Iter#     Defect         Rate  \n");
+				//UG_LOG("Prenorm = " << prenorm << "\n");
 
-			n1 = ConstTwoNorm(d);
-			n2=n1;
+				n1 = ConstTwoNorm(d);
+				n2=n1;
 
-			if(n1 < 1e-13) reason << "- error too small\n";
+				if(n1 < 1e-13) reason << "- error too small\n";
 
-	//c.set(0.0);
-#ifdef UG_PARALLEL
-	corr.set_storage_type(PST_CONSISTENT);
-#endif
+		//c.set(0.0);
+	#ifdef UG_PARALLEL
+		corr.set_storage_type(PST_CONSISTENT);
+	#endif
 
-	if(m_writeMatrices) writevec(ToString(iterations)+"S0_d_before", d, level);
-	if(m_writeMatrices) writevec(ToString(iterations)+"S0_c_before", c, level, solution);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S0_d_before", d, level);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S0_c_before", c, level, solution);
 
-	// presmooth
-	for(size_t i=0; i < m_numPreSmooth; i++)
-	{
-		L.presmoother->apply_update_defect(corr, d);
-		c += corr;
-		n2 = ConstTwoNorm(d);
-		UG_LOG("\tpreSm   " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
-						"    " << std::scientific << n2/n1 <<
-						"    " << std::scientific << n2/prenorm << "\n");
-		n1 = n2;
-	}
-	line=__LINE__;
-	res.preSmoothing = n2/prenorm;
+		// presmooth
+		for(size_t i=0; i < m_numPreSmooth; i++)
+		{
+			L.presmoother->apply_update_defect(corr, d);
+			c += corr;
+			n2 = ConstTwoNorm(d);
+			UG_LOG("\tpreSm   " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
+							"    " << std::scientific << n2/n1 << "\n");
+			n1 = n2;
+		}
+		line=__LINE__;
+		res.preSmoothing = n2/prenorm;
 
-	if(m_writeMatrices) writevec(ToString(iterations)+"S1_d_presmoothed", d, level);
-	if(m_writeMatrices) writevec(ToString(iterations)+"S1_c_presmoothed", c, level, solution);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S1_d_presmoothed", d, level);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S1_c_presmoothed", c, level, solution);
 
-	if(m_bFSmoothing)
-	{
-		f_smoothing(corr, d, level);
-		c+=corr;
-		n2 = ConstTwoNorm(d);
-		UG_LOG("\tpreFSm  " << std::setw(4) << 0 << ":    " << std::scientific << n2 <<
-								"    " << std::scientific << n2/n1 <<
-								"    " << std::scientific << n2/prenorm << "\n");
-		n1 = n2;
-	}
-	line=__LINE__;
-	res.preFSmoothing = n2/prenorm;
+		if(m_bFSmoothing)
+		{
+			f_smoothing(corr, d, level);
+			c+=corr;
+			n2 = ConstTwoNorm(d);
+			UG_LOG("\tpreFSm  " << std::setw(4) << 0 << ":    " << std::scientific << n2 <<
+									"    " << std::scientific << n2/n1 << "\n");
+			n1 = n2;
+		}
+		line=__LINE__;
+		res.preFSmoothing = n2/prenorm;
 
-	if(m_writeMatrices) writevec(ToString(iterations)+"S1_d_fpresmoothed", d, level);
-	if(m_writeMatrices) writevec(ToString(iterations)+"S1_c_fpresmoothed", c, level, solution);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S1_d_fpresmoothed", d, level);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S1_c_fpresmoothed", c, level, solution);
 
-	vector_type &cH = levels[level]->cH;
-	vector_type &dH = levels[level]->dH;
-	cH.set(0.0);
-	dH.set(0.0);
-#ifdef UG_PARALLEL
-	cH.set_storage_type(PST_CONSISTENT);
-#endif
-	// restrict defect
-	// dH = m_R[level]*d;
-	L.R.apply(dH, d);
+		vector_type &cH = levels[level]->cH;
+		vector_type &dH = levels[level]->dH;
+		cH.set(0.0);
+		dH.set(0.0);
+	#ifdef UG_PARALLEL
+		cH.set_storage_type(PST_CONSISTENT);
+	#endif
+		// restrict defect
+		// dH = m_R[level]*d;
+		L.R.apply(dH, d);
 
-	if(m_writeMatrices) writevec(ToString(iterations)+"S2_dH", dH, level+1);
-	double nH1 = ConstTwoNorm(dH);
-	UG_LOG("\tnorm of dH = " << nH1 << "\n");
+		if(m_writeMatrices) writevec(ToString(iterations)+"S2_dH", dH, level+1);
+		double nH1 = ConstTwoNorm(dH);
+		UG_LOG("\tnorm of dH = " << nH1 << "\n");
 
-	//double preHnorm=nH1;
-	size_t i=0;
-	line=__LINE__;
-#ifdef UG_PARALLEL
-	if(level+1 == m_usedLevels-1 && level+1 != m_agglomerateLevel)
-#else
-	if(level+1 == m_usedLevels-1)
-#endif
-	{
-#if 0
-		// tried to check basesolver here
+		//double preHnorm=nH1;
+		size_t i=0;
+		line=__LINE__;
 
-				AMGLevelType &L = *levels[level+1];
-				matrix_operator_type &A = *L.pA;
-				pcl::InterfaceCommunicator<IndexLayout> &com = A.get_communicator();
+		{
+			//UG_LOG_ALL_PROCS(__LINE__);
+			cH.set(0.0);
+			double pre_nH=nH1;
+			double nH2=nH1;
+			SmartPtr<IConvergenceCheck<vector_type> > pCheckOld = levels[level+1]->spYConvCheck;
+			levels[level+1]->spYConvCheck = make_sp(new StdConvCheck<vector_type>(100, 1e-20, 1e-10, false, true));
+			for(i=0; i<100; i++)
+			{
+				add_correction_and_update_defect(cH, dH, level+1);
+				nH1 = nH2;
+				nH2 = ConstTwoNorm(dH);
+				/*if(i == 0)
+				{	UG_LOG("coarse correction (on coarse) " << i+1 << ": " << nH2/nH1 << " " << nH2/preHnorm << "\n"); }
+				else UG_LOG(".");*/
+				//if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_c_L")).c_str(), cH, level+1);
+				//if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_d_L")).c_str(), dH, level+1);
+				if(nH2/pre_nH < 1e-20 || nH2 < 1e-30)
+					break;
+			}
 
-				if(m_agglomerateLevel == level+1)
-				{
-					// send d -> collD
-					ComPol_VecAdd<vector_type > compolAdd(&dH, &dH);
-					com.send_data(agglomerateSlaveLayout, compolAdd);
-					com.communicate();
+			levels[level+1]->spYConvCheck = pCheckOld;
 
-					ComPol_VecCopy<vector_type> compolCopy(&cH, &cH);
-					com.receive_data(agglomerateSlaveLayout, compolCopy);
-					com.communicate();
+			res.iInnerIterations = i;
+			res.coarseDefect = nH2;
+			res.lastCoarseReduction = nH2/nH1;
 
-					c.set_storage_type(PST_CONSISTENT);
+			UG_LOG("\n\tcoarse correction (on coarse):\n");
+			UG_LOG("\tTook " << i+1 << " cycles to reduce by " << nH2/pre_nH << " . last reduction was " << nH2/nH1 <<  "\n");
 
-					A.matmul_minus(dH, cH);
-					return true;
-				}
-				else
-				{
-					L.collD.set(0.0);
-					for(size_t i=0; i<dH.size(); i++)
-						L.collD[i] = dH[i];
 
-					L.collC.set_storage_type(PST_CONSISTENT);
-					L.collD.set_storage_type(PST_ADDITIVE);
-					// send d -> collD
-					ComPol_VecAdd<vector_type > compolAdd(&L.collD, &dH);
-					com.receive_data(L.agglomerateMasterLayout, compolAdd);
-					com.communicate();
-
-					L.collC.set(0.0);
-					add_correction_and_update_defect2(L.collC, L.collD, level+1);
-
-					// send collC -> c
-					ComPol_VecCopy<vector_type> compolCopy(&cH, &L.collC);
-					com.send_data(L.agglomerateMasterLayout, compolCopy);
-					com.communicate();
-
-					for(size_t i=0; i<cH.size(); i++)
-						cH[i] = L.collC[i];
-					cH.set_storage_type(PST_CONSISTENT);
-					A.matmul_minus(dH, cH); // cannot use collD, because collD is not additive.
-					return true;
-				}
+			/*cH.set(0.0);
+			for(i=0; i<100; i++)
+			{
+				for(int j=0; j< m_cycleType; j++)
+					add_correction_and_update_defect(cH, dH, level+1);
 
 				double nH2 = ConstTwoNorm(dH);
-				UG_LOG("\tbase solver reduced by " << nH2/nH1 << " (on coarse)" << std::endl);
-#else
-		add_correction_and_update_defect(cH, dH, level+1);
-#endif
-		double nH2 = ConstTwoNorm(dH);
-		UG_LOG("\tbase solver reduced by " << nH2/nH1 << " (on coarse)" << std::endl);
+				if(i < 6)
+				{	UG_LOG("\tcoarse correction (on coarse) " << i+1 << ": " << nH2/nH1 << "\n"); nH1 = nH2; }
+				if(nH2/preHnorm < 0.01) { UG_LOG("coarse solver reduced by 0.01 in iteration " << i+1 << std::endl); break; }
+			}*/
+		}
+
 		line=__LINE__;
-		res.coarseDefect = nH2;
-		res.lastCoarseReduction = nH2/nH1;
-	}
-	else
-	{
-		//UG_LOG_ALL_PROCS(__LINE__);
-		cH.set(0.0);
-		double pre_nH=nH1;
-		double nH2=nH1;
-		for(i=0; i<100; i++)
-		{
-			add_correction_and_update_defect(cH, dH, level+1);
-			nH1 = nH2;
-			nH2 = ConstTwoNorm(dH);
-			/*if(i == 0)
-			{	UG_LOG("coarse correction (on coarse) " << i+1 << ": " << nH2/nH1 << " " << nH2/preHnorm << "\n"); }
-			else UG_LOG(".");*/
-			//if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_c_L")).c_str(), cH, level+1);
-			//if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_d_L")).c_str(), dH, level+1);
-			if(nH2/pre_nH < 1e-20 || nH2 < 1e-30)
-				break;
-		}
-		res.iInnerIterations = i;
-		res.coarseDefect = nH2;
-		res.lastCoarseReduction = nH2/nH1;
+		// interpolate correction
+		// corr = m_P[level]*cH
+		if(m_writeMatrices) writevec(ToString(iterations)+"S3_dH_solved", dH, level+1);
+		line=__LINE__;
+				if(m_writeMatrices) writevec(ToString(iterations)+"S3_cH_solved", cH, level+1);
+				line=__LINE__;
 
-		UG_LOG("\n\tcoarse correction (on coarse):\n");
-		UG_LOG("\tTook " << i+1 << " cycles to reduce by " << nH2/pre_nH << " . last reduction was " << nH2/nH1 <<  "\n");
+				L.P.apply(corr, cH);
+				line=__LINE__;
 
+		if(m_writeMatrices) writevec(ToString(iterations)+"S3_corr_on_fine", corr, level);
 
-		/*cH.set(0.0);
-		for(i=0; i<100; i++)
-		{
-			for(int j=0; j< m_cycleType; j++)
-				add_correction_and_update_defect(cH, dH, level+1);
+	#ifdef UG_PARALLEL
+		cH.set_storage_type(PST_CONSISTENT);
+	#endif
 
-			double nH2 = ConstTwoNorm(dH);
-			if(i < 6)
-			{	UG_LOG("\tcoarse correction (on coarse) " << i+1 << ": " << nH2/nH1 << "\n"); nH1 = nH2; }
-			if(nH2/preHnorm < 0.01) { UG_LOG("coarse solver reduced by 0.01 in iteration " << i+1 << std::endl); break; }
-		}*/
-	}
-
-	line=__LINE__;
-	// interpolate correction
-	// corr = m_P[level]*cH
-	if(m_writeMatrices) writevec(ToString(iterations)+"S3_dH_solved", dH, level+1);
-	if(m_writeMatrices) writevec(ToString(iterations)+"S3_cH_solved", cH, level+1);
-	L.P.apply(corr, cH);
-	if(m_writeMatrices) writevec(ToString(iterations)+"S3_corr_on_fine", corr, level);
-
-#ifdef UG_PARALLEL
-	cH.set_storage_type(PST_CONSISTENT);
-#endif
-
-	// add coarse grid correction to level correction
-	line=__LINE__;
-	c += corr;
-
-	//update defect
-	// d = d - Ah*corr
-	A.matmul_minus(d, corr);
-	line=__LINE__;
-	n2 = ConstTwoNorm(d);
-	UG_LOG("\tcomplete coarse correction " << i+1 << ": " << n2/prenorm << "\t" <<n2/n1 << "\n");	n1 = n2;
-	res.coarseCorrection = n2/prenorm;
-
-	if(m_writeMatrices) writevec(ToString(iterations)+"S4_d_coarseCorrected", d, level);
-	if(m_writeMatrices) writevec(ToString(iterations)+"S4_c_coarseCorrected", c, level, solution);
-
-
-	// post f-smoothing
-	if(m_bFSmoothing)
-	{
-		f_smoothing(corr, d, level);
-		c+=corr;
-	}
-	n2 = ConstTwoNorm(d);
-	line=__LINE__;
-	UG_LOG("\tpostFSm " << std::setw(4) << 0 << ":    " << std::scientific << n2 <<
-									"    " << std::scientific << n2/n1 <<
-									"    " << std::scientific << n2/prenorm << "\n");
-	res.postFSmoothing = n2/prenorm;
-	line=__LINE__;
-	if(m_writeMatrices) writevec(ToString(iterations)+"S5_d_fpost", d, level);
-	if(m_writeMatrices) writevec(ToString(iterations)+"S5_c_fpost", c, level, solution);
-
-	// postsmooth
-	for(size_t i=0; i < m_numPostSmooth; i++)
-	{
-		L.postsmoother->apply_update_defect(corr, d);
+		// add coarse grid correction to level correction
+		line=__LINE__;
 		c += corr;
-		n1 = n2;
+
+		//update defect
+		// d = d - Ah*corr
+		A.matmul_minus(d, corr);
+		line=__LINE__;
 		n2 = ConstTwoNorm(d);
-		UG_LOG("\tpostSm  " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
-								"    " << std::scientific << n2/n1 <<
-								"    " << std::scientific << n2/prenorm << "\n");
-	}
+		UG_LOG("\tcomplete coarse correction " << i+1 << ": " << n2/prenorm << "\t" <<n2/n1 << "\n");	n1 = n2;
+		res.coarseCorrection = n2/prenorm;
 
-	res.postSmoothing = n2/prenorm;
+		if(m_writeMatrices) writevec(ToString(iterations)+"S4_d_coarseCorrected", d, level);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S4_c_coarseCorrected", c, level, solution);
 
-	line=__LINE__;
-	if(res.postSmoothing > 0.1)
-	{
-		UG_LOG("\n ERROR: Level " << level << " not working: total correction is " << res.postSmoothing << "\n");
 
-		if(res.preSmoothing > 0.99)
-		{	UG_LOG(" - presmoother not working (reduction rate " << res.preSmoothing << ")\n"); }
-		if(res.lastCoarseReduction > 0.2 || res.coarseDefect > 1e-10)
+		// post f-smoothing
+		if(m_bFSmoothing)
 		{
-			UG_LOG(" - lower level not working (done " << res.iInnerIterations << " iterations):\n");
-			if(res.lastCoarseReduction > 0.2) { UG_LOG("  - bad convergence rate (" << res.lastCoarseReduction << ")\n"); }
-			if(res.coarseDefect > 1e-8) { UG_LOG("  - coarse reduction not sufficient (" << res.coarseDefect << ")\n"); }
+			f_smoothing(corr, d, level);
+			c+=corr;
 		}
-	}
+		n2 = ConstTwoNorm(d);
+		line=__LINE__;
+		UG_LOG("\tpostFSm " << std::setw(4) << 0 << ":    " << std::scientific << n2 <<
+										"    " << std::scientific << n2/n1 << "\n");
+		res.postFSmoothing = n2/prenorm;
+		line=__LINE__;
+		if(m_writeMatrices) writevec(ToString(iterations)+"S5_d_fpost", d, level);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S5_c_fpost", c, level, solution);
+
+		// postsmooth
+		for(size_t i=0; i < m_numPostSmooth; i++)
+		{
+			L.postsmoother->apply_update_defect(corr, d);
+			c += corr;
+			n1 = n2;
+			n2 = ConstTwoNorm(d);
+			UG_LOG("\tpostSm  " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
+									"    " << std::scientific << n2/n1 << "\n");
+		}
+
+		res.postSmoothing = n2/prenorm;
+
+		UG_LOG("Total Correction in A-Norm: " << AnormConst(d, level)/n1A << "\n");
+		line=__LINE__;
+		if(res.postSmoothing > 0.1)
+		{
+			UG_LOG("\n ERROR: Level " << level << " not working: total correction is " << res.postSmoothing << "\n");
+
+			if(res.preSmoothing > 0.99)
+			{	UG_LOG(" - presmoother not working (reduction rate " << res.preSmoothing << ")\n"); }
+			if(res.lastCoarseReduction > 0.2 || res.coarseDefect > 1e-10)
+			{
+				UG_LOG(" - lower level not working (done " << res.iInnerIterations << " iterations):\n");
+				if(res.lastCoarseReduction > 0.2) { UG_LOG("  - bad convergence rate (" << res.lastCoarseReduction << ")\n"); }
+				if(res.coarseDefect > 1e-8) { UG_LOG("  - coarse reduction not sufficient (" << res.coarseDefect << ")\n"); }
+			}
+		}
 
 
-	double postnorm = ConstTwoNorm(d);
-	UG_LOG(" Level " << level << " reduction: " << postnorm/prenorm << std::endl);
-	line=__LINE__;
-	if(m_writeMatrices) writevec(ToString(iterations)+"S5_d_postsmoothed", d, level);
-	if(m_writeMatrices) writevec(ToString(iterations)+"S5_c_postsmoothed", c, level, solution);
+		double postnorm = ConstTwoNorm(d);
+		UG_LOG(" Level " << level << " reduction: " << postnorm/prenorm << std::endl);
+		line=__LINE__;
+		if(m_writeMatrices) writevec(ToString(iterations)+"S5_d_postsmoothed", d, level);
+		if(m_writeMatrices) writevec(ToString(iterations)+"S5_c_postsmoothed", c, level, solution);
 
-	UG_LOG(" Postnorm = " << postnorm << "\n\n");
-	res.reduction = postnorm/prenorm;
+		UG_LOG(" Postnorm = " << postnorm << "\n\n");
+		res.reduction = postnorm/prenorm;
 	}
 
 

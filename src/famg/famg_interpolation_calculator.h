@@ -28,7 +28,7 @@
 
 #define FAMG_SCALING
 #define FAMG_FULL_BLOCK
-#define FAMG_USE_DIRCHLET_AS_PARENTS 0
+#define FAMG_USE_DIRCHLET_AS_PARENTS 1
 
 #define FAMG_FULL_BLOCK
 
@@ -562,8 +562,8 @@ public:
 
 		if(is_watch_node(i))
 		{
-				double bestF = get_all_neighbors_interpolation(i);
-				UG_LOG("Best F is " << get_all_neighbors_interpolation(i) << "\n");
+			//double bestF = get_all_neighbors_interpolation(i);
+			UG_LOG("Best F is " << get_all_neighbors_interpolation(i) << "\n");
 		}
 
 

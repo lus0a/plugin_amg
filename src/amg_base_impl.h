@@ -679,7 +679,9 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 
 	if(level == m_usedLevels-1)
 	{
-		solve_on_base(c, d, level);
+		levels[level]->corr.set(0.0);
+		solve_on_base(levels[level]->corr, d, level);
+		c += levels[level]->corr;
 		return true;
 	}
 
@@ -758,24 +760,25 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect2(vector_type &c, vector
 
 	// apply lmgc on coarser nodes
 
-	if(level+1 == m_usedLevels-1)
-		add_correction_and_update_defect(cH, dH, level+1);
-	else
 	{
 		// all V/W/Y-Cycles are handled here
 		// V-Cycle: spYConvCheck = FixedConvergenceCheck(1)
 		// W-Cycle: spYConvCheck = FixedConvergenceCheck(2)
 		// Y-Cycle: spYConvCheck = StdConvergenceCheck(20, 1e-24, 0.01)
 		SmartPtr<IConvergenceCheck<vector_type> > pCheck = levels[level]->spYConvCheck;
+		pCheck->set_offset(level);
+		pCheck->set_name((Stringify() << "Cycle " << level).str());
 	  //SmartPtr<IConvergenceCheck<vector_type> > pCheck(new FixedConvergenceCheck<vector_type>(1));
 		//FixedConvergenceCheck<vector_type> pCheck(m_iYCycle);
 		pCheck->start(dH);
 
-		while(!pCheck->iteration_ended())
+		//UG_LOG("\n" <<repeat(' ', level+1) << "." <<"\n");
+		do
 		{
 			add_correction_and_update_defect(cH, dH, level+1);
 			pCheck->update(dH);
 		}
+		while(!pCheck->iteration_ended());
 
 		calc_level_conv_rates(pCheck, level+1);
 	}
@@ -955,7 +958,10 @@ template<typename TAlgebra>
 double
 AMGBase<TAlgebra>::Anorm(vector_type &v, size_t level)
 {
-	return ANorm(*levels[level]->pA, v);
+	if(v.size() == levels[level]->pA->num_rows())
+		return ANorm(*levels[level]->pA, v);
+	else
+		return ANorm(*levels[level]->pAgglomeratedA, v);
 }
 
 /*template<typename TAlgebra>

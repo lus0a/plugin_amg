@@ -49,6 +49,10 @@ class AMGLevelInformation
 	{
 		return m_iNrOfNodesSum;
 	}
+	size_t get_nr_of_master_nodes() const
+	{
+		return m_iNrOfNodes;
+	}
 	size_t get_nnz() const
 	{
 		return m_iNNZsSum;
