@@ -313,10 +313,48 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 	UG_LOG("\tType    " << "  Iter#     Defect         Rate\n");
 	UG_LOG("\t                 " << std::scientific << firstnorm << "\n");
+
+
+	// V/W-check
+	{
+		vector_type c2;
+		CloneVector(c2, c);
+		c2 = c;
+		vector_type d2;
+		CloneVector(d2, d);
+		d2 = d;
+
+		line=__LINE__;
+		for(size_t i=0; i<m_iNrOfPreiterationsCheck; i++)
+		{
+			line=__LINE__;
+			add_correction_and_update_defect2(c2, d2, *L.pAgglomeratedA, level);
+			line=__LINE__;
+			n1 = n2;
+			n2 = ConstTwoNorm(d2);
+
+			const double deltaRate=0.005;
+			double rate = n2/n1;
+
+			if((prevrate/rate < (1+deltaRate) && prevrate/rate > (1-deltaRate)) )
+				break;
+
+			prevrate = rate;
+
+			UG_LOG("\tpreIter " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
+					"    " << std::scientific << rate << "\n");
+		}
+	}
+
+	prevrate = 0;
+	n2=firstnorm;
+	n1=n2;
+
 	SmartPtr<IConvergenceCheck<vector_type> > pCheckOld = levels[level]->spYConvCheck;
 	levels[level]->spYConvCheck = make_sp(new StdConvCheck<vector_type>(m_iNrOfPreiterationsCheck, m_dPreiterationsMimumDefect, 1e-10, false, true));
 
 	line=__LINE__;
+	// 2-grid check
 	for(size_t i=0; i<m_iNrOfPreiterationsCheck; i++)
 	{
 		line=__LINE__;
@@ -340,7 +378,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 		prevrate = rate;
 
-		UG_LOG("\tpreIter " << std::setw(4) << i+1 << ":    " << std::scientific << "            " <<
+		UG_LOG("\t2-preIter " << std::setw(4) << i+1 << ":    " << std::scientific << "          " <<
 				"    " << std::scientific << rate << "\n");
 
 /*#ifdef UG_PARALLEL
@@ -370,7 +408,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		}
 	}
 
-	levels[level]->spYConvCheck = pCheckOld;
+	//levels[level]->spYConvCheck = pCheckOld;
 
 	line=__LINE__;
 	corr.set(0.0);
@@ -454,20 +492,42 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 			double pre_nH=nH1;
 			double nH2=nH1;
 			SmartPtr<IConvergenceCheck<vector_type> > pCheckOld = levels[level+1]->spYConvCheck;
-			levels[level+1]->spYConvCheck = make_sp(new StdConvCheck<vector_type>(100, 1e-20, 1e-10, false, true));
+			levels[level+1]->spYConvCheck = make_sp(new StdConvCheck<vector_type>(100, 1e-20, 1e-10, false, false));
+			//levels[level+1]->spYConvCheck = make_sp(new StdConvCheck<vector_type>(100, 1e-20, 1e-10, true, true));
+
+#if 0
+			SmartPtr<IConvergenceCheck<vector_type> > pCheck = make_sp(new StdConvCheck<vector_type>(100, 1e-20, 1e-10, true, true));
+			pCheck->set_offset(level);
+			pCheck->set_name((Stringify() << "Cycle " << level).str());
+		  //SmartPtr<IConvergenceCheck<vector_type> > pCheck(new FixedConvergenceCheck<vector_type>(1));
+			//FixedConvergenceCheck<vector_type> pCheck(m_iYCycle);
+			pCheck->start(dH);
+
+			//UG_LOG("\n" <<repeat(' ', level+1) << "." <<"\n");
+			do
+			{
+				add_correction_and_update_defect(cH, dH, level+1);
+				pCheck->update(dH);
+			}
+			while(!pCheck->iteration_ended());
+
+
+#else
 			for(i=0; i<100; i++)
 			{
 				add_correction_and_update_defect(cH, dH, level+1);
 				nH1 = nH2;
 				nH2 = ConstTwoNorm(dH);
+				//UG_LOG("coarse correction (on coarse) " << i+1 << ": " << nH2/nH1 << " " << nH2 << "\n");
 				/*if(i == 0)
 				{	UG_LOG("coarse correction (on coarse) " << i+1 << ": " << nH2/nH1 << " " << nH2/preHnorm << "\n"); }
 				else UG_LOG(".");*/
-				//if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_c_L")).c_str(), cH, level+1);
-				//if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_d_L")).c_str(), dH, level+1);
-				if(nH2/pre_nH < 1e-20 || nH2 < 1e-30)
+				if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_cH_L")).c_str(), cH, level+1);
+				if(m_writeMatrices) writevec(ToString(iterations)+(std::string("AMG_V")+ToString(i)+std::string("_dH_L")).c_str(), dH, level+1);
+				if(nH2/pre_nH < 1e-12 || nH2 < 1e-12)
 					break;
 			}
+#endif
 
 			levels[level+1]->spYConvCheck = pCheckOld;
 
