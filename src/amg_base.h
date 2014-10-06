@@ -793,6 +793,7 @@ protected:
 	// on level m_agglomerateLevel
 	IndexLayout agglomerateSlaveLayout;
 	size_t m_agglomerateLevel;
+	size_t m_baseLevel;
 
 	// stuff from old level 0 agglomeration
 	pcl::ProcessCommunicator m_emptyPC;

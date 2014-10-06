@@ -3,6 +3,7 @@ namespace ug {
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 {
+	m_baseLevel = level;
 	try{
 	AMG_PROFILE_BEGIN(amg_createDirectSolver);
 

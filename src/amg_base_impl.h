@@ -85,7 +85,8 @@ void AMGBase<TAlgebra>::init_smoother(size_t level)
 {
 	PROFILE_FUNC();
 	try{
-	//if(isMergingSlave(level)) return;
+	if(isMergingSlave(level) || m_baseLevel == level) return;
+
 	AMGLevelType &L = *levels[level];
 	L.presmoother = m_presmoother->clone();
 	L.presmoother->init(L.pAgglomeratedA);
@@ -110,7 +111,8 @@ bool AMGBase<TAlgebra>::init_smoothers()
 		size_t N0 = levels[0]->pA->num_rows();
 		PROGRESS_START(prog, N0, "Creating AMG - Init Smoothers");
 
-		for(size_t level=0; level < my_multigrid_levels(); level++) //my_multigrid_levels(); level++)
+		//for(size_t level=0; level < my_multigrid_levels(); level++) //my_multigrid_levels(); level++)
+		for(size_t level=0; level < levels.size(); level++) //my_multigrid_levels(); level++)
 		{
 			AMGLevelType &L = *levels[level];
 			PROGRESS_UPDATE(prog, N0-L.pA->num_rows());
@@ -225,6 +227,8 @@ bool AMGBase<TAlgebra>::preprocess_create_level(size_t level, double &createAMGl
 	try{
 
 	AMG_PROFILE_FUNC();
+
+	m_baseLevel = -1;
 
 	AMGLevelType &L = *levels[level];
 	L.pAgglomeratedA = L.pA;
