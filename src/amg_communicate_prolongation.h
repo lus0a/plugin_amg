@@ -318,8 +318,9 @@ void AMGBase<TAlgebra>::postset_coarse(ParallelNodes &PN, prolongation_matrix_ty
 
 			if(!PoldIndices.is_isolated(i) && amgnodes[i].is_fine() == false && amgnodes[i].is_dirichlet() == false)
 			{
+				UG_DLOG(DBG_AMG_COMMUNICATE_PROLONGATION, 1, "post-setted " << i << " fine (was " << amgnodes[i] << ")\n");
 				amgnodes.set_fine(i);
-				UG_DLOG(DBG_AMG_COMMUNICATE_PROLONGATION, 1, "post-setted " << i << " fine.\n");
+
 			}
 
 			// this is a prolongation
@@ -328,10 +329,10 @@ void AMGBase<TAlgebra>::postset_coarse(ParallelNodes &PN, prolongation_matrix_ty
 			{
 				// so all connections must be coarse
 				size_t j = it.index();
-				if(amgnodes[j].is_coarse() == false)
+				if(amgnodes[j].is_coarse() == false && amgnodes[j].is_dirichlet() == false)
 				{
+					UG_DLOG(DBG_AMG_COMMUNICATE_PROLONGATION, 1, "post-setted " << i << " coarse (was " << amgnodes[i] << ")\n");
 					amgnodes.external_set_coarse(j);
-					UG_DLOG(DBG_AMG_COMMUNICATE_PROLONGATION, 4, "post-setted " << j << " coarse.\n");
 				}
 			}
 		}
