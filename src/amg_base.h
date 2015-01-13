@@ -824,6 +824,5 @@ protected:
 }// namespace ug
 
 #include "amg_base_impl.h"
-#include "amg_basesolver.h"
 
 #endif // __H__UG__LIB_ALGEBRA__AMG_SOLVER__AMG_BASE_H__
