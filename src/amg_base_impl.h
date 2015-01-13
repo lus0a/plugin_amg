@@ -984,5 +984,7 @@ AMGBase<TAlgebra>::calculate_smoothing_property(vector_type &t)
 #include "amg_agglomeration.h"
 #include "amg_checks.h"
 #include "amg_communicate_prolongation.h"
+#include "amg_basesolver.h"
+
 #endif //  __H__UG__LIB_ALGEBRA__AMG_SOLVER__AMG_BASE_IMPL_H__
 
