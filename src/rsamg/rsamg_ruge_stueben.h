@@ -38,7 +38,7 @@ void AddRSInterpolation(TProlongationMatrix &P, size_t i,
 	double sumInterpolatory=0.0;
 	for(size_t j=0; j<conInterpolatory.size(); j++)
 	{
-		sumInterpolatory+=conInterpolatory[j].value();
+		sumInterpolatory+=amg_diag_value(conInterpolatory[j].value());
 	}
 	const double alpha = (sumNeighbors / sumInterpolatory) / diag * alphaScale;
 	for(size_t j=0; j<conInterpolatory.size(); j++)
