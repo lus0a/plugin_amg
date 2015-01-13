@@ -237,10 +237,11 @@ template<typename TAlgebra>
 template<typename TVector>
 bool AMGBase<TAlgebra>::writevec(std::string filename, const TVector &const_d, size_t level, const TVector *solution)
 {
+	if(m_writeMatrices==false)return true;
 	size_t line=__LINE__;
 	try{
 	AMG_PROFILE_FUNC();
-	UG_ASSERT(m_writeMatrices, "Huhh: writevec without m_writeMatrices?");
+
 
 	line=__LINE__;
 
