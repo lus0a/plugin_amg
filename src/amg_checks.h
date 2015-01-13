@@ -336,13 +336,18 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 			const double deltaRate=0.005;
 			double rate = n2/n1;
 
+			UG_LOG("\tpreIter " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
+								"    " << std::scientific << rate);
 			if((prevrate/rate < (1+deltaRate) && prevrate/rate > (1-deltaRate)) )
+			{
+				UG_LOG(" (stable)\n");
 				break;
+			}
 
+			UG_LOG("\n");
 			prevrate = rate;
 
-			UG_LOG("\tpreIter " << std::setw(4) << i+1 << ":    " << std::scientific << n2 <<
-					"    " << std::scientific << rate << "\n");
+
 		}
 	}
 
@@ -373,13 +378,18 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		d *= 1/n2;
 		c *= 1/n2;
 		n2 = 1.0;
-		if((prevrate/rate < (1+deltaRate) && prevrate/rate > (1-deltaRate)) )
-			break;
-
-		prevrate = rate;
 
 		UG_LOG("\t2-preIter " << std::setw(4) << i+1 << ":    " << std::scientific << "          " <<
-				"    " << std::scientific << rate << "\n");
+				"    " << std::scientific << rate);
+
+		if((prevrate/rate < (1+deltaRate) && prevrate/rate > (1-deltaRate)) )
+		{
+			UG_LOG(" (stable)\n");
+			break;
+		}
+		UG_LOG("\n");
+
+		prevrate = rate;
 
 /*#ifdef UG_PARALLEL
 		if(level+1 < levels.size() && !levels[level]->bLevelHasMergers)
@@ -408,7 +418,6 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		}
 	}
 
-	//levels[level]->spYConvCheck = pCheckOld;
 
 	line=__LINE__;
 	corr.set(0.0);
@@ -417,6 +426,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 	for(size_t iterations=0; iterations<1; iterations++)
 	{
+		UG_LOG("\n");
 
 			double prenorm = ConstTwoNorm(d);
 				UG_LOG("\tdefect below is in relation to " << std::scientific << prenorm << ".\n");
@@ -480,7 +490,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 		if(m_writeMatrices) writevec(ToString(iterations)+"S2_dH", dH, level+1);
 		double nH1 = ConstTwoNorm(dH);
-		UG_LOG("\tnorm of dH = " << nH1 << "\n");
+
 
 		//double preHnorm=nH1;
 		size_t i=0;
@@ -531,12 +541,14 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 
 			levels[level+1]->spYConvCheck = pCheckOld;
 
-			res.iInnerIterations = i;
+			res.iInnerIterations = i+1;
 			res.coarseDefect = nH2;
 			res.lastCoarseReduction = nH2/nH1;
 
-			UG_LOG("\n\tcoarse correction (on coarse):\n");
-			UG_LOG("\tTook " << i+1 << " cycles to reduce by " << nH2/pre_nH << " . last reduction was " << nH2/nH1 <<  "\n");
+			UG_LOG("\tCoarse Correction (on coarse):\n");
+			UG_LOG("\t  Norm of dH before = " << pre_nH << ", dH now = " << res.coarseDefect << "\n");
+			UG_LOG("\t  Took " << res.iInnerIterations << " cycles to reduce by " << res.coarseDefect/pre_nH << "\n");
+			UG_LOG("\t  last reduction was " << res.lastCoarseReduction <<  "\n");
 
 
 			/*cH.set(0.0);
@@ -578,7 +590,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		A.matmul_minus(d, corr);
 		line=__LINE__;
 		n2 = ConstTwoNorm(d);
-		UG_LOG("\tcomplete coarse correction " << i+1 << ": " << n2/prenorm << "\t" <<n2/n1 << "\n");	n1 = n2;
+		UG_LOG("\tcoarse correct : " << n2/prenorm << "    " <<n2/n1 << "\n");	n1 = n2;
 		res.coarseCorrection = n2/prenorm;
 
 		if(m_writeMatrices) writevec(ToString(iterations)+"S4_d_coarseCorrected", d, level);
@@ -640,6 +652,7 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 		res.reduction = postnorm/prenorm;
 	}
 
+	levels[level]->spYConvCheck = pCheckOld;
 
 	}UG_CATCH_THROW(PRETTY_FUNCTION << ", level = " << level << ", failed at line " << line );
 	//return postnorm/prenorm;
