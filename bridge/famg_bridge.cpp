@@ -169,7 +169,11 @@ static void Algebra(Registry& reg, string grp)
 			.add_method("check_testvector",	OVERLOADED_METHOD_PTR(bool, T, check_testvector, (size_t fromlevel)) , "", "fromlevel")
 			.add_method("check_testvector",	OVERLOADED_METHOD_PTR(bool, T, check_testvector, (size_t, size_t)) , "", "fromlevel#tolevel")
 
+			.add_method("set_N2_interpolation", &T::set_N2_interpolation)
+			.add_method("set_full_block_jacobi", &T::set_full_block_jacobi)
+
 			.set_construct_as_smart_pointer(true)
+
 			;
 	}
 	reg.add_class_to_group(string("FAMGPreconditioner").append(suffix), "FAMGPreconditioner", tag);

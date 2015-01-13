@@ -93,6 +93,9 @@ void FAMG<TAlgebra>::set_or_copy(const FAMG<TAlgebra> *parent)
 	SET_OR_COPY(m_iXCCalcInterpolationRoutine, 3);
 	SET_OR_COPY(m_bBeam, false);
 
+	SET_OR_COPY(m_bUseN2Interpolation, false);
+	SET_OR_COPY(m_bFullBlockJacobi, true);
+
 #ifdef UG_PARALLEL
 	SET_OR_COPY(m_pParallelCoarsening, GetColorCoarsening());
 #endif
@@ -114,9 +117,9 @@ std::string FAMG<TAlgebra>::config_string() const
 
 	// coarsening
 
-	ss << "  Injection Restriction = " << (m_bInjectionRestriction ? "[ON]" : "OFF")
+	ss << "  Injection Restriction = " << OnOffString(m_bInjectionRestriction)
 			<< ", submask = " << get_strong_connection_submask_desc()
-			<< ",  m_bIndirectInterpolation = " << (m_bIndirectInterpolation ? "[ON]" : "OFF")
+			<< ",  m_bIndirectInterpolation = " << OnOffString(m_bIndirectInterpolation)
 			<< "\n";
 
 
@@ -126,7 +129,7 @@ std::string FAMG<TAlgebra>::config_string() const
 	ss << "  DeficitSolveTolerance = " << m_dDeficitSolveTolerance << "\n";
 
 	ss << " COARSENING:\n";
-	ss << "  Aggressive Coarsening is " << (m_bAggressiveCoarsening ? "[ON]" : "OFF") << "\n";
+	ss << "  Aggressive Coarsening is " << OnOffString(m_bAggressiveCoarsening) << "\n";
 	if(m_bExternalCoarsening)
 	{
 		ss << "  External Coarsening: StrongConnection = " << m_dStrongConnectionExternal << ", StrongConnectionSub = " << get_strong_connection_submask_desc() << "\n";
@@ -154,6 +157,8 @@ std::string FAMG<TAlgebra>::config_string() const
 	ss << "  Damping for Smoother in interpolation calculation: " << m_dDampingForSmootherInInterpolationCalculation << std::endl;
 	ss << "  max parents: " << m_iMaxParents << ", ";
 	ss << "  H reduce: [ interpolation nodes parameter: " << m_dHReduceInterpolationNodesParameter << ", min parents: " << m_iHReduceMinParents << "]\n";
+	ss << "  Use Neighboorhood 2 Interpolation if necessary: " << OnOffString(m_bUseN2Interpolation) << "\n";
+	ss << "  Use Full Block Jacobi: " << OnOffString(m_bFullBlockJacobi) << "\n";
 
 	ss << " TESTVECTORS:\n";
 	if(m_testvectorsmoother == SPNULL)
@@ -165,7 +170,7 @@ std::string FAMG<TAlgebra>::config_string() const
 			ss << "  No testvector set!!!;\n";
 		else
 			ss << "  TestvectorCalculator: " << ConfigShift(m_testvectorCalculator->config_string()) << "\n";
-	ss << "  UseConstantIfFailed = " << (m_bUseConstantIfFailed?"ON":"OFF") << "\n";
+	ss << "  UseConstantIfFailed = " << OnOffString(m_bUseConstantIfFailed) << "\n";
 	if(m_writeMatrices && m_writeTestvectors)
 		ss << "  Write Testvectors is on.\n";
 

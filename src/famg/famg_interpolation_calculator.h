@@ -30,7 +30,7 @@
 #define FAMG_FULL_BLOCK
 #define FAMG_USE_DIRCHLET_AS_PARENTS 1
 
-#define FAMG_FULL_BLOCK
+
 
 namespace ug
 {
@@ -107,6 +107,8 @@ public:
 		m_bUseConstantIfFailed = famg.m_bUseConstantIfFailed;
 		m_dDeficitSolveTolerance = famg.m_dDeficitSolveTolerance;
 		m_iXCCalcInterpolationRoutine = famg.m_iXCCalcInterpolationRoutine;
+		m_bUseN2Interpolation = famg.m_bUseN2Interpolation;
+		m_bFullBlockJacobi = famg.m_bFullBlockJacobi;
 	}
 
 	void init()
@@ -510,7 +512,11 @@ public:
 		// see local_eigenvalue_test_computation.h
 		//calc_special(i);
 
-		GetNeighborhood(A_OL2, i, onlyN1, onlyN2, bvisited);
+		//GetNeighborhood(A_OL2, i, onlyN1, onlyN2, bvisited);
+		if(m_bUseN2Interpolation)
+			GetNeighborhood(A_OL2, i, onlyN1, onlyN2, onlyN3, bvisited);
+		else
+			GetNeighborhood(A_OL2, i, onlyN1, onlyN2, bvisited);
 		if (onlyN1.size() == 0)
 		{
 			UG_DLOGI(2, "node [" << i << "] has no connections, set as fine\n");
@@ -760,6 +766,8 @@ public:
 		const double aii_bb  = BlockRef(aii, b, b);
 
 		const size_t N = indices.size();
+		//UG_LOGI("KKT = " << KKT.num_rows() << "x" << KKT.num_cols() << " N=" << N << "\n");
+
 		size_t i_index = onlyN1.size();
 		// fill KKT matrix
 		KKT = 0.0;
@@ -843,7 +851,7 @@ public:
 
 			UG_LOG("WARNING: Negative entries at node [" << i << "]: ");
 			for(size_t l=0; l<indices.size(); l++)
-			{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " " << lq[l] << "\n"); }
+			{	UG_LOG("p" << l << " = " << N2[ indices[l] ] << " " << lq[l] << "\n"); }
 			UG_THROW("negative F");
 		}
 		return lF;
@@ -875,7 +883,7 @@ public:
 				{
 					UG_LOG("WARNING: Negative entries at node [" << i << "]: ");
 					for(size_t l=0; l<indices.size(); l++)
-					{	UG_LOG("p" << l << " = " << onlyN1[ indices[l] ] << " "); }
+					{	UG_LOG("p" << l << " = " << N2[ indices[l] ] << " "); }
 					UG_LOG(" solve_KKT: lq[" << k << "] = " << lq[k] << "\n");
 				}
 
@@ -888,9 +896,9 @@ public:
 	/**
 	 * assemble the KKT system from H and solve for a set of interpolation parents
 	 * note that H has local indices 0 to onlyN1.size()-1
-	 * their global indices are k -> onlyN1[k]
+	 * their global indices are k -> N2[k]
 	 * indices is a subset of {0, ..., onlyN1.size()-1} of the local indices,
-	 * so indices[k] has global index onlyN1[indices[k]].
+	 * so indices[k] has global index N2[indices[k]].
 	 * @param i
 	 * @param indices set of parents.
 	 * @param bCalcNegatives
@@ -1316,7 +1324,7 @@ public:
 		csolve_KKT_non_neg++;
 		if(csolve_KKT_non_neg > 20) return -1;
 		set_sizes(indices.size(), tvSize);
-		IFI(UG_LOG("tvSize = " << tvSize << " (");		for(size_t j=0; j<indices.size(); j++)		{ UG_LOG(onlyN1[indices[j]] << " "); }		UG_LOG(")\n");		)
+		IFI(UG_LOG("tvSize = " << tvSize << " (");		for(size_t j=0; j<indices.size(); j++)		{ UG_LOG(N2[indices[j]] << " "); }		UG_LOG(")\n");		)
 		int ret = solve_KKT(i, indices);
 //		UG_LOGI(" ret = " << ret << ": " << Fb[0] << " " << Fb[1] << "\n");
 		if(ret != -1)
@@ -1353,9 +1361,10 @@ public:
 		for(; K>=2; K--)
 		{
 
-			IFI(PRINT_VECTOR(indices, "indices"));
 			set_sizes(K, tvSize);
 			indices.resize(K);
+			IFI(PRINT_VECTOR(indices, "indices"));
+
 			int ret = solve_KKT_get_neg(i, indices, neg);
 			UG_DLOGI(3, "node [" << i << "], K = " << K << " ret = " << ret << " F = " << F << "\n");
 			if(ret == 0)
@@ -1387,10 +1396,9 @@ public:
 
 		for(; K>=2; K--)
 		{
-
-			IFI(PRINT_VECTOR(indices, "indices"));
 			set_sizes(K, tvSize);
 			indices.resize(K);
+			IFI(PRINT_VECTOR(indices, "indices"));
 			int ret = solve_KKT_get_neg(i, indices, neg);
 			UG_DLOGI(3, "node [" << i << "], K = " << K << " ret = " << ret << " F = " << F << "\n");
 			if(ret == 0)
@@ -1548,6 +1556,7 @@ public:
 				solve_KKT_get_neg(i, myNeighbors, neg);
 			}
 		}
+		return 0;
 	}
 
 
@@ -1557,7 +1566,7 @@ public:
 //		UG_LOGI("direct interpolation [" << i << "]\n");
 		AMG_PROFILE_FUNC();
 
-		get_H(i, rating); // todo: not really necessary if coarseNeighbors.size() == 1
+
 /*
 		if(coarseNeighbors.size() == 1)
 		{
@@ -1584,7 +1593,7 @@ public:
 		if(is_watch_node(i))
 		{
 			UG_LOG("sorted strong: ");
-			for(size_t j=0; j<coarseNeighbors.size(); j++) { UG_LOG(onlyN1[coarseNeighbors[j]] << ", "); }
+			for(size_t j=0; j<coarseNeighbors.size(); j++) { UG_LOG(coarseNeighbors[j] << " = " << N2[coarseNeighbors[j]] << ", "); }
 			UG_LOG("\n");
 		}
 		myNeighbors = coarseNeighbors;
@@ -1630,8 +1639,7 @@ public:
 		if(!bSuccess || F > m_delta)
 		{
 			UG_DLOGI(3, "direct_interpolation, had to set node [" << i << "] coarse: F = " << F);
-
-			rating.external_uninterpolateable(i);
+			return false;
 		}
 		else
 		{
@@ -1651,7 +1659,7 @@ public:
 				for(size_t j=0; j<N; j++)
 				{
 					if(BlockNorm(q[j]) < dmax*m_dProlongationTruncation) continue;
-					size_t node = onlyN1[myNeighbors[j]];
+					size_t node = N2[myNeighbors[j]];
 					UG_DLOGI(3, "[" << node << "]: " << q[j] << ", ");
 					P(i, node) = q[j];
 				}
@@ -1668,7 +1676,7 @@ public:
 					for(size_t j=0; j<N; j++)
 					{
 						if(BlockNorm(q[j]) < 1e-2) continue;
-						size_t nodej = onlyN1[myNeighbors[j]];
+						size_t nodej = N2[myNeighbors[j]];
 						if(rating[nodej].is_dirichlet()) continue; // because defect is 0 in those nodes.
 						if(!rating[nodej].is_coarse())
 						{
@@ -1695,7 +1703,7 @@ public:
 					for(size_t j=0; j<N; j++)
 					{
 						if(BlockNorm(q[j]) < 1e-2) continue;
-						size_t nodej = onlyN1[myNeighbors[j]];
+						size_t nodej = N2[myNeighbors[j]];
 						if(rating[nodej].is_dirichlet()) continue; // because defect is 0 in those nodes.
 						if(!rating[nodej].is_coarse()) rating.set_coarse(nodej);
 						P(i, nodej) = q[j];
@@ -1785,17 +1793,19 @@ public:
 
 //		bvisited.resize(0);
 //		bvisited.resize(A.num_rows(), false);
-		GetNeighborhood(A_OL2, i, onlyN1, onlyN2, bvisited);
+		coarseNeighbors.clear();
 
-		for (size_t j = 0; j < onlyN1.size(); j++)
+		for (size_t j = 0; j < interpolSize; j++)
 		{
-			size_t k=onlyN1[j];
+			if(j == onlyN1.size()) continue;
+			size_t k=N2[j];
 			//if (!rating[onlyN1[j]].is_fine()) // && !rating[onlyN1[j]].is_uninterpolateable())
 			if (rating[k].is_interpolateable_from())
 				coarseNeighbors.push_back(j);
 			if (bIndirect && rating[k].is_fine_direct() && rating.i_must_assign(k))
 				coarseNeighbors.push_back(j);
 		}
+
 	}
 
 #if 0
@@ -1863,6 +1873,10 @@ public:
 
 		stdvector<size_t> coarseNeighbors;
 
+
+		GetNeighborhood(A_OL2, i, onlyN1, onlyN2, bvisited);
+
+		get_H(i, rating); // todo: not really necessary if coarseNeighbors.size() == 1
 		get_coarse_neighborhood(A_OL2, rating, i, onlyN1, onlyN2,
 				coarseNeighbors, bvisited, bIndirect);
 
@@ -1879,7 +1893,26 @@ public:
 		{
 			rating.set_coarse(i);
 		}
-		return direct_interpolation(i, P, rating, coarseNeighbors, bIndirect);
+
+
+		bool success = direct_interpolation(i, P, rating, coarseNeighbors, bIndirect);
+
+		if(success == false && m_bUseN2Interpolation)
+		{
+			GetNeighborhood(A_OL2, i, onlyN1, onlyN2, onlyN3, bvisited);
+			get_H(i, rating, true);
+			get_coarse_neighborhood(A_OL2, rating, i, onlyN1, onlyN2,
+				coarseNeighbors, bvisited, bIndirect);
+			success = direct_interpolation(i, P, rating, coarseNeighbors, bIndirect);
+		}
+
+		if(success == false)
+		{
+			rating.external_uninterpolateable(i);
+			return false;
+		}
+
+		return true;
 	}
 
 private:
@@ -1890,7 +1923,7 @@ private:
 	 *
 	 * this function needs onlyN1 and onlyN2 set
 	 */
-	bool get_H(size_t i, FAMGNodes<TPMatrix> &rating)
+	bool get_H(size_t i, FAMGNodes<TPMatrix> &rating, bool bN2Interpolation=false)
 	{
 		TemporaryDebugLevel TDL(LIB_ALG_AMG); IFI(TDL.set(5));
 		TemporaryDebugLevel TDL2(DBG_FAMG_INTERPOLATION); IFI(TDL2.set(6));
@@ -1915,10 +1948,21 @@ private:
 		N2 = onlyN1;
 		N2.push_back(i);
 		N2.insert(N2.end(), onlyN2.begin(), onlyN2.end());
-		PROFILE_END();
+
 
 		PRINT_VECTOR_AMGDEBUG(2, onlyN1, "\nonlyN1");
 		PRINT_VECTOR_AMGDEBUG(2, onlyN2, "\nonlyN2");
+
+		if(bN2Interpolation)
+		{
+			N2.insert(N2.end(), onlyN3.begin(), onlyN3.end());
+			interpolSize = onlyN1.size() + onlyN2.size() + 1;
+			PRINT_VECTOR_AMGDEBUG(2, onlyN3, "\nonlyN3");
+		}
+		else
+			interpolSize = onlyN1.size() + 1;
+		PROFILE_END();
+
 		PRINT_VECTOR_AMGDEBUG(2, N2, "\nN2");
 
 		// 2. get submatrix in A_OL2 on N2
@@ -1993,18 +2037,23 @@ private:
 					UG_LOG(i << " j=" << j << " S(j,j)=" << S(j,j) << "\n");
 		}
 
-		for (size_t j = 0; j < N; j++)
+		if(m_bFullBlockJacobi)
 		{
-#ifdef FAMG_FULL_BLOCK
+			for (size_t j = 0; j < N; j++)
+			{
+					Dinv[j] = S(j,j);
+					Invert(Dinv[j]);
+			}
+		}
+		else
+		{
+			for (size_t j = 0; j < N; j++)
+			{
+				Dinv[j] = 0.0;
+				for (size_t k = 0; k < GetRows(S(j, j)); k++)
+					BlockRef(Dinv[j], k, k) = 1 / BlockRef(S(j, j), k, k);
+			}
 
-			Dinv[j] = S(j,j);
-			Invert(Dinv[j]);
-#else
-			Dinv[j] = 0.0;
-			for (size_t k = 0; k < GetRows(S(j, j)); k++)
-				BlockRef(Dinv[j], k, k) = 1 / BlockRef(S(j, j), k, k);
-
-#endif
 		}
 		PRINT_VECTOR_AMGDEBUG(5, Dinv, "Dinv");
 	}
@@ -2165,22 +2214,26 @@ private:
 	{
 //		PROFILE_FUNC();
 		const size_t N = S.num_rows(); // = N2
-		if (H.num_rows() != onlyN1.size() + 1)
-			H.resize(onlyN1.size() + 1, onlyN1.size() + 1);
 
 		// get H = S' Y S'^T
 		// todo: use symmetric H.
 
-		for (size_t c = 0; c < onlyN1.size() + 1; c++)
-			for (size_t r = c; r < onlyN1.size() + 1; r++)
+
+		if (H.num_rows() != interpolSize)
+			H.resize(interpolSize, interpolSize);
+
+		for (size_t c = 0; c < interpolSize; c++)
+			for (size_t r = c; r < interpolSize; r++)
 				H(r, c) = 0.0;
 
+		// H = S D^{-1} S^T
+		// H_rc = sum_j S_rj D^{-1}_jj S_cj
 		smallmat_type m;
 		for (size_t j = 0; j < N; j++)
-			for (size_t c = 0; c < onlyN1.size() + 1; c++)
+			for (size_t c = 0; c < interpolSize; c++)
 			{
 				AssignMultT(m, Dinv[j], S(c, j));
-				for (size_t r = c; r < onlyN1.size() + 1; r++)
+				for (size_t r = c; r < interpolSize; r++)
 				{
 					// A_ij = B_ik C_kj
 					// M_ij = F_ik A_kj = F_ik B_km C_mj
@@ -2190,8 +2243,8 @@ private:
 				}
 			}
 
-		for (size_t c = 0; c < onlyN1.size() + 1; c++)
-			for (size_t r = c; r < onlyN1.size() + 1; r++)
+		for (size_t c = 0; c < interpolSize; c++)
+			for (size_t r = c; r < interpolSize; r++)
 				AssignT(H(c, r), H(r, c));
 
 		//IFI(H.maple_print("H"));
@@ -2224,7 +2277,7 @@ private:
 		AMG_PROFILE_FUNC();
 
 		UG_ASSERT(S.num_cols() == S.num_rows(), "");
-		UG_ASSERT(S.num_cols() == onlyN1.size()+1+onlyN2.size(), "");
+		//UG_ASSERT(S.num_cols() == onlyN1.size()+1+onlyN2.size(), "");
 
 		if(m_bHAsInverse == false)
 		{
@@ -2259,11 +2312,11 @@ private:
 		localTestvectors.resize(m_testvectors.size());
 		for (size_t k = 0; k < m_testvectors.size(); k++)
 		{
-			localTestvectors[k].resize(onlyN1.size() + 1);
-			localTestvectors[k][onlyN1.size()] = m_testvectors[k][node];
+			localTestvectors[k].resize(interpolSize);
+//			localTestvectors[k][onlyN1.size()] = m_testvectors[k][node];
 
-			for (size_t j = 0; j < onlyN1.size(); j++)
-				localTestvectors[k][j] = m_testvectors[k][onlyN1[j]];
+			for (size_t j = 0; j < interpolSize; j++)
+				localTestvectors[k][j] = m_testvectors[k][N2[j]];
 
 			// todo: localTestvectors in i mit vollem(damp = 1.0) Jacobi glŠtten
 		}
@@ -2273,8 +2326,8 @@ private:
 	{
 		AMG_PROFILE_FUNC();
 		localTestvectors.resize(2);
-		localTestvectors[0].resize(onlyN1.size() + 1);
-		localTestvectors[1].resize(onlyN1.size() + 1);
+		localTestvectors[0].resize(interpolSize);
+		localTestvectors[1].resize(interpolSize);
 
 		size_t level = m_amghelper.positions.size()-1;
 		double x=m_amghelper.positions[level][node][0];
@@ -2452,6 +2505,7 @@ private:
 
 	/// indices which are in distance 2 of i (exactly), so it doesnt contain i or onlyN1.
 	stdvector<size_t> onlyN2;
+	stdvector<size_t> onlyN3;
 
 	/// N2 = {onlyN1, i, onlyN2} 		(in this order!)
 	stdvector<size_t> N2;
@@ -2480,12 +2534,14 @@ private:
 	double m_threeParentsPenalty;
 	size_t m_iMaxParents;
 	bool m_bUseConstantIfFailed;
-
 	size_t m_nrTestvectors;
 
 	const std::vector<levelnode> &debugWatchNodes;
 	double m_dDeficitSolveTolerance;
 	int m_iXCCalcInterpolationRoutine;
+	bool m_bUseN2Interpolation;
+	bool m_bFullBlockJacobi;
+	size_t interpolSize;
 
 	bool is_watch_node(size_t node)
 	{

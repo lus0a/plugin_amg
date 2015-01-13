@@ -72,6 +72,28 @@ void GetNeighborhood(TMatrix &A, size_t node, std::vector<size_t> &onlyN1,
 	CleanupFlagArray(bvisited, onlyN2);
 }
 
+template<typename TMatrix>
+void GetNeighborhood(TMatrix &A, size_t node, std::vector<size_t> &onlyN1,
+		std::vector<size_t> &onlyN2, std::vector<size_t> &onlyN3, std::vector<bool> &bvisited)
+{
+	onlyN1.clear();
+	onlyN2.clear();
+	onlyN3.clear();
+
+	bvisited[node] = true;
+
+	GetNeighborhoodRec(A, node, onlyN1, bvisited);
+	for (size_t i = 0; i < onlyN1.size(); i++)
+		GetNeighborhoodRec(A, onlyN1[i], onlyN2, bvisited);
+	for (size_t i = 0; i < onlyN2.size(); i++)
+		GetNeighborhoodRec(A, onlyN2[i], onlyN3, bvisited);
+	// cleanup
+	bvisited[node] = false;
+	CleanupFlagArray(bvisited, onlyN1);
+	CleanupFlagArray(bvisited, onlyN2);
+	CleanupFlagArray(bvisited, onlyN3);
+}
+
 }
 
 #endif /* NEIGHBORHOOD_H_ */

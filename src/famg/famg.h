@@ -288,6 +288,16 @@ public:
 	void adaptive_filtering(SmartPtr<ILinearOperator<vector_type, vector_type> > linOp, vector_type &x, SmartPtr<IConvergenceCheck<vector_type> > spConvCheck,
 			double expectedRate, SmartPtr<ITestvectorCalculator<TAlgebra> > spTV);
 
+	void set_N2_interpolation(bool b)
+	{
+		m_bUseN2Interpolation = b;
+	}
+
+	void set_full_block_jacobi(bool b)
+	{
+		m_bFullBlockJacobi = b;
+	}
+
 	std::vector<levelnode> debugWatchNodes;
 
 private:
@@ -329,6 +339,7 @@ private:
 	bool m_bUsePrecalculate;
 	bool m_bWriteFValues;
 	bool m_bInjectionRestriction;
+	bool m_bFullBlockJacobi;
 
 	bool m_bXC_new;				///< new strategy, \sa rs_amg_coarsening_new
 	bool m_bLE_XC_Griebel;		///< Griebel LE strategy for neumann-coarsening \sa rs_amg_coarsening_new
@@ -357,6 +368,7 @@ private:
 #endif
 public:
 	size_t m_iMaxParents;
+	bool m_bUseN2Interpolation;
 };
 
 // end group plugins_amg_famg
