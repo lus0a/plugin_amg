@@ -158,10 +158,7 @@ public:
 	 * @param rating used to decide if node can be parent
 	 * @return
 	 */
-	double adjust(double &doo)
-	{
-		if(doo < 0.6 && doo > 0.4) doo = 0.5;
-	}
+
 
 	double max_Fb_delta()
 	{
