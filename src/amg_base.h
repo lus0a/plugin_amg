@@ -467,9 +467,18 @@ public:
 			get_level_information(i)->add_data(sts);
 		ss << sts;
 
-		if(!is_fixed_conv_check())
+		return ss.str();
+	}
+
+	std::string level_conv_rates()
+	{
+		if(is_fixed_conv_check())
+			return "not available for fixed conv check.";
+		else
 		{
+			std::stringstream ss;
 //			double totalCalls = m_vLvlConvRates[0].calls;
+			ss << "Level 0 (cycle)\n";
 			for(size_t i = 1; i<get_used_levels()-1; i++)
 			{
 //				double wSteps = pow(2, i);
@@ -477,8 +486,16 @@ public:
 						" avg gamma: " << m_vLvlConvRates[i].totalSteps/((double)m_vLvlConvRates[i].calls) <<
 						" avg reduction: " << m_vLvlConvRates[i].avgReduction << "\n";
 			}
+			ss << "Level " << get_used_levels()-1 << " (basesolver)\n";
+			return ss.str();
 		}
-		return ss.str();
+
+	}
+	void clear_level_conv_rates()
+	{
+		size_t s = m_vLvlConvRates.size();
+		m_vLvlConvRates.clear();
+		m_vLvlConvRates.resize(s);
 	}
 
 	const AMGLevelInformation *get_level_information(size_t level) const {

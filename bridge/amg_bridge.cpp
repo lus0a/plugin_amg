@@ -128,6 +128,8 @@ static void Algebra(Registry& reg, string grp)
 		.add_method("check_interpolation", &T::check_interpolation, "", "vector#filename")
 
 		.add_method("level_information_str", &T::level_information_str)
+		.add_method("level_conv_rates", &T::level_conv_rates)
+		.add_method("clear_level_conv_rates", &T::clear_level_conv_rates)
 
 		.add_method("init_smoothers", &T::init_smoothers)
 		.add_method("use_checks", &T::use_checks)
@@ -140,6 +142,7 @@ static void Algebra(Registry& reg, string grp)
 
 void RegisterBridge_FAMG(Registry& reg, string grp);
 void RegisterBridge_RSAMG(Registry& reg, string grp);
+//void RegisterBridge_POSAMG(Registry& reg, string grp);
 
 void RegisterBridge_AMG(Registry& reg, string grp)
 {
@@ -160,6 +163,7 @@ void RegisterBridge_AMG(Registry& reg, string grp)
 
 	RegisterBridge_RSAMG(reg, grp);
 	RegisterBridge_FAMG(reg, grp);
+	//RegisterBridge_POSAMG(reg, grp);
 
 	grp.append("/Algebra/Preconditioner");
 
