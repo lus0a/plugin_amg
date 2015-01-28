@@ -1561,7 +1561,7 @@ public:
 			FAMGNodes<TPMatrix> &rating, std::vector<size_t> &coarseNeighbors, bool bIndirect)
 	{
 //		UG_LOGI("direct interpolation [" << i << "]\n");
-		AMG_PROFILE_FUNC();
+//		AMG_PROFILE_FUNC();
 
 
 /*
@@ -2104,7 +2104,7 @@ private:
 
 	void calculate_Sjac_from_Dinv_and_local_A()
 	{
-		AMG_PROFILE_FUNC();
+//		AMG_PROFILE_FUNC();
 		const size_t N = S.num_rows(); // = N2
 		// get S = 1-w D^{-1} A
 		smallmat_type m;
@@ -2273,7 +2273,7 @@ private:
 	void calculate_H_from_local_A(size_t i)
 	{
 		// before this function, S = local A (on only1, i, only2)
-		AMG_PROFILE_FUNC();
+//		AMG_PROFILE_FUNC();
 
 		UG_ASSERT(S.num_cols() == S.num_rows(), "");
 		//UG_ASSERT(S.num_cols() == onlyN1.size()+1+onlyN2.size(), "");
