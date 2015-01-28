@@ -1599,7 +1599,7 @@ public:
 //		reduceToStrong(coarseNeighbors, myNeighbors, 0.7);
 		csolve_KKT_non_neg=0;
 
-		bool bSuccess;
+		bool bSuccess=true;
 		if(m_iXCCalcInterpolationRoutine == 2)
 			bSuccess = (solve_KKT_non_neg2(i, myNeighbors, -1) == 0);
 		else if(m_iXCCalcInterpolationRoutine == 3)
@@ -1608,6 +1608,8 @@ public:
 			bSuccess = (solve_KKT_non_neg4(i, myNeighbors, -1) == 0);
 		else if(m_iXCCalcInterpolationRoutine == 5)
 			bSuccess = (solve_KKT_non_neg5(i, myNeighbors, -1) == 0);
+		else
+			UG_THROW("unknown XCCalcInterpolation routine.");
 
 		if(bSuccess)
 		{
@@ -1968,15 +1970,15 @@ private:
 		S.resize(N2.size(), N2.size());
 		S = 0.0;
 
-		PROFILE_BEGIN(GetLocalMatrix)
+		//PROFILE_BEGIN(GetLocalMatrix)
 		GetLocalMatrix(A_OL2, S, &N2[0], &N2[0]);
-		PROFILE_END_(GetLocalMatrix);
+		//PROFILE_END_(GetLocalMatrix);
 
-		PROFILE_BEGIN(p2)
+		//PROFILE_BEGIN(p2)
 		size_t i_index = onlyN1.size();
 		GetDiagSqrt(aiiSqrt, S(i_index, i_index));
 		GetDiag(aii, S(i_index, i_index));
-		PROFILE_END();
+		//PROFILE_END();
 
 		// make S symmetric
 		/*for(size_t r=0; r<S.num_rows(); r++)
