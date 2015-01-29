@@ -47,6 +47,7 @@ bool AMGBase<TAlgebra>::gather_vertical(const vector_type &vec, vector_type &col
 		bool bRoot = m_agglomerateLevel != level;
 		GatherVectorOnOne(L.agglomerateMasterLayout, agglomerateSlaveLayout, com,
 				collectedVec, vec, type, bRoot);
+		collectedVec.set_storage_type(type);
 	}
 	return true;
 }
@@ -74,10 +75,11 @@ bool AMGBase<TAlgebra>::broadcast_vertical(vector_type &vec, const vector_type &
 	}
 	else
 	{
-
+		/// /!\ does not work with type == PST_ADDITIVE (will throw)
 		bool bRoot = m_agglomerateLevel != level;
 		BroadcastVectorFromOne(L.agglomerateMasterLayout, agglomerateSlaveLayout, com,
 				vec, collectedVec, type, bRoot);
+		vec.set_storage_type(type);
 	}
 	return true;
 }
@@ -150,7 +152,17 @@ bool AMGBase<TAlgebra>::add_correction_and_update_defect(vector_type &c, vector_
 		}
 
 		broadcast_vertical(c, L.collC, level, PST_CONSISTENT);
-		broadcast_vertical(d, L.collD, level, PST_ADDITIVE);
+
+#if 1
+		L.collD.change_storage_type(PST_CONSISTENT);
+		broadcast_vertical(d, L.collD, level, PST_CONSISTENT);
+		d.change_storage_type(PST_ADDITIVE);
+		L.collD.change_storage_type(PST_ADDITIVE);
+#else
+		// this code is NOT working.
+		// broadcast_vertical with PST_ADDITIVE is not possible
+	//	broadcast_vertical(d, L.collD, level, PST_ADDITIVE);
+#endif
 
 		if(m_bDebugWriteAllVectors)
 		{
