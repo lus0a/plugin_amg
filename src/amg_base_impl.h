@@ -258,20 +258,35 @@ bool AMGBase<TAlgebra>::preprocess_create_level(size_t level, double &createAMGl
 	// some AMGs might need data from previous, now agglomerated levels
 	precalc_level(level);
 
+
+
+	// set output process to a process which was not agglomerated.
+	if(oldOutputProcess == 0 && GetLogAssistant().get_output_process() != -1)
+	{
+		if(m_agglomerateLevel == level)
+		{
+			// we got agglomerated. disable output (just set to not-pcl:ProcRank())
+			GetLogAssistant().set_output_process(pcl::ProcRank()+1); // just to someone else not me
+		}
+		else
+		{
+			// we are still computing. we set the output proc to
+			// if we are the 0-th process in the new interfaces,
+			// set us as the new output proc
+			const pcl::ProcessCommunicator &pc = L.pAgglomeratedA->layouts()->proc_comm();
+			if(pc.get_proc_id(0) == pcl::ProcRank())
+			{
+				GetLogAssistant().set_output_process(pcl::ProcRank());
+				UG_LOG("Processor " << pcl::ProcRank() << " is now output process.\n");
+			}
+		}
+	}
+
+	// if agglomerated, end here.
 	if(m_agglomerateLevel == level)
 	{
 		AMG_LOG(0, "Processor " << pcl::ProcRank() << " got agglomerated at level " << level << ".\n");
-		//if(GetLogAssistant().get_output_process() != -1)
-			//GetLogAssistant().set_output_process(pcl::ProcRank()+1);
 		return false;
-	}
-
-	const pcl::ProcessCommunicator &pc = L.pAgglomeratedA->layouts()->proc_comm();
-	if(oldOutputProcess == 0 && GetLogAssistant().get_output_process() != pcl::ProcRank()
-		&& pc.get_proc_id(0) == pcl::ProcRank())
-	{
-		GetLogAssistant().set_output_process(pcl::ProcRank());
-		UG_LOG("Processor " << pcl::ProcRank() << " is now output process.\n");
 	}
 
 #else
@@ -443,7 +458,7 @@ bool AMGBase<TAlgebra>::preprocess(SmartPtr<MatrixOperator<matrix_type, vector_t
 			break;
 	}
 
-	GetLogAssistant().set_output_process(oldOutputProcess);
+	//GetLogAssistant().set_output_process(oldOutputProcess);
 
 	m_usedLevels = level+1;
 #ifdef UG_PARALLEL

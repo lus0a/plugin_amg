@@ -460,6 +460,36 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 		std::vector<std::vector<int> > mergeWith(pc.size());
 		EasyAgglomeration(sizes, connections, mergeWith, m_minNodesOnOneProcessor, m_preferredNodesOnOneProcessor);
 
+		//		for(size_t i=0; i<mergeWith.size(); i++) PRINT_VECTOR(mergeWith[i], "merge with " << i);
+
+		// prevent agglomerating 0 (or the output process)
+		// this prevents a lot of output problems
+		if(mergeWith[0].size() == 1 && mergeWith[0][0] != 0 )
+		{
+			int mt = mergeWith[0][0];
+			// merge list of 0 should be the merge list of mt
+			// replace 0 in this list with mt
+			// (0 should be first)
+			mergeWith[0] = mergeWith[mt];
+			for(size_t i=0; i<mergeWith[0].size(); i++)
+			{
+				if(mergeWith[0][i] == 0)
+					mergeWith[0][i] = mt;
+				else if(mergeWith[0][i] == mt)
+					mergeWith[0][i] = 0;
+			}
+
+			// mt should merge to 0
+			mergeWith[mt].clear();
+			mergeWith[mt].push_back(0);
+
+			// all processes wanted to be merged to mt that the should now merge to 0
+			for(size_t i=0; i<mergeWith.size(); i++)
+				if(mergeWith[i].size() == 1 && mergeWith[i][0] == mt)
+					mergeWith[i][0] = 0;
+		}
+
+//		for(size_t i=0; i<mergeWith.size(); i++) PRINT_VECTOR(mergeWith[i], "merge with " << i);
 
 		for(size_t i=0; i<pc.size(); i++)
 		{
