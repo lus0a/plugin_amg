@@ -234,9 +234,30 @@ bool AMGBase<TAlgebra>::preprocess_create_level(size_t level, double &createAMGl
 	L.pAgglomeratedA = L.pA;
 	calculate_level_information(level, createAMGlevelTiming);
 
-	if(m_levelInformation[level].get_nr_of_nodes() < m_maxNodesForBase
-			|| m_levelInformation[level].get_fill_in() > m_dMaxFillBeforeBase
-			|| level >= m_maxLevels-1)
+	// Check for direct solver condition
+	bool bCreateDirectSolver=false;
+	if(m_levelInformation[level].get_nr_of_nodes() < m_maxNodesForBase)
+	{
+		UG_LOG("AMG: Create Direct solver for " << m_levelInformation[level].get_nr_of_nodes() << " nodes (< m_maxNodesForBase = " << m_maxNodesForBase << "\n");
+		bCreateDirectSolver=true;
+	}
+	else if(m_levelInformation[level].get_fill_in() > m_dMaxFillBeforeBase)
+	{
+		UG_LOG("AMG: Create Direct solver because fill in = " << m_levelInformation[level].get_fill_in() << " > m_dMaxFillBeforeBase = " << m_dMaxFillBeforeBase << "\n");
+		bCreateDirectSolver=true;
+	}
+	else if(level >= m_maxLevels-1)
+	{
+		UG_LOG("AMG: Create Direct solver because level = " << level << " > m_maxLevels = " << m_maxLevels << "\n");
+			bCreateDirectSolver=true;
+	}
+	else if(level > 0 && (m_levelInformation[level].get_nr_of_nodes() == m_levelInformation[level-1].get_nr_of_nodes()) )
+	{
+		UG_LOG("AMG: Create Direct solver for because no coarsening happened.\n");
+		bCreateDirectSolver=true;
+	}
+
+	if(bCreateDirectSolver)
 	{
 		create_direct_solver(level);
 		return false;
