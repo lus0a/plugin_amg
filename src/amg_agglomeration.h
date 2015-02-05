@@ -464,30 +464,36 @@ bool AMGBase<TAlgebra>::agglomerate(size_t level)
 
 		// prevent agglomerating 0 (or the output process)
 		// this prevents a lot of output problems
-		if(mergeWith[0].size() == 1 && mergeWith[0][0] != 0 )
+		if(globalToLocalPID.find(0) != globalToLocalPID.end())
 		{
-			int mt = mergeWith[0][0];
-			// merge list of 0 should be the merge list of mt
-			// replace 0 in this list with mt
-			// (0 should be first)
-			mergeWith[0] = mergeWith[mt];
-			for(size_t i=0; i<mergeWith[0].size(); i++)
+			int id0 = globalToLocalPID[0];
+			if(mergeWith[id0].size() == 1 && mergeWith[id0][0] != id0 )
 			{
-				if(mergeWith[0][i] == 0)
-					mergeWith[0][i] = mt;
-				else if(mergeWith[0][i] == mt)
-					mergeWith[0][i] = 0;
+				int mt = mergeWith[id0][0];
+				// merge list of 0 should be the merge list of mt
+				// replace 0 in this list with mt
+				// (0 should be first)
+				mergeWith[id0] = mergeWith[mt];
+				for(size_t i=0; i<mergeWith[0].size(); i++)
+				{
+					if(mergeWith[id0][i] == id0)
+						mergeWith[id0][i] = mt;
+					else if(mergeWith[id0][i] == mt)
+						mergeWith[id0][i] = id0;
+				}
+
+				// mt should merge to 0
+				mergeWith[mt].clear();
+				mergeWith[mt].push_back(id0);
+
+				// tell all processes wanted to be merged to mt that they should now merge to 0
+				for(size_t i=0; i<mergeWith.size(); i++)
+					if(mergeWith[i].size() == 1 && mergeWith[i][0] == mt)
+						mergeWith[i][0] = id0;
 			}
-
-			// mt should merge to 0
-			mergeWith[mt].clear();
-			mergeWith[mt].push_back(0);
-
-			// all processes wanted to be merged to mt that the should now merge to 0
-			for(size_t i=0; i<mergeWith.size(); i++)
-				if(mergeWith[i].size() == 1 && mergeWith[i][0] == mt)
-					mergeWith[i][0] = 0;
 		}
+		else
+			UG_LOG("ERROR: BUG: 0 not in processes anymore!!!\n");
 
 //		for(size_t i=0; i<mergeWith.size(); i++) PRINT_VECTOR(mergeWith[i], "merge with " << i);
 
