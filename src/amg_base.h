@@ -484,7 +484,7 @@ public:
 //				double wSteps = pow(2, i);
 				ss << "Level " << i <<
 						" avg gamma: " << m_vLvlConvRates[i].totalSteps/((double)m_vLvlConvRates[i].calls) <<
-						" avg reduction: " << m_vLvlConvRates[i].avgReduction << "\n";
+						" avg reduction: " << m_vLvlConvRates[i].avgReduction << " total Steps " << m_vLvlConvRates[i].totalSteps << " calls: " << m_vLvlConvRates[i].calls << "\n";
 			}
 			ss << "Level " << get_used_levels()-1 << " (basesolver)\n";
 			return ss.str();
