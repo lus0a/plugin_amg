@@ -248,7 +248,7 @@ bool AMGBase<TAlgebra>::preprocess_create_level(size_t level, double &createAMGl
 	}
 	else if(level >= m_maxLevels-1)
 	{
-		UG_LOG("AMG: Create Direct solver because level = " << level << " > m_maxLevels = " << m_maxLevels << "\n");
+		UG_LOG("AMG: Create Direct solver because level = " << level+1 << " >= m_maxLevels = " << m_maxLevels << "\n");
 			bCreateDirectSolver=true;
 	}
 	else if(level > 0 && (m_levelInformation[level].get_nr_of_nodes() == m_levelInformation[level-1].get_nr_of_nodes()) )
