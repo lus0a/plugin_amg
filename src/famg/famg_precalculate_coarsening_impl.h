@@ -26,10 +26,13 @@ namespace ug
 template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 {
+	AMG_PROFILE_FUNC();
+	try{
+
 	Stopwatch SW;;
 	if(m_bTiming) { UG_LOG("\ncreating possible parent list... "); SW.start(); }
 
-	AMG_PROFILE_FUNC();
+
 
 	possible_parents.clear();
 	possible_parents.resize(A.num_rows());
@@ -61,6 +64,8 @@ void FAMGLevelCalculator<algebra_type>::calculate_all_possible_parent_pairs()
 	//UG_LOG(HistogrammString(fvalues));
 	//UG_LOG(DistributionPercentage(fvalues));
 	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms");
+
+	}UG_CATCH_THROW_FUNC();
 }
 
 
@@ -68,6 +73,8 @@ template<typename algebra_type>
 void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 {
 	AMG_PROFILE_FUNC();
+	try{
+
 	Stopwatch SW;
 	if(m_bTiming) { UG_LOG("\ncoarsening... "); SW.start(); }
 
@@ -146,6 +153,8 @@ void FAMGLevelCalculator<algebra_type>::precalculate_coarsening()
 	}
 
 	if(m_bTiming) UG_LOG("took " << SW.ms() << " ms.");
+
+	}UG_CATCH_THROW_FUNC();
 }
 
 /*
