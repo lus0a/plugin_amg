@@ -132,7 +132,7 @@ void AMGBase<TAlgebra>:: preprocess_init_positions(matrix_operator_type& mat)
 	update_positions();
 	m_amghelper.parentIndex = &m_parentIndex;
 
-	if(m_writeMatrices && m_dbgDimension == 0)
+	if(needs_positions() && m_dbgDimension == 0)
 	{
 		SmartPtr<IDebugWriter<algebra_type> > dbgW = debug_writer();
 
@@ -1002,6 +1002,80 @@ AMGBase<TAlgebra>::Anorm(vector_type &v, size_t level)
 		return ANorm(*levels[level]->pA, v);
 	else
 		return ANorm(*levels[level]->pAgglomeratedA, v);
+}
+
+
+
+template<typename TAlgebra>
+void AMGBase<TAlgebra>::check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > testvectorCalculator, std::string desc)
+{
+	try{
+	AMG_PROFILE_FUNC();
+#ifdef UG_PARALLEL
+	if(pcl::NumProcs() > 1)
+	{
+		UG_LINE_LOG();
+		UG_LOG("WARNING: NOT AVAILABLE IN PARALLEL");
+		return;
+	}
+#endif
+
+	stdvector< vector_type > testvectors;
+	for(size_t level=0; level < levels.size()-1; level++)
+	{
+		if(levels.size() <= 1) return;
+		testvectors.clear();
+		MathVector<3> *pos = m_amghelper.has_positions() ? m_amghelper.get_positions(level) : NULL;
+
+		testvectorCalculator->calc(levels[level]->pAgglomeratedA, pos, testvectors);
+
+
+		std::string path=std::string("/level") + ToString(level) + "/";
+		CreateDirectory(Stringify() << m_writeMatrixPath << path);
+
+		for(size_t iTV=0; iTV<testvectors.size(); iTV++)
+		{
+			SmartPtr<matrix_type> pA, pAH;
+			pA = levels[level]->pAgglomeratedA;
+			pAH = levels[level+1]->pAgglomeratedA;
+
+			matrix_type &A = *pA;
+			matrix_type &AH = *pAH;
+	//		prolongation_matrix_type &R = levels[level]->R;
+			prolongation_matrix_type &P = levels[level]->P;
+			vector_type tvH, Ptv;
+
+		#ifdef UG_PARALLEL
+			SetParallelVectorAsMatrix(tvH, A, PST_CONSISTENT);
+			SetParallelVectorAsMatrix(Ptv, AH, PST_CONSISTENT);
+		#endif
+			tvH.resize(AH.num_rows());
+			Ptv.resize(A.num_rows());
+
+
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_" << desc << "_" << iTV << "_L" << level << ".vec",
+					testvectors[iTV], pos, m_amghelper.dimension);
+
+			injection(tvH, testvectors[iTV], level);
+
+			P.apply(Ptv, tvH);
+
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_PRinj_" << desc << "_" << iTV << "_L" << level << ".vec",
+														tvH, pos, m_amghelper.dimension);
+
+			VecScaleAdd(Ptv, 1.0, Ptv, -1.0, testvectors[iTV]);
+
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_1-PRinj_" << desc << "_" << iTV << "_L" << level << ".vec",
+								Ptv, pos, m_amghelper.dimension);
+
+			ConnectionViewer::WriteVector(Stringify() << m_writeMatrixPath << path << "AMG_TV_Rinj_" << desc << "_" << iTV << "_L" << level << ".vec",
+											tvH, pos, m_amghelper.dimension);
+
+
+		}
+	}
+
+	}UG_CATCH_THROW("FAMG::check_vector failed");
 }
 
 /*template<typename TAlgebra>
