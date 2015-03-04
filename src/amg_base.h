@@ -40,6 +40,9 @@
 #include "common/util/string_util.h"
 #include "amg_level.h"
 
+#include "famg/testvector_calculator.h"
+
+
 #define PRINTLAYOUT(pc, com, Layout1, Layout2) MyPrintLayout(pc, com, (Layout1), (Layout2), #Layout1, #Layout2)
 
 namespace ug {
@@ -829,7 +832,8 @@ protected:
 	}
 #endif
 
-
+public:
+	void check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > testvectorCalculator, std::string desc);
 
 protected:
 
