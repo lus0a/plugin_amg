@@ -54,21 +54,25 @@ static void Algebra(Registry& reg, string grp)
 	typedef typename algebra_type::vector_type vector_type;
 	typedef typename algebra_type::matrix_type matrix_type;
 
-	reg.add_class_<	RSAMG<algebra_type>, AMGBase<algebra_type> > (string("RSAMGPreconditioner").append(suffix), grp, "Ruge-Stueben Algebraic Multigrid Preconditioner")
-		.add_constructor()
-		.add_method("set_epsilon_strong", &RSAMG<algebra_type>::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong connectivity")
-		.add_method("get_epsilon_strong", &RSAMG<algebra_type>::get_epsilon_strong, "epsilon_strong", "")
-		.add_method("set_epsilon_strong_positive", &RSAMG<algebra_type>::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong connectivity")
-		.add_method("get_epsilon_strong_positive", &RSAMG<algebra_type>::get_epsilon_strong, "epsilon_strong", "")
-		.add_method("set_prolongation_truncation", &RSAMG<algebra_type>::set_prolongation_truncation, "", "prolongation_tr", "sets the truncation of interpolation")
-		.add_method("get_prolongation_truncation", &RSAMG<algebra_type>::get_prolongation_truncation, "prolongation_tr")
+	typedef RSAMG<algebra_type> T;
 
-		.add_method("enable_aggressive_coarsening_A", &RSAMG<algebra_type>::enable_aggressive_coarsening_A, "", "nrOfPaths", "enables aggressive coarsening (A1 or A2) on the first level.")
-		.add_method("disable_aggressive_coarsening", &RSAMG<algebra_type>::disable_aggressive_coarsening, "", "", "disables aggressive coarsening")
-		.add_method("is_aggressive_coarsening", &RSAMG<algebra_type>::is_aggressive_coarsening)
-		.add_method("is_aggressive_coarsening_A", &RSAMG<algebra_type>::is_aggressive_coarsening_A)
+	reg.add_class_<T, AMGBase<algebra_type> > (string("RSAMGPreconditioner").append(suffix), grp, "Ruge-Stueben Algebraic Multigrid Preconditioner")
+		.add_constructor()
+		.add_method("set_epsilon_strong", &T::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong connectivity")
+		.add_method("get_epsilon_strong", &T::get_epsilon_strong, "epsilon_strong", "")
+		.add_method("set_epsilon_strong_positive", &T::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong connectivity")
+		.add_method("get_epsilon_strong_positive", &T::get_epsilon_strong, "epsilon_strong", "")
+		.add_method("set_prolongation_truncation", &T::set_prolongation_truncation, "", "prolongation_tr", "sets the truncation of interpolation")
+		.add_method("get_prolongation_truncation", &T::get_prolongation_truncation, "prolongation_tr")
+
+		.add_method("enable_aggressive_coarsening_A", &T::enable_aggressive_coarsening_A, "", "nrOfPaths", "enables aggressive coarsening (A1 or A2) on the first level.")
+		.add_method("disable_aggressive_coarsening", &T::disable_aggressive_coarsening, "", "", "disables aggressive coarsening")
+		.add_method("is_aggressive_coarsening", &T::is_aggressive_coarsening)
+		.add_method("is_aggressive_coarsening_A", &T::is_aggressive_coarsening_A)
+		.add_method("check_vector", &T::check_vector)
+
 #ifdef UG_PARALLEL
-		.add_method("set_parallel_coarsening", &RSAMG<algebra_type>::set_parallel_coarsening)
+		.add_method("set_parallel_coarsening", &T::set_parallel_coarsening)
 #endif
 		.set_construct_as_smart_pointer(true)
 		;
