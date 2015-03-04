@@ -23,7 +23,7 @@
 #include "../rsamg/rsamg_parallel_coarsening.h"
 #endif
 
-#include "testvector_calculators.h"
+#include "testvector_calculator_impl.h"
 #include "debug_ids.h"
 
 namespace ug{
@@ -231,7 +231,6 @@ public:
 		m_iXCCalcInterpolationRoutine = i;
 	}
 
-	void check_vector(SmartPtr<ITestvectorCalculator<TAlgebra> > testvectorCalculator, std::string desc);
 
 	bool check_testvector(size_t fromlevel, size_t tolevel);
 	bool check_testvector(size_t fromlevel)

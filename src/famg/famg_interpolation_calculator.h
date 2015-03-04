@@ -245,6 +245,14 @@ public:
 				}
 				if(blockSize == 1)
 				{
+					if (F > m_delta)
+						continue;
+
+					//if( !( F > 0.00888 && F < 0.0089 ) ) continue; // nur gerade
+					//if( !( F > 0.035 && F < 0.036 ) ) continue; // nur eck
+					//if( !( F > 0.0168 && F < 0.0170 ) ) continue; // nur haken
+//					if( !( F > 0.024 && F < 0.025 ) ) continue; // nur diagonal
+
 					if ((F < 10 || F < 10*m_delta) && F < total_f_min)
 							total_f_min = F;
 					if (s.F < f_min)
@@ -252,8 +260,7 @@ public:
 						f_min = s.F;
 						i_min = i_neighborpairs.size();
 					}
-					if (F > m_delta)
-						continue;
+
 					i_neighborpairs.push_back(s);
 				}
 				else
@@ -1096,7 +1103,7 @@ public:
 	double H_strong_measure(int j, int b)
 	{
 		size_t i_index = onlyN1.size();
-//		return BlockRef(H(i_index, j), b,b) / BlockRef(H(j, j), b,b);
+		return BlockRef(H(i_index, j), b,b) / BlockRef(H(j, j), b,b);
 		int blockSize = GetRows(H(i_index, j));
 		double m=0;
 		for(b=0; b<blockSize; b++)
@@ -1104,6 +1111,27 @@ public:
 		return m;
 	}
 
+	double H_strong_measure2(int j, int b)
+	{
+		size_t i_index = onlyN1.size();
+		double Hii = BlockRef(H(i_index, i_index), b,b);
+		double Hij = BlockRef(H(i_index, j), b,b);
+		double Hjj = BlockRef(H(j, j), b,b);
+		return Hii+Hij*Hij/Hjj;
+	}
+
+	double H_strong_measure3(int j, int b)
+	{
+		size_t i_index = onlyN1.size();
+		double Hij = BlockRef(H(i_index, j), b,b);
+		return Hij;
+	}
+
+	double H_strong_measure4(int j, int b)
+	{
+		double Hjj = BlockRef(H(j, j), b,b);
+		return Hjj;
+	}
 
 	// select only coarse neighbors w/ sufficiently large couplings
 	template<typename TIndices>
@@ -1202,7 +1230,7 @@ public:
 	 * @param b
 	 */
 
-	void sortByStrength(std::vector<size_t> &ind, int b=-1)
+	void sortByStrength(std::vector<size_t> &ind, size_t i, int b=-1)
 	{
 		strongMeasure.resize(onlyN1.size());
 
@@ -1210,34 +1238,49 @@ public:
 //		double maxVal = 0.0;
 		size_t blockSize=GetRows(H(0,0));
 		// invert with - because bigger is better -> sort is small to big.
-		for (size_t j = 0; j < onlyN1.size(); j++)
+		for (size_t jj = 0; jj < ind.size(); jj++)
 		{
+			size_t j = ind[jj];
 //			UG_LOG("onlyN1 " << j << " = " << onlyN1[j] << "\n");
-			strongMeasure[j] = 0;
+			strongMeasure[jj] = 0;
 			if(b == -1)
 				for(size_t bi=0; bi<blockSize; bi++)
-					strongMeasure[j] -= fabs(H_strong_measure(j, bi));
+					strongMeasure[jj] += H_strong_measure(j, bi);
 			else
-				strongMeasure[j] = -fabs(H_strong_measure(j, b));
+				strongMeasure[jj] = H_strong_measure(j, b);
 		}
 
-//		UG_LOG("Strong M easures:\n");
-//		PRINT_VECTOR(ind, "ind");
-//		for(size_t i=0; i<ind.size(); i++)
-//			UG_LOG(onlyN1[ind[i]] << " = " << strongMeasure[ind[i]] << "\n");
-		std::sort(ind.begin(), ind.end(), CompareIndicesBy(strongMeasure));
+		if(is_watch_node(i))
+		{
+			UG_LOG("Strong M easures:\n");
+			for(size_t j=0; j<ind.size(); j++)
+			{
+				UG_LOG((Stringify() << std::scientific << onlyN1[ind[j]] << " = " << strongMeasure[j] << "\n").str());
+
+			}
+
+			size_t i_index = onlyN1.size();
+			for(size_t j=0; j<onlyN1.size(); j++)
+				UG_LOG(onlyN1[j] << ": strong measure1: " << H_strong_measure(ind[j], 0) << "  strong measure2: " << H_strong_measure2(ind[j], 0) <<
+						" strong measure3: " << H_strong_measure3(ind[j], 0) <<
+						" strong measure4: " << H_strong_measure4(ind[j], 0) << "\n");
+		}
+
+		std::sort(ind.begin(), ind.end(), CompareIndicesReversedBy(strongMeasure));
+
+
 	}
 
 	/**
 	 * @param ind				index in onlyN1 -> onlyN1[ind[i]] is global index
 	 * @param b
 	 */
-	void sortByStrength1(std::vector<size_t> &ind, int b=0)
+	void sortByStrength1(std::vector<size_t> &ind, size_t i, int b=0)
 	{
 		ind.resize(onlyN1.size());
 		for(size_t i=0; i<onlyN1.size(); i++)
 			ind[i] = i;
-		sortByStrength(ind, b);
+		sortByStrength(ind, i, b);
 	}
 
 	void getAllStrong(size_t i, std::vector<size_t> &res, double tol, int nnodes=1)
@@ -1267,7 +1310,7 @@ public:
 	 * our current approach is to sort the coarse neighbors depending on their strong-connection-measure
 	 * and from this list select 2, 3, and so on.
 	 */
-#if 0
+//#if 0
 	void reduceToStrong_H_strong_measure(const std::vector<size_t> &coarseNeighbors,
 			std::vector<size_t> &strongNeighbors, double eps, int b=0)
 	{
@@ -1283,20 +1326,29 @@ public:
 				strongNeighbors.push_back(coarseNeighbors[j]);
 	}
 
-	void reduceToStrong_BlockNorm(const std::vector<size_t> &coarseNeighbors,
+	void reduceToStrong_BlockNorm(size_t i, const std::vector<size_t> &coarseNeighbors,
 			std::vector<size_t> &strongNeighbors, double eps)
 	{
-		// determine maximum among coarse neighbors
-		double maxVal = BlockNorm(H(coarseNeighbors[0],coarseNeighbors[0]));
-		for (size_t j = 1; j < coarseNeighbors.size(); j++)
-			maxVal = std::max(BlockNorm(H(coarseNeighbors[j], coarseNeighbors[j])), maxVal);
 
+		strongNeighbors.clear();
+		// determine maximum among coarse neighbors
+//		double maxVal = BlockNorm(A_OL2(i,coarseNeighbors[0]));
+//		for (size_t j = 1; j < coarseNeighbors.size(); j++)
+//			maxVal = std::max(BlockNorm(A_OL2(i, coarseNeighbors[j])), maxVal);
+		double maxVal = -BlockRef(A_OL2(i,onlyN1[coarseNeighbors[0]]), 0, 0);
+		for (size_t j = 1; j < coarseNeighbors.size(); j++)
+			maxVal = std::max(-BlockRef(A_OL2(i, onlyN1[coarseNeighbors[j]]), 0, 0), maxVal);
+		IFI(UG_LOG("maxVal = " << maxVal << "\n"));
 		// select strongly coupled coarse neighbors
 		for (size_t j = 0; j < coarseNeighbors.size(); j++)
-			if (BlockNorm(H(coarseNeighbors[j], coarseNeighbors[j])) >= eps * maxVal)
+		{
+			IFI(UG_LOG(onlyN1[coarseNeighbors[j]] << " " << coarseNeighbors[j] << " " << BlockRef(A_OL2(i, onlyN1[coarseNeighbors[j]]), 0, 0) << "\n") );
+			//if (BlockNorm(A_OL2(i, coarseNeighbors[j])) >= eps * maxVal)
+			if (-BlockRef(A_OL2(i, onlyN1[coarseNeighbors[j]]), 0, 0) >= eps * maxVal)
 				strongNeighbors.push_back(coarseNeighbors[j]);
+		}
 	}
-#endif
+//#endif
 
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1585,7 +1637,7 @@ public:
 //		UG_LOG("DIRECT INTERPOLATION " << i << "\n");
 		std::vector<size_t> myNeighbors;
 		IFI(PRINT_VECTOR(coarseNeighbors, "coarseNeighbors"));
-		sortByStrength(coarseNeighbors);
+		sortByStrength(coarseNeighbors, i);
 
 		if(is_watch_node(i))
 		{
@@ -1596,10 +1648,13 @@ public:
 		myNeighbors = coarseNeighbors;
 //		PRINT_VECTOR(myNeighbors, "myNeighbors");
 		//std::vector<size_t> myNeighbors=coarseNeighbors;
-//		reduceToStrong(coarseNeighbors, myNeighbors, 0.7);
+		// das wird für gescheites stretch-verhalten gebraucht, verträgt sich aber nicht mit unstrukturierten gittern ... :-/
+		//reduceToStrong_BlockNorm(i, coarseNeighbors, myNeighbors, 0.2);
 		csolve_KKT_non_neg=0;
 
 		bool bSuccess=true;
+		if(m_iXCCalcInterpolationRoutine == 1)
+			bSuccess = (solve_KKT_non_neg(i, myNeighbors, -1) == 0);
 		if(m_iXCCalcInterpolationRoutine == 2)
 			bSuccess = (solve_KKT_non_neg2(i, myNeighbors, -1) == 0);
 		else if(m_iXCCalcInterpolationRoutine == 3)
@@ -1826,7 +1881,7 @@ public:
 	double get_all_neighbors_interpolation(size_t i)
 	{
 		std::vector<size_t> strong;
-		sortByStrength1(strong);
+		sortByStrength1(strong, i);
 
 		index_range ir(onlyN1.size());
 		set_sizes(onlyN1.size());

@@ -5,7 +5,7 @@
  *      Author: mrupp
  */
 
-#include "testvector_calculators.h"
+#include "testvector_calculator_impl.h"
 
 #ifndef ADAPTIVE_FITLERING_H_
 #define ADAPTIVE_FITLERING_H_
