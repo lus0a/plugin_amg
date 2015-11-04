@@ -1,3 +1,9 @@
+/**
+ * \file collected_solver.h
+ *  Created on: 04.05.2011
+ *      Author: mrupp
+ */
+
 #ifndef COLLECTED_SOLVER_H_
 #define COLLECTED_SOLVER_H_
 

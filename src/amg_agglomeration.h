@@ -1,3 +1,14 @@
+/**
+ * \file amg_agglomeration.h
+ * \author Martin Rupp
+ *
+ * \date 03.08.2011
+ *
+ * Implementation of agglomeration of cores for AMG.
+ *
+ * Goethe-Center for Scientific Computing 2011-2012.
+ */
+
 #include "agglomeration.h"
 #ifdef UG_PARALLEL
 #include "lib_algebra/parallelization/global_layout.h"

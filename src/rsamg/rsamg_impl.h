@@ -1,3 +1,15 @@
+/**
+ * \file rsamg_impl.h
+ *
+ * \author Martin Rupp
+ *
+ * \date 03.12.2009
+ *
+ * implementation file for amg
+ *
+ * Goethe-Center for Scientific Computing 2009-2010.
+ */
+
 #ifndef __H__UG__LIB_ALGEBRA__RSAMG_SOLVER__RSAMG_IMPL_H__
 #define __H__UG__LIB_ALGEBRA__RSAMG_SOLVER__RSAMG_IMPL_H__
 

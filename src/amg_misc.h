@@ -1,3 +1,9 @@
+/**
+ * \file amg_misc.h
+ *  Created on: 19.12.2011
+ *      Author: mrupp
+ */
+
 #ifndef AMG_MISC_H_
 #define AMG_MISC_H_
 

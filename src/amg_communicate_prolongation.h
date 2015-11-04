@@ -1,3 +1,9 @@
+/**
+ * \file amg_communicate_prolongation.h
+ *  Created on: 27.04.2011
+ *      Author: mrupp
+ */
+
 #ifndef AMG_COMMUNICATE_PROLONGATION_H_
 #define AMG_COMMUNICATE_PROLONGATION_H_
 

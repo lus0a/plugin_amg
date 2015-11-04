@@ -1,3 +1,14 @@
+/**
+ * \file amg_base_impl.h
+ * \author Martin Rupp
+ *
+ * \date 01.12.2010
+ *
+ * implementation file for base amg functionality
+ *
+ * Goethe-Center for Scientific Computing 2010.
+ */
+
 #ifndef __H__UG__LIB_ALGEBRA__AMG_SOLVER__AMG_BASE_IMPL_H__
 #define __H__UG__LIB_ALGEBRA__AMG_SOLVER__AMG_BASE_IMPL_H__
 

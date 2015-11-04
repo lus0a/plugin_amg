@@ -1,3 +1,18 @@
+/**
+ * \file famg_on_demand_coarsening_impl.h
+ *
+ * \author Martin Rupp
+ *
+ * \date 10.12.2010
+ *
+ * implementation file for famg, coarsening when calculating the possible parents only on demand
+ *
+ * Goethe-Center for Scientific Computing 2010-2011.
+ *
+ * for test purposes, functions are here in a cpp file.
+ */
+
+
 #ifndef __H__LIB_ALGEBRA__AMG__FAMG_ON_DEMAND_COARSENING_IMPL_H__
 #define __H__LIB_ALGEBRA__AMG__FAMG_ON_DEMAND_COARSENING_IMPL_H__
 

@@ -1,3 +1,11 @@
+/*
+ * tensor_positions.cc
+ *
+ *  Created on: 26.11.2013
+ *      Author: anaegel
+ */
+
+
 #include "tensor_positions.h"
 
 namespace ug {

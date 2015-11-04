@@ -1,3 +1,14 @@
+/**
+ * \file rsamg_debug.h
+ * \author Martin Rupp
+ *
+ *
+ * \date 16.06.10
+ *
+ * Goethe-Center for Scientific Computing 2009-2010.
+ */
+
+
 #ifndef __H__UG__LIB_ALGEBRA__RSAMG_SOLVER__RSAMG_NODEINFO_H__
 #define __H__UG__LIB_ALGEBRA__RSAMG_SOLVER__RSAMG_NODEINFO_H__
 
