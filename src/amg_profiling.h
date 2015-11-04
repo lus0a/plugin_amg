@@ -1,9 +1,3 @@
-/**
- * \file amg_profiling.h
- *  Created on: 11.04.2011
- *      Author: mrupp
- */
-
 #ifndef __H__LIB_ALGEBRA__AMG_PROFILING_H_
 #define __H__LIB_ALGEBRA__AMG_PROFILING_H_
 

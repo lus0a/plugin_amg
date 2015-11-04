@@ -1,16 +1,3 @@
-/**
- * \file famg.h
- *
- * \author Martin Rupp
- *
- * \date 16.11.2010
- *
- * class declaration for famg
- *
- * Goethe-Center for Scientific Computing 2010.
- */
-
-
 #ifndef __H__UG__LIB_DISC__AMG_SOLVER__FAMG_H__
 #define __H__UG__LIB_DISC__AMG_SOLVER__FAMG_H__
 

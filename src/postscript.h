@@ -1,13 +1,3 @@
-/**
- * \file postscript.h
- * \author Martin Rupp
- *
- * \date 01.08.2010
- *
- * Goethe-Center for Scientific Computing 2010.
- */
-
-
 #ifndef __H__UG__LIB_ALGEBRA__POSTSCRIPT_H__
 #define __H__UG__LIB_ALGEBRA__POSTSCRIPT_H__
 

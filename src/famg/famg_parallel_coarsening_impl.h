@@ -1,17 +1,3 @@
-/**
- * \file famg_parallel_coarsening_impl.h
- *
- * \author Martin Rupp
- *
- * \date 09.02.2011
- *
- * implementation file for famg parallel coarsening
- *
- * Goethe-Center for Scientific Computing 2011.
- *
- */
-
-
 #ifndef __H__LIB_ALGEBRA__AMG__FAMG_PARALLEL_COARSENING_IMPL_H__
 #define __H__LIB_ALGEBRA__AMG__FAMG_PARALLEL_COARSENING_IMPL_H__
 

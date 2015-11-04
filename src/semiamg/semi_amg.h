@@ -1,18 +1,3 @@
-/**
- * \file plugins/experimental/amg/src/semiamg/semiamg.h
- *
- * \author Arne Naegel
- *
- * \date 06.08.2010
- *
- * class declaration for amg_base
- *
- * Goethe-Center for Scientific Computing 2009-2011.
- *
- *
- */
-
-
 #ifndef __H__UG__LIB_ALGEBRA__AMG_SOLVER__SEMIAMG_H__
 #define __H__UG__LIB_ALGEBRA__AMG_SOLVER__SEMIAMG_H__
 

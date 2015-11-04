@@ -1,12 +1,4 @@
 /**
- * \file amg_checks.h
- * \author Martin Rupp
- *
- * \date 03.08.11
- *
- * Goethe-Center for Scientific Computing 2011
- *
- *
  * in this file are functions for checking the convergence behaviour on the AMG levels (for bugfixing etc.)
  */
 #include <sstream>

@@ -1,15 +1,3 @@
-/**
- * \file plugins/experimental/amg/src/famg/famg_impl.h
- *
- * \author Martin Rupp
- *
- * \date 16.11.2010
- *
- * implementation file for amg
- *
- * Goethe-Center for Scientific Computing 2009-2010.
- */
-
 #ifndef __H__LIB_ALGEBRA__AMG__FAMG_IMPL_H__
 #define __H__LIB_ALGEBRA__AMG__FAMG_IMPL_H__
 

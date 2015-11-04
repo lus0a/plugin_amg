@@ -1,17 +1,3 @@
-/**
- * \file famg_level_calculator.h
- *
- * \author Martin Rupp
- *
- * \date 7.12.2010
- *
- * implementation file for famg
- *
- * Goethe-Center for Scientific Computing 2010-2012.
- *
- */
-
-
 #ifndef __H__LIB_ALGEBRA__AMG__FAMG_LEVEL_CALCULATOR_H__
 #define __H__LIB_ALGEBRA__AMG__FAMG_LEVEL_CALCULATOR_H__
 

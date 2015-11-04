@@ -1,12 +1,3 @@
-/**
- * \file agglomeration.h
- *
- * \author Martin Rupp
- * \date 03.08.2011
- *
- * Goethe-Center for Scientific Computing 2011.
- */
-
 #include <vector>
 #include <map>
 

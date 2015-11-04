@@ -1,14 +1,3 @@
-/**
- * \file amg_base.h
- * \author Martin Rupp
- *
- * \date 01.12.2010
- *
- * class declaration for amg base
- *
- * Goethe-Center for Scientific Computing 2010.
- */
-
 #ifndef __H__UG__LIB_ALGEBRA__AMG_SOLVER__AMG_BASE_H__
 #define __H__UG__LIB_ALGEBRA__AMG_SOLVER__AMG_BASE_H__
 

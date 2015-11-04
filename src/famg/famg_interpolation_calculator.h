@@ -1,14 +1,3 @@
-// new
-/**
-ý * \file famg_interpolation_calculator.h
- *
- * \author Martin Rupp
- *
- * \date 24.11.10
- *
- * Goethe-Center for Scientific Computing 2010.
- */
-
 #ifndef __H__LIB_ALGEBRA__FAMG_SOLVER__FAMG_INTERPOLATION_CALCULATOR_H__
 #define __H__LIB_ALGEBRA__FAMG_SOLVER__FAMG_INTERPOLATION_CALCULATOR_H__
 
