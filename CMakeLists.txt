@@ -35,39 +35,40 @@
 # Ruge-Stueben AMG and Filtering AMG
 ################################################################################
 
-cmake_minimum_required(VERSION 2.6)
-
-project(AMG)
-
-# include the definitions and dependencies for ug-plugins.
-include("../../../cmake/ug_plugin_includes.cmake")
-
-
-# sources
-set(srcAMGBridge 	bridge/amg_bridge.cpp
-					bridge/famg_bridge.cpp
-					bridge/semiamg_bridge.cpp
-					bridge/rsamg_bridge.cpp)
+set(pluginName	amg)
+set(SOURCES 	bridge/amg_bridge.cpp
+			bridge/famg_bridge.cpp
+			bridge/semiamg_bridge.cpp
+			bridge/rsamg_bridge.cpp)
 
 if(PARALLEL)
-	set(srcAMG src/rsamg/rsamg_parallel_coarsening.cpp
-	            )
+	set(SOURCES ${SOURCES} src/rsamg/rsamg_parallel_coarsening.cpp)
 endif(PARALLEL)
 	
-	set(srcAMG ${srcAMG}
-		src/rsamg/rsamg_coarsening.cpp	
-		src/agglomeration.cpp
-		src/famg/debug_ids.cpp	
-		src/amg_debug.cpp
-		src/semiamg/tensor_positions.cc	
-		)								
+set(SOURCES ${SOURCES}
+	src/rsamg/rsamg_coarsening.cpp	
+	src/agglomeration.cpp
+	src/famg/debug_ids.cpp	
+	src/amg_debug.cpp
+	src/semiamg/tensor_positions.cc)
 
 
+
+################################################################################
+# The code below doesn't have to be changed (usually)
+################################################################################
+cmake_minimum_required(VERSION 2.6)
+
+project(UG_PLUGIN_${pluginName})
+
+# include the definitions and dependencies for ug-plugins.
+include(${UG_ROOT_CMAKE_PATH}/ug_plugin_includes.cmake)
 
 if(buildEmbeddedPlugins)
 	# add the sources to ug4's sources
-	EXPORTSOURCES(plugins/experimental/amg ${srcAMGBridge} ${srcAMG})
+	EXPORTSOURCES(${CMAKE_CURRENT_SOURCE_DIR} ${SOURCES})
 else(buildEmbeddedPlugins)
-	add_library(amg SHARED ${srcAMGBridge} ${srcAMG})
-	target_link_libraries (amg ug4)
+	# create a shared library from the sources and link it against ug4.
+	add_library(${pluginName} SHARED ${SOURCES})
+	target_link_libraries (${pluginName} ug4)
 endif(buildEmbeddedPlugins)
