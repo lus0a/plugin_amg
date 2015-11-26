@@ -41,7 +41,7 @@ namespace ug{
 /**
  * @return [0, z, -y], the rotation around the x-axes
  */
-MathVector<3> GetRotX(MathVector<3> &pos)
+inline MathVector<3> GetRotX(MathVector<3> &pos)
 {
 	return MathVector<3>(0, pos.z(), -pos.y());
 }
@@ -49,7 +49,7 @@ MathVector<3> GetRotX(MathVector<3> &pos)
 /**
  * @return [z, 0, -x], the rotation around the x-axes
  */
-MathVector<3> GetRotY(MathVector<3> &pos)
+inline MathVector<3> GetRotY(MathVector<3> &pos)
 {
 	return MathVector<3>(pos.z(), 0, -pos.x());
 }
@@ -57,7 +57,7 @@ MathVector<3> GetRotY(MathVector<3> &pos)
 /**
  * @return [y, -x, 0], the rotation around the z-axes
  */
-MathVector<3> GetRotZ(MathVector<3> &pos)
+inline MathVector<3> GetRotZ(MathVector<3> &pos)
 {
 	return MathVector<3>(pos.y(), -pos.x(), 0);
 }
