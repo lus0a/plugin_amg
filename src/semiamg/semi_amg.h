@@ -119,6 +119,8 @@ protected:
 
 	size_t user_defined_coarsening(const cgraph &Sl, size_t level, AMGNodes &rating);
 	void user_defined_prolongation(const cgraph &Sl, const matrix_type &Al, prolongation_matrix_type &P, size_t level, AMGNodes &rating);
+	void user_defined_restriction(const cgraph &S, const matrix_type &A, const prolongation_matrix_type &P, prolongation_matrix_type &R, size_t level, AMGNodes &nodes);
+
 
 
 

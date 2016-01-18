@@ -147,7 +147,8 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 	std::vector<cAMG_helper::position_type> vPositions;
 
 	// first pass
-	const size_t nnodes = helper.positions[level].size();
+	const stdvector<MathVector<3> > & lpositions = helper.positions[level];
+	const size_t nnodes = lpositions.size();
 	size_t nskipped = 0;
 	for(size_t i=0; i<nnodes; i++)
 	{
@@ -160,7 +161,6 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 		     P(i, i) = 1.0; continue;
 		  }
 
-		// continue for fine nodes here
 		// skip off-proc nodes
 		if(!nodes.is_master_or_inner(i))
 		{
@@ -168,18 +168,19 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 			nskipped++; continue;
 		}
 
+		// skip isolated (Dirichlet) nodes
 		if (S.is_isolated(i))
 		{
 				//std::cout << "Skipping " << i << std::endl;
 				nskipped++; continue;
 		}
 		  
-		
+		// continue for fine nodes here
 		{
-		  MathVector<3> &coordi =  helper.positions[level][i];
+		  const MathVector<3> &icoord =  lpositions[i];
 		  MathVector<3> nbcoords[27];
 		  double nbweights[27];
-		  const int nparents = m_tli.get_parents(coordi, level, nbcoords, nbweights);
+		  const int nparents = m_tli.get_parents(icoord, level, nbcoords, nbweights);
 		  UG_ASSERT(nparents<=8, "Huhh: Too many neighbors???");
 		 
 
@@ -188,66 +189,110 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 		  size_t bestindex[27];
 		  size_t bestmatch[27];
 
-		  for (int jj=0; jj<nparents; ++jj)
+		  for (int nb=0; nb<nparents; ++nb)
 		  {
 			  // default match: node i
-			  bestcoord[jj] = coordi;  //
-			  bestindex[jj] = -1;
-			  bestmatch[jj] = -1; //num_ijk_coord_matches(nbcoords[jj], coordi);
+			  bestcoord[nb] = icoord;
+			  bestindex[nb] = -1;
+			  bestmatch[nb] = -1; // num_ijk_coord_matches(nbcoords[nb], icoord);
 
-			  int maxmatchjj= bestmatch[jj];
+			  int maxjmatch = bestmatch[nb];
 
 			  // search graph for (unique) best coordinate match
-			  // if all coordinates match, we found a coarse grid node
-			  for(typename cgraph::const_row_iterator conn = S.begin_row(i); conn != S.end_row(i); ++conn)
+			  // we found a coarse grid node, if all coordinates match
+			  for(typename cgraph::const_row_iterator iconn = S.begin_row(i); iconn != S.end_row(i); ++iconn)
 			  {
-				  const size_t j = *conn;
+				  // find coarse neighbors
+				  const size_t j = *iconn;
 				  if (!nodes[j].is_coarse()) continue;
 
 				  // continue for coarse nodes
-				  const MathVector<3> &coordj =  helper.positions[level][j];
-				  const int matchjj = num_ijk_coord_matches(nbcoords[jj], coordj);
+				  const MathVector<3> &jcoord =  lpositions[j];
+				  const int jmatch = num_ijk_coord_matches(nbcoords[nb], jcoord);
 
-				  if (matchjj > maxmatchjj)
+				  if (jmatch > maxjmatch)
 				  {
-					  maxmatchjj = matchjj;
+					  maxjmatch = jmatch;
 
-					  bestcoord[jj] = coordj;
-					  bestindex[jj] = j;
-					  bestmatch[jj] = matchjj;
+					  bestcoord[nb] = jcoord;
+					  bestindex[nb] = j;
+					  bestmatch[nb] = jmatch;
 				  }
 
 			  }
+
+			  if (bestmatch[nb] == 3) continue;
+
+			  for(typename cgraph::const_row_iterator iconn = S.begin_row(i); iconn != S.end_row(i); ++iconn)
+			  {
+				  // find (indirect) neighbors
+				  const size_t j = *iconn;
+
+				  if (nodes[j].is_coarse()) continue;
+
+				  for(typename cgraph::const_row_iterator jconn = S.begin_row(j); jconn != S.end_row(j); ++jconn)
+				  {
+					  const size_t k = *jconn;
+					  if (!nodes[k].is_coarse()) continue;
+					  if (k==i) continue;
+
+					  // continue for coarse nodes
+					  const MathVector<3> &kcoord =  lpositions[k];
+					  const int kmatch = num_ijk_coord_matches(nbcoords[nb], kcoord);
+
+					  if (kmatch > maxjmatch)
+					  {
+					  		maxjmatch = kmatch;
+
+					  		bestcoord[nb] = kcoord;
+					  		bestindex[nb] = k;
+					  		bestmatch[nb] = kmatch;
+
+
+					  		if (bestmatch[nb]==3)
+					  		{
+					  			std::cout << i << "," << k << ":" << kcoord << std::endl;
+					  		}
+					  }
+
+				  }
+			  }
+
+
+
+
 		  }
 
-	  // iterate coarse parents
-		  for (int jj=0; jj<nparents; ++jj)
+		  // iterate coarse parents
+		  for (int nb=0; nb<nparents; ++nb)
 		  {
-			 // if (bestindex[jj]==i) continue;
-			  UG_ASSERT(bestindex[jj]>=0, "Index should be positive");
+			  // if (bestindex[nb]==i) continue;
+			  UG_ASSERT(bestindex[nb]>=0, "Index should be positive");
 
-			  if (bestmatch[jj]==3)
+			  if (bestmatch[nb]==3)
 			  {
-				  // found existing coarse nodes, store full matches
-				  if (!S.is_isolated(bestindex[jj]))
-					  P(i, bestindex[jj]) = nbweights[jj];
+				  // all coordinates match
+				  // thus, we found existing coarse nodes
+				  // and store full matches
+				  if (!S.is_isolated(bestindex[nb]))
+					  P(i, bestindex[nb]) = nbweights[nb];
 			  }
-			  else if (m_bCreateVirtualNodes)//if (bestindex[jj]!=i)
+			  else if (m_bCreateVirtualNodes)
 			  {
 				  // no coarse node found in matrix graph,
 				  // thus we create a virtual one
 				  std::pair<TVirtualCoarseMap::iterator, bool> search
-				  	  = vmap.insert(TVirtualCoarseMapPair(nbcoords[jj], vindex));
+				  	  = vmap.insert(TVirtualCoarseMapPair(nbcoords[nb], vindex));
 				  if (search.second)
 				  {
 					  // added a new node
-					  std::cout << "VADD: " << i << " "<< nbcoords[jj] << " "<< vindex << std::endl;
-					  vPositions.push_back(nbcoords[jj]);
+					  std::cout << "VADD: " << i << " "<< nbcoords[nb] << " "<< vindex << std::endl;
+					  vPositions.push_back(nbcoords[nb]);
 					  vindex++;
 				  }
 
 				  // add entry to matrix entry list
-				  poffd.push_back(pentry_type(i, search.first->second, nbweights[jj]));
+				  poffd.push_back(pentry_type(i, search.first->second, nbweights[nb]));
 			  }
 		  }
 		}
@@ -293,7 +338,26 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 
 
 
+template<typename algebra_type>
+void SemiAMG<algebra_type>::user_defined_restriction(const cgraph &S, const matrix_type &A, const prolongation_matrix_type &P, prolongation_matrix_type &R, size_t level, AMGNodes &nodes)
+{
 
+	UG_DLOG(LIB_ALG_AMG, 1, std::endl << "restriction... ");
+
+
+		PROFILE_BEGIN(AMGSetAsTransposeOf)
+		// construct restriction R = I_{h -> 2h}
+		R.set_as_transpose_of(P);
+		PROFILE_END();
+		// R is already defragmented
+
+	#ifdef UG_PARALLEL
+		R.set_storage_type(PST_CONSISTENT);
+	#endif
+
+
+
+}
 
 template<typename TAlgebra>
 void SemiAMG<TAlgebra>::tostring() const
@@ -328,7 +392,7 @@ void SemiAMG<TAlgebra>::tostring() const
  */
 template<typename TAlgebra>
 void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type &R, const matrix_type &A,
-		prolongation_matrix_type &PnewIndices, size_t level, AMGLayouts &nextLevelLayouts)
+		prolongation_matrix_type &P, size_t level, AMGLayouts &nextLevelLayouts)
 {
 	AMG_PROFILE_FUNC();
 
@@ -406,31 +470,19 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	{
 		stdvector<int> newIndex;
 #ifdef UG_PARALLEL
-	this->parallel_process_prolongation(PoldIndices, PnewIndices, 0.0, level, nodes,
+	this->parallel_process_prolongation(PoldIndices, P, 0.0, level, nodes,
 					    //	PN, false, nextLevelLayouts, newIndex);
 					    PN, true, nextLevelLayouts, newIndex);
 #else
-	this->serial_process_prolongation(PoldIndices, PnewIndices, 0.0, level, nodes, newIndex);
+	this->serial_process_prolongation(PoldIndices, P, 0.0, level, nodes, newIndex);
 #endif
 	}
 
 	/////////////////////////////////////////
 	// construct restriction R = I_{h->2h}
 	/////////////////////////////////////////
-
-	UG_DLOG(LIB_ALG_AMG, 1, std::endl << "restriction... ");
 	if(bTiming) SW.start();
-
-	PROFILE_BEGIN(AMGSetAsTransposeOf)
-	// construct restriction R = I_{h -> 2h}
-	R.set_as_transpose_of(PnewIndices);
-	PROFILE_END();
-	// R is already defragmented
-
-#ifdef UG_PARALLEL
-	R.set_storage_type(PST_CONSISTENT);
-#endif
-
+	this->user_defined_restriction(graphS, AOL1, P, R, level, nodes);
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
 
 	/////////////////////////////////////////
@@ -442,7 +494,7 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 
 	// AH = R A P
 	PROFILE_BEGIN(AMGCreateAsMultiplyOf)
-		CreateAsMultiplyOf(AH, R, A, PnewIndices, m_dGalerkinTruncation);
+		CreateAsMultiplyOf(AH, R, A, P, m_dGalerkinTruncation);
 	PROFILE_END();
 
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 1, "took " << SW.ms() << " ms");
@@ -462,7 +514,7 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	if(m_writeMatrices)
 	{
 		AMGBase<TAlgebra>::write_debug_matrix_markers(level, nodes);
-		this->write_debug_matrices(AH, R, A, PnewIndices, level);
+		this->write_debug_matrices(AH, R, A, P, level);
 	}
 }
 
