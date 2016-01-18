@@ -246,8 +246,8 @@ void FAMG<TAlgebra>::adaptive_filtering(SmartPtr<ILinearOperator<vector_type, ve
 		// error = solution - x
 		VecScaleAdd(error, 1.0, solution, -1.0, x);
 		double n = 1/error.norm();
-		for(size_t i=0; i<error.size(); i++)
-			error[i] *= n;
+		for(size_t j=0; j<error.size(); j++)
+			error[j] *= n;
 
 		if(m_writeMatrices)
 		{
