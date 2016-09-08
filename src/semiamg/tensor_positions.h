@@ -83,7 +83,11 @@ public:
 
 	/// maps: pos -> index_axis (for axis)
 	size_t get_axis_index (unsigned int tdim, double pos) const
-	{ return (m_map[tdim].find(pos)->second);}
+	{
+		std::map<double, size_t>::const_iterator it=m_map[tdim].find(pos);
+		UG_ASSERT(it!=m_map[tdim].end(), "ERROR: Map invalid, no element for x="<< pos);
+		return it->second;
+	}
 
 	/// maps:coord -> (triple value) index
 	template <unsigned int dim>
@@ -147,7 +151,6 @@ public:
 		 { nbtensor[i].push_back(ii);}
 	    }	
 	  
-
 	  // loop neighbors
 	  size_t a = 0;
 	  for (ind_vec_type::const_iterator it0= nbtensor[0].begin(); it0!=nbtensor[0].end(); ++it0)
@@ -212,9 +215,10 @@ public:
 
 
 	// determines neighbor coordinates (N1)
-	size_t get_parents(const MathVector<3> &center, int level, 
-			   MathVector<3> pcoord[],
-			   double pweight[])
+	size_t get_parents(const MathVector<3> &center,
+				int level,
+				MathVector<3> pcoord[],
+				double pweight[])
 	{
 	  // find coarse neighbors
 	 
@@ -233,8 +237,9 @@ public:
 	    //const int endi = std::min((int)m_size[i]-1, index[i]+1);
 	    //for (int nbi=std::max(index[i]-1,0); nbi<=endi; ++nbi)
 	    
-	    if (m_level[i][ii]>level) // found coarse node 
+	    if (m_level[i][ii]>level)
 	    {
+	      // found coarse node
 	      nbtensor[i].push_back(ii); 
 	      ncoarse[i]++; 
 	    }
@@ -299,6 +304,8 @@ public:
 	  size_t indexa[3];
 	  size_t a = 0;
 	  double sumw =0.0;
+
+	  //std::cerr << "get_parents:" << center << "["<< index[0]<< "," << index[1]<< "," << index[2]<< "]->";
 	  for (ind_vec_type::const_iterator it0= nbtensor[0].begin(); it0!=nbtensor[0].end(); ++it0)   
 	    for (ind_vec_type::const_iterator it1= nbtensor[1].begin(); it1!=nbtensor[1].end(); ++it1)
 	      for (ind_vec_type::const_iterator it2= nbtensor[2].begin(); it2!=nbtensor[2].end(); ++it2)
@@ -307,6 +314,7 @@ public:
 		  indexa[1] = *it1;
 		  indexa[2] = *it2;
 		  get_node_coord<3>(indexa, pcoord[a]);
+		//  std::cerr << pcoord[a] << "["<< indexa[0]<< "," << indexa[1]<< "," << indexa[2]<< "], ";
 		  pweight[a] = weight[0]*weight[1]*weight[2];
 		  
 

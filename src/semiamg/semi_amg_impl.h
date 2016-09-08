@@ -97,11 +97,13 @@ size_t SemiAMG<algebra_type>::user_defined_coarsening(const cgraph &strong, size
 		size_t flevel =m_tli.template get_node_level<3>(coord);
 		if ( flevel <=level)
 		{
+			UG_DLOG(DBG_AMG_COARSENING, 2, "F: "<< i << coord << "flevel=" << flevel << std::endl);
 			nodes.set_fine(i);
 			nfine++;
 		}
 		else
 		{
+			UG_DLOG(DBG_AMG_COARSENING, 2, "C: "<< i <<  coord << "flevel=" << flevel << std::endl);
 			nodes.external_set_coarse(i);
 		}
 	}
@@ -126,7 +128,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 //	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
 
 	Stopwatch SW;
-	UG_DLOG(LIB_ALG_AMG, 0, std::endl << "Computing prolongation... ");
+	UG_DLOG(DBG_AMG_COARSENING, 0, std::endl << "Computing prolongation... ");
 	if(bTiming) SW.start();
 
 	const size_t N = A.num_rows();
@@ -150,32 +152,27 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 	const stdvector<MathVector<3> > & lpositions = helper.positions[level];
 	const size_t nnodes = lpositions.size();
 	size_t nskipped = 0;
+	size_t nunrepresent = 0;
 	for(size_t i=0; i<nnodes; i++)
 	{
 		PROGRESS_UPDATE(prog, i);
 
 		// map coarse grid points by identity
 		if (nodes[i].is_coarse())
-		  {
-			 //	std::cout << "Ignoring " << i << std::endl;
-		     P(i, i) = 1.0; continue;
-		  }
+		{
+			//	std::cout << "Ignoring " << i << std::endl;
+			P(i, i) = 1.0; continue;
+		 }
 
 		// skip off-proc nodes
 		if(!nodes.is_master_or_inner(i))
-		{
-			//std::cout << "Skipping " << i << std::endl;
-			nskipped++; continue;
-		}
+		{ nskipped++; continue; }
 
 		// skip isolated (Dirichlet) nodes
 		if (S.is_isolated(i))
-		{
-				//std::cout << "Skipping " << i << std::endl;
-				nskipped++; continue;
-		}
+		{ nskipped++; continue; }
 		  
-		// continue for fine nodes here
+		// continue for fine nodes i here
 		{
 		  const MathVector<3> &icoord =  lpositions[i];
 		  MathVector<3> nbcoords[27];
@@ -186,9 +183,10 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 
 		  // map every (coarse) nb to best matching (fine/coarse) equivalent on graph
 		  MathVector<3> bestcoord[27];
-		  size_t bestindex[27];
-		  size_t bestmatch[27];
+		  int bestindex[27];
+		  int bestmatch[27];
 
+		  // iterate over neighbors of node i
 		  for (int nb=0; nb<nparents; ++nb)
 		  {
 			  // default match: node i
@@ -198,20 +196,22 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 
 			  int maxjmatch = bestmatch[nb];
 
-			  // search graph for (unique) best coordinate match
-			  // we found a coarse grid node, if all coordinates match
+			  // search graph S_i for (unique) best coordinate match j
+			  // (we found a coarse grid node, if all coordinates match)
+			  UG_DLOG(DBG_AMG_COARSENING, 5, "Checking i=" << i  << ":");
 			  for(typename cgraph::const_row_iterator iconn = S.begin_row(i); iconn != S.end_row(i); ++iconn)
 			  {
 				  // find coarse neighbors
 				  const size_t j = *iconn;
 				  if (!nodes[j].is_coarse()) continue;
 
-				  // continue for coarse nodes
+				  // continue for coarse nodes j only
 				  const MathVector<3> &jcoord =  lpositions[j];
 				  const int jmatch = num_ijk_coord_matches(nbcoords[nb], jcoord);
 
 				  if (jmatch > maxjmatch)
 				  {
+					  UG_DLOG(DBG_AMG_COARSENING, 5, j << "(" << jmatch << ";" << nbcoords[nb] << jcoord << ")");
 					  maxjmatch = jmatch;
 
 					  bestcoord[nb] = jcoord;
@@ -221,13 +221,18 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 
 			  }
 
-			  if (bestmatch[nb] == 3) continue;
+			  // continue, if match has been found!
+			  if (bestmatch[nb] == 3)
+			  {
+				  UG_DLOG(DBG_AMG_COARSENING, 2, "Found match " << i << "," << bestindex[nb] << ": " << bestcoord[nb] << std::endl);
+				  continue;
+
+			  }
 
 			  for(typename cgraph::const_row_iterator iconn = S.begin_row(i); iconn != S.end_row(i); ++iconn)
 			  {
 				  // find (indirect) neighbors
 				  const size_t j = *iconn;
-
 				  if (nodes[j].is_coarse()) continue;
 
 				  for(typename cgraph::const_row_iterator jconn = S.begin_row(j); jconn != S.end_row(j); ++jconn)
@@ -247,35 +252,35 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 					  		bestcoord[nb] = kcoord;
 					  		bestindex[nb] = k;
 					  		bestmatch[nb] = kmatch;
-
+					  		UG_DLOG(DBG_AMG_COARSENING, 5, k << "(" << kmatch << ";" << nbcoords[nb] << kcoord << ")");
 
 					  		if (bestmatch[nb]==3)
 					  		{
-					  			std::cout << i << "," << k << ":" << kcoord << std::endl;
+					  			UG_DLOG(DBG_AMG_COARSENING, 2, "Found match " << i << "," << k << ": " << kcoord << std::endl);
 					  		}
 					  }
 
 				  }
 			  }
 
-
-
-
-		  }
+		  } // iterate over neighbors of node i
 
 		  // iterate coarse parents
 		  for (int nb=0; nb<nparents; ++nb)
 		  {
 			  // if (bestindex[nb]==i) continue;
-			  UG_ASSERT(bestindex[nb]>=0, "Index should be positive");
+			  // UG_ASSERT(bestindex[nb]>=0, "Index should be positive");
 
 			  if (bestmatch[nb]==3)
 			  {
 				  // all coordinates match
 				  // thus, we found existing coarse nodes
 				  // and store full matches
-				  if (!S.is_isolated(bestindex[nb]))
+				  if (!S.is_isolated(bestindex[nb])) {
 					  P(i, bestindex[nb]) = nbweights[nb];
+				  } else {
+					  UG_DLOG(DBG_AMG_COARSENING, 2, "Match isolated!" << bestcoord[nb] << std::endl);
+				  }
 			  }
 			  else if (m_bCreateVirtualNodes)
 			  {
@@ -293,10 +298,17 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 
 				  // add entry to matrix entry list
 				  poffd.push_back(pentry_type(i, search.first->second, nbweights[nb]));
+
+			  } else /*if (!S.is_isolated(bestindex[nb])) */{
+				  UG_DLOG(DBG_AMG_COARSENING, 2, bestcoord[nb] << " aka " << bestindex[nb] << " with "<< bestmatch[nb] << " not represented for "<< icoord << " aka " << i << "!" << std::endl);
+				  nunrepresent++;
 			  }
 		  }
 		}
 	} // for all nodes i
+
+	 UG_DLOG(DBG_AMG_COARSENING, 2, std::endl << "Result of first pass: Skipped " << nskipped<< "/" << nunrepresent << " out of " << nnodes << std::endl);
+
 
 	if (m_bCreateVirtualNodes)
 	{
@@ -406,6 +418,12 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	stdvector<IndexLayout> vMasterLayouts, vSlaveLayouts;
 	MakeFullRowsMatrix(A, AOL1, PN, vMasterLayouts, vSlaveLayouts /*,m_pParallelCoarsening,*/);
 	
+	if(pcl::NumProcs() > 1 && m_amghelper.has_positions())
+	{
+			m_amghelper.update_overlap_positions(level, PN.comm(), vMasterLayouts[1], vSlaveLayouts[1], AOL1.num_rows());
+			// write_debug_matrix(A_OL1, level, level, "A_OL1", true);
+	}
+
 #else
 	const matrix_type &AOL1 = A;
 #endif
@@ -441,9 +459,7 @@ void SemiAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_ty
 	if(bTiming) SW.start();
 
 	const size_t nnodes = this->user_defined_coarsening(graphS, level, nodes);
-
 	(void) nnodes; // remove "unused" warning.
-
 	//UG_ASSERT(N == nnodes, "Something wrong!");
 
 	UG_DLOG(LIB_ALG_AMG, 0, nodes.get_nr_of_coarse() << " coarse nodes. ");
