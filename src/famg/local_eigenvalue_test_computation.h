@@ -412,12 +412,12 @@ void calc_special_local_eigenvalues(size_t i)
 	Aloc2.resize(indices3, indices3);
 	// A' = A^T D A   mit D = diag(A) auf N1 !
 	// A_{ij} = sum A_{ki} D_{kk} A_{kj}
-	for(size_t i=0; i<indices3; i++)
+	for(size_t ii=0; i<indices3; ii++)
 		for(size_t j=0; j<indices3; j++)
 		{
-			Aloc2(i, j) = 0.0;
+			Aloc2(ii, j) = 0.0;
 			for(size_t k=0; k<indices2; k++)
-				Aloc2(i, j) += Aloc(k, i) / Aloc(k,k) * Aloc(k, j);
+				Aloc2(ii, j) += Aloc(k, ii) / Aloc(k,k) * Aloc(k, j);
 		}
 	Aloc = Aloc2;
 
@@ -432,14 +432,14 @@ void calc_special_local_eigenvalues(size_t i)
 	DenseMatrix<VariableArray2<double> > B2;
 	B2.resize(indices3*blockSize, indices3*blockSize);
 
-	for(size_t i=0; i<indices3; i++)
+	for(size_t ii=0; ii<indices3; ii++)
 	{
 		for(size_t j=0; j<indices3; j++)
 			for(size_t r=0; r<blockSize; r++)
 				for(size_t c=0; c<blockSize; c++)
-					A2(i*blockSize+r, j*blockSize+c) = BlockRef(Aloc(i, j), r, c);
+					A2(ii*blockSize+r, j*blockSize+c) = BlockRef(Aloc(ii, j), r, c);
 		for(size_t r=0; r<blockSize; r++)
-			B2(i*blockSize+r, i*blockSize+r) = BlockRef(Bloc(i, i), r, r);
+			B2(ii*blockSize+r, ii*blockSize+r) = BlockRef(Bloc(ii, ii), r, r);
 	}
 
 
