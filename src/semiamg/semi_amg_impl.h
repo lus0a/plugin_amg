@@ -112,11 +112,161 @@ size_t SemiAMG<algebra_type>::user_defined_coarsening(const cgraph &strong, size
 	return nnodes;
 }
 
+//! returns number of matching coords
 inline static int num_ijk_coord_matches(const MathVector<3> &coordi, const MathVector<3> &coordj)
 {
 	return ((int) (coordi[0]==coordj[0])) + ((int) (coordi[1]==coordj[1])) +((int) (coordi[2]==coordj[2]));
 }
 
+template<typename algebra_type>
+void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const matrix_type &A, prolongation_matrix_type &P, size_t level, AMGNodes &nodes)
+{
+
+	cAMG_helper &helper= m_amghelper;
+
+
+	AMG_PROFILE_FUNC();
+//	UG_SET_DEBUG_LEVEL(LIB_ALG_AMG, m_famg.iDebugLevelExternalCoarsening);
+
+	Stopwatch SW;
+	UG_DLOG(DBG_AMG_COARSENING, 0, std::endl << "Computing prolongation... ");
+	if(bTiming) SW.start();
+
+	const size_t N = A.num_rows();
+
+	PROGRESS_START(prog, 2*N, "SemiAMG::user_defined_prolongation " << N);
+	P.resize_and_clear(N, N);
+
+
+	// init virtual coarse map
+	TVirtualCoarseMap & vmap = vcoarse[level];
+	size_t & vindex = vcount[level];
+	vcoarse[level] = TVirtualCoarseMap();
+	vcount[level] = 0;
+
+	// map: cpos -> index
+	typedef std::pair<const MathVector<3>, int> cmap_value_type;
+	typedef std::map<MathVector<3>, int> cmap_type;
+
+	cmap_type cmap;
+
+
+	typedef boost::tuple<int, int, double> pentry_type;
+	std::vector<pentry_type> poffd;
+	std::vector<cAMG_helper::position_type> vPositions;
+
+	// first pass:
+	const stdvector<MathVector<3> > & lpositions = helper.positions[level];
+	const size_t nnodes = lpositions.size();
+	size_t nskipped = 0;
+	size_t nunrepresent = 0;
+
+	for(size_t i=0; i<nnodes; i++)
+	{
+		PROGRESS_UPDATE(prog, i);
+
+		// map coarse grid points by identity
+		if (nodes[i].is_coarse())
+		{
+			P(i, i) = 1.0;
+
+			const MathVector<3> &icoord =  lpositions[i];
+			cmap.insert(cmap_value_type(icoord, i));
+
+			continue;
+		}
+
+		// skip off-proc nodes
+		if(!nodes.is_master_or_inner(i))
+		{ nskipped++; continue; }
+
+		// skip isolated (Dirichlet) nodes
+		if (S.is_isolated(i))
+		{ nskipped++; continue; }
+		  
+
+	} // for all nodes i
+	UG_DLOG(DBG_AMG_COARSENING, 2, std::endl << "Result of first pass: Skipped " << nskipped<< "/" << nunrepresent << " out of " << nnodes << std::endl);
+
+
+
+
+	// create virtual nodes
+	if (m_bCreateVirtualNodes)
+	{
+		// DEBUG: all entries have been filled
+		for (TVirtualCoarseMap::const_iterator it = vmap.begin(); it!=vmap.end(); ++it)
+		{
+			std::cout << "VCoarse: " << it->first << "->" << it->second <<std::endl;
+		}
+
+		/////////////////////////////////////////
+		// extend by virtual coarse nodes
+		/////////////////////////////////////////
+		const int num_vcoarse = vcount[level];
+		const int num_extended = N+vcount[level];
+
+		// extend nodes vector & parallel nodes
+		// TODO: extend layouts
+		nodes.extend(num_vcoarse);
+
+		// extend position data in helper
+		std::vector<cAMG_helper::position_type> &mypositions = helper.positions[level];
+		THROW_IF_NOT_EQUAL(vPositions.size(), (size_t)num_vcoarse);
+		mypositions.insert(mypositions.end(), vPositions.begin(), vPositions.end());
+		THROW_IF_NOT_EQUAL(mypositions.size(), (size_t)num_extended);
+
+		// extend matrix
+		P.resize_and_keep_values(num_extended, num_extended);
+		for (std::vector<pentry_type>::iterator it= poffd.begin();
+				it!= poffd.end(); ++it)
+		{
+			std::cout << "P: " <<  boost::get<0>(*it) << ", " <<  N+boost::get<1>(*it)  << ", " <<  boost::get<2>(*it)  <<std::endl;
+			P(boost::get<0>(*it), N+boost::get<1>(*it)) =  boost::get<2>(*it);
+		}
+
+	}
+
+	// fill interpolation
+	for(size_t i=0; i<nnodes; i++)
+	{
+		PROGRESS_UPDATE(prog, nnodes+i);
+
+
+		if (nodes[i].is_coarse() ||
+				(!nodes.is_master_or_inner(i)) || 	// skip off-proc nodes
+				S.is_isolated(i) )					// skip isolated (Dirichlet) nodes
+		{
+			continue;
+		}
+
+		const MathVector<3> &icoord =  lpositions[i];
+
+		MathVector<3> nbcoords[27];
+		double nbweights[27];
+		const int nparents = m_tli.get_parents(icoord, level, nbcoords, nbweights);
+
+		 // iterate over parents of node i
+		for (int nb=0; nb<nparents; ++nb)
+		{
+			cmap_type::const_iterator it = cmap.find (nbcoords[nb]);
+			int jcoarse = it->second;
+			if (it == cmap.end())
+			{
+				UG_LOG("WARNING: " << nbcoords[nb] << " not found (" << jcoarse << ")" << std::endl);
+			}
+			else
+			{
+				P(i, jcoarse) = nbweights[nb];
+			}
+		}
+
+	}
+
+
+	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
+}
+/*
 template<typename algebra_type>
 void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const matrix_type &A, prolongation_matrix_type &P, size_t level, AMGNodes &nodes)
 {
@@ -171,7 +321,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 		// skip isolated (Dirichlet) nodes
 		if (S.is_isolated(i))
 		{ nskipped++; continue; }
-		  
+
 		// continue for fine nodes i here
 		{
 		  const MathVector<3> &icoord =  lpositions[i];
@@ -179,7 +329,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 		  double nbweights[27];
 		  const int nparents = m_tli.get_parents(icoord, level, nbcoords, nbweights);
 		  UG_ASSERT(nparents<=8, "Huhh: Too many neighbors???");
-		 
+
 
 		  // map every (coarse) nb to best matching (fine/coarse) equivalent on graph
 		  MathVector<3> bestcoord[27];
@@ -299,7 +449,9 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 				  // add entry to matrix entry list
 				  poffd.push_back(pentry_type(i, search.first->second, nbweights[nb]));
 
-			  } else /*if (!S.is_isolated(bestindex[nb])) */{
+			  }
+			  else //if (!S.is_isolated(bestindex[nb]))
+			  {
 				  UG_DLOG(DBG_AMG_COARSENING, 2, bestcoord[nb] << " aka " << bestindex[nb] << " with "<< bestmatch[nb] << " not represented for "<< icoord << " aka " << i << "!" << std::endl);
 				  nunrepresent++;
 			  }
@@ -348,7 +500,7 @@ void SemiAMG<algebra_type>::user_defined_prolongation(const cgraph &S, const mat
 	if(bTiming) UG_DLOG(LIB_ALG_AMG, 0, "took " << SW.ms() << " ms");
 }
 
-
+*/
 
 template<typename algebra_type>
 void SemiAMG<algebra_type>::user_defined_restriction(const cgraph &S, const matrix_type &A, const prolongation_matrix_type &P, prolongation_matrix_type &R, size_t level, AMGNodes &nodes)
