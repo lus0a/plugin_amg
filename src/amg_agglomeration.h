@@ -287,6 +287,7 @@ bool AMGBase<TAlgebra>::agglomerate_to(const std::map<int, int> &merge, int merg
 	L.bHasBeenMerged = true;
 	UG_DLOG(DBG_AMG_AGGLOMERATION, 2, "MERGING to " << mergeTo << "\n");
 
+	agglomerateSlaveLayout.clear();
 	SendMatrix(A, agglomerateSlaveLayout, mergeTo, PN);
 
 	MergeGlobalLayout(globalMasterLayout, merge);
