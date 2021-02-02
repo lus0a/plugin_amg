@@ -35,7 +35,9 @@ namespace ug {
 template<typename TAlgebra>
 void AMGBase<TAlgebra>::create_direct_solver(size_t level)
 {
+#ifdef UG_PARALLEL
 	m_baseLevel = level;
+#endif
 	try{
 	AMG_PROFILE_BEGIN(amg_createDirectSolver);
 

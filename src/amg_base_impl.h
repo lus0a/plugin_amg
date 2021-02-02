@@ -110,7 +110,10 @@ void AMGBase<TAlgebra>::init_smoother(size_t level)
 {
 	PROFILE_FUNC();
 	try{
+#ifdef UG_PARALLEL
 	if(isMergingSlave(level) || m_baseLevel == level) return;
+#endif
+
 
 	AMGLevelType &L = *levels[level];
 	L.presmoother = m_presmoother->clone();
@@ -252,8 +255,9 @@ bool AMGBase<TAlgebra>::preprocess_create_level(size_t level, double &createAMGl
 	try{
 
 	AMG_PROFILE_FUNC();
-
+#ifdef UG_PARALLEL
 	m_baseLevel = -1;
+#endif
 
 	AMGLevelType &L = *levels[level];
 	L.pAgglomeratedA = L.pA;

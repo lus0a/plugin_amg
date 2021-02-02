@@ -341,7 +341,12 @@ bool AMGBase<TAlgebra>::writevec(std::string filename, const TVector &const_d, s
 			AMGWriteVecToFile(d, level, name, m_amghelper);
 	}
 	line=__LINE__;
-	}UG_CATCH_THROW(PRETTY_FUNCTION << "failed at line " << line << " " << *const_d.layouts());
+	}
+#ifdef UG_PARALLEL
+	UG_CATCH_THROW(PRETTY_FUNCTION << "failed at line " << line << " " << *const_d.layouts());
+#else
+	UG_CATCH_THROW(PRETTY_FUNCTION << "failed at line " << line);
+#endif
 	return true;
 }
 

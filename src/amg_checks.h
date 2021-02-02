@@ -308,7 +308,9 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 {
 	size_t line;
 	try{
+#ifdef UG_PARALLEL
 		d.layouts()->proc_comm().barrier();
+#endif
 	AMG_PROFILE_FUNC();
 	AMGLevelType &L = *levels[level];
 
@@ -420,7 +422,9 @@ bool AMGBase<TAlgebra>::check_level(vector_type &c, vector_type &d, matrix_type 
 #else
 			if(level+1 < levels.size())
 #endif*/
+#ifdef UG_PARALLEL
 		if(pcl::NumProcs() == 1)
+#endif
 		{
 			vector_type vH;
 			CloneVector(vH, L.cH);
