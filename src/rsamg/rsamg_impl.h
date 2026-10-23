@@ -237,8 +237,24 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	UG_DLOG(LIB_ALG_AMG, 1, "building graph... ");
 	if(bTiming) SW.start();
 
+	// Scalar RS uses the classical "strong negative" test after eliminating
+	// positive off-diagonals. Coupled blocks (Elder, Henry, ...) are not
+	// M-matrices: that elimination drops whole node-node couplings and the
+	// subsequent trace/diag test is dominated by a single entry of the 2x2.
+	// Point-based coarsening for systems therefore uses the block-norm graph.
+	const bool bSystems =
+		block_traits<value_type>::static_num_rows > 1;
 	// todo: A or A_OL1?
-	CreateStrongConnectionGraph(A_OL1, graphS, m_dTheta);
+	if(bSystems)
+	{
+		UG_LOG("RSAMG: strong connections by block norm (systems, theta = "
+				<< m_dTheta << ")\n");
+		CreateStrongConnectionGraphForSystems(A_OL1, graphS, m_dTheta);
+	}
+	else
+	{
+		CreateStrongConnectionGraph(A_OL1, graphS, m_dTheta);
+	}
 	SetIsolatedCoarse(graphS, nodes);
 
 	// we need the transpose, since when we set a node coarse, we want
@@ -332,7 +348,9 @@ void RSAMG<TAlgebra>::create_AMG_level(matrix_type &AH, prolongation_matrix_type
 	/////////////////////////////////////////
 	// include positive entries into 'strength of connection'
 	/////////////////////////////////////////
-	if (m_dTheta2<=1)
+	// The block-norm graph already keeps large couplings of either sign, so
+	// the extra positive-connection pass is only meaningful for scalar RS.
+	if (!bSystems && m_dTheta2<=1)
 	{
 		UpdateStrongConnectionGraph(A_OL1, graphS, m_dTheta2);
 #ifdef AMG_WRITE_GRAPH

@@ -33,6 +33,7 @@
 #ifndef RSAMG_RUGE_STUEBEN_H_
 #define RSAMG_RUGE_STUEBEN_H_
 
+#include <cmath>
 #include "rsamg_prolongation.h"
 #include "lib_algebra/algebra_common/sparse_vector.h"
 
@@ -63,9 +64,23 @@ void AddRSInterpolation(TProlongationMatrix &P, size_t i,
 	double sumInterpolatory=0.0;
 	for(size_t j=0; j<conInterpolatory.size(); j++)
 	{
-		sumInterpolatory+=amg_diag_value(conInterpolatory[j].value());
+		sumInterpolatory+=amg_signed_value(conInterpolatory[j].value());
 	}
+	// If signed contributions cancel, try the norm sum of the classified
+	// group. A group of zero connections still has no valid denominator.
+	if(fabs(sumInterpolatory) < 1e-30)
+	{
+		for(size_t j=0; j<conInterpolatory.size(); j++)
+			sumInterpolatory += alphaScale * BlockNorm(conInterpolatory[j].value());
+	}
+	UG_COND_THROW(sumInterpolatory == 0.0 || !std::isfinite(sumInterpolatory),
+			"RSAMG: invalid interpolation denominator at node " << i
+			<< ": " << sumInterpolatory);
+	UG_COND_THROW(diag == 0.0 || !std::isfinite(diag),
+			"RSAMG: invalid interpolation diagonal at node " << i << ": " << diag);
 	const double alpha = (sumNeighbors / sumInterpolatory) / diag * alphaScale;
+	UG_COND_THROW(!std::isfinite(alpha),
+			"RSAMG: non-finite interpolation scale at node " << i);
 	for(size_t j=0; j<conInterpolatory.size(); j++)
 		conInterpolatory[j].value() *= alpha;
 
@@ -104,7 +119,8 @@ inline void SetRSInterpolation(TProlongationMatrix &P, size_t i,
 	else
 		// lump onto diagonal
 		diag += sumPosNeighbors;
-	AddRSInterpolation(P, i, conNegative, sumNegNeighbors, diag, -1.0, epsilonTruncation);
+	if(conNegative.size() > 0)
+		AddRSInterpolation(P, i, conNegative, sumNegNeighbors, diag, -1.0, epsilonTruncation);
 }
 
 /**
@@ -134,6 +150,9 @@ void GetInterpolatoryConnections(size_t i, const TMatrix &A, const cgraph &stron
 #endif
 
 		double connValue = amg_offdiag_value(conn.value());
+		// Sparse rows retain structural zeros, including eliminated entries.
+		// Such entries cannot provide an interpolatory connection.
+		if(connValue == 0.0) continue;
 		if(connValue > 0) 	sumPosNeighbors += connValue;
 		else				sumNegNeighbors += connValue;
 
@@ -215,8 +234,9 @@ void CreateRugeStuebenProlongation(TProlongationMatrix &P, const TMatrixType &A,
 
 			double sumPosNeighbors=0.0, sumNegNeighbors=0.0;
 
-			// get conPositive and conNegative
-			if(true)
+			// Match the graph construction: only scalar RS eliminates positive
+			// connections. Systems use the original couplings by block norm.
+			if(block_traits<typename TMatrixType::value_type>::static_num_rows == 1)
 			{
 				// Eliminate connections
 				typedef SparseVector<typename TMatrixType::value_type> LocalRow;
@@ -259,11 +279,10 @@ void CreateRugeStuebenProlongation(TProlongationMatrix &P, const TMatrixType &A,
 					}
 					UG_LOG("]\n");
 				}
-				//UG_ASSERT(0,i);
-				// no suitable interpolating nodes for node i,
-				// so this node has to be treated by indirect interpolation
-				//nodes.set_unassigned_fine_indirect(i);
+				// Retain a node with no usable coarse neighbor on the coarse
+				// grid, including its identity injection into the fine grid.
 				nodes.set_coarse(i);
+				P(i,i) = 1.0;
 			}
 		}
 		/*else

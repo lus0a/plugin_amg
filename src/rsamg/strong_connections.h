@@ -136,8 +136,8 @@ public:
 };
 
 
-//! Adds 'strong negative connections' to graph.
-/*! Criterion: $$-a_{ij} \ge \epsilon \max_{a_{ik}<0} |a_{ik}|$$ */
+//! Adds strong couplings to the graph by block norm (sign-agnostic).
+/*! Criterion: $$\|A_{ij}\| \ge \epsilon \max_{k\neq i} \|A_{ik}\|$$ */
 class StrongNegativeConnectionsByBlockNorm
 {
 protected:
@@ -224,6 +224,7 @@ void CreateStrongConnectionGraphForSystems(const matrix_type &A, cgraph &graph, 
 	AMG_PROFILE_FUNC();
 	graph.resize(A.num_rows());
 
+	StrongNegativeConnectionsByBlockNorm strong(theta);
 	for(size_t i=0; i< A.num_rows(); i++)
 	{
 		// Skip isolated node
@@ -234,7 +235,6 @@ void CreateStrongConnectionGraphForSystems(const matrix_type &A, cgraph &graph, 
 		CopyOffDiagEntries(A, i, Ri);
 
 		// Find strong connections
-		StrongNegativeConnectionsByBlockNorm strong(theta);
 		strong.find(Ri, i, graph);
 	}
 #ifdef AMG_PRINT_GRAPH

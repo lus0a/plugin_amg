@@ -73,32 +73,42 @@ bool CompareByIndex(const TConnection &i, const TConnection &j)
 template<typename TConnection>
 bool TruncateInterpolation(std::vector<TConnection> &weight, double eps)
 {
+	if(eps <= 0.0 || weight.empty()) return false;
+
 	// find maximum
 	double sum = 0.0, dmax = 0.0;
 	for(size_t j=0; j<weight.size(); j++)
 	{
-		sum += weight[j].dValue;
-		dmax = std::max(weight[j].dValue, dmax);
+		sum += amg_signed_value(weight[j].value());
+		dmax = std::max(BlockNorm(weight[j].value()), dmax);
 	}
 
 	// determine nodes to be removed
 	double threshold=eps*dmax;
 	double remove = 0.0;
+	bool truncated = false;
 	for(size_t j=0; j<weight.size(); j++)
 	{
-		if (weight[j].dValue <threshold)
+		if (BlockNorm(weight[j].value()) < threshold)
 		{
-			remove += weight[j].dValue;
-			weight[j].dValue= 0.0;
+			remove += amg_signed_value(weight[j].value());
+			truncated = true;
 		}
 	}
 
-	// remove nodes
-	if (fabs(remove) < 1e-8) return false;
+	if(!truncated) return false;
+
 	// rescale so that sum ( weightsNew ) = sum( weightsOld )
-	const double rescale = 1.0 + remove/(sum-remove);
+	const double remaining = sum-remove;
+	if(fabs(remaining) < 1e-14) return false;
+	const double rescale = sum/remaining;
 	for(size_t j=0; j<weight.size(); j++)
-		weight[j].dValue *= rescale;
+	{
+		if(BlockNorm(weight[j].value()) < threshold)
+			weight[j].value() = 0.0;
+		else
+			weight[j].value() *= rescale;
+	}
 
 	return true;
 };
@@ -326,7 +336,7 @@ void CreateIndirectProlongation(TProlongationMatrix &P, const Matrix_type &A,
 			conNegative.clear();
 			for(RowIterator it = row.begin(); it != row.end(); ++it)
 			{
-				if(it->value() > 0)
+				if(amg_signed_value(it->value()) > 0.0)
 					conPositive.push_back(*it);
 				else
 					conNegative.push_back(*it);

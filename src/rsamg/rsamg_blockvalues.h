@@ -41,9 +41,19 @@
 
 inline double amg_diag_value(const double &d) { return d; }
 inline double amg_offdiag_value(const double &d) { return d; }
+inline double amg_signed_value(const double &d) { return d; }
 
 template<typename T> inline double amg_diag_value(const T &d) { return BlockNorm(d); }
 template<typename T> inline double amg_offdiag_value(const T &d) { return -BlockNorm(d); }
+
+// BlockNorm is appropriate for measuring connection strength, but it destroys
+// the sign of interpolation weights.  Use the trace to recover the sign while
+// retaining the norm as a robust magnitude for non-scalar blocks.
+template<typename T> inline double amg_signed_value(const T &d)
+{
+	const double trace = ug::matTrace(d);
+	return trace < 0.0 ? -BlockNorm(d) : BlockNorm(d);
+}
 
 template<typename T> inline double amg_trace(const T &mij) {return ug::matTrace(mij);}
 template<typename T> inline double amg_diag(const T &mij) {return ug::matDiagMax(mij);}

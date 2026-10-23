@@ -83,10 +83,10 @@ static void Algebra(Registry& reg, string grp)
 
 	reg.add_class_<T, AMGBase<algebra_type> > (string("RSAMGPreconditioner").append(suffix), grp, "Ruge-Stueben Algebraic Multigrid Preconditioner")
 		.add_constructor()
-		.add_method("set_epsilon_strong", &T::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong connectivity")
+		.add_method("set_epsilon_strong", &T::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong (negative) connectivity")
 		.add_method("get_epsilon_strong", &T::get_epsilon_strong, "epsilon_strong", "")
-		.add_method("set_epsilon_strong_positive", &T::set_epsilon_strong, "", "epsilon_str", "sets epsilon_strong, a measure for strong connectivity")
-		.add_method("get_epsilon_strong_positive", &T::get_epsilon_strong, "epsilon_strong", "")
+		.add_method("set_epsilon_strong_positive", &T::set_epsilon_strong_positive, "", "epsilon_str_pos", "sets epsilon_strong_positive, a measure for strong positive connectivity")
+		.add_method("get_epsilon_strong_positive", &T::get_epsilon_strong_positive, "epsilon_strong_positive", "")
 		.add_method("set_prolongation_truncation", &T::set_prolongation_truncation, "", "prolongation_tr", "sets the truncation of interpolation")
 		.add_method("get_prolongation_truncation", &T::get_prolongation_truncation, "prolongation_tr")
 
@@ -126,13 +126,13 @@ void RegisterBridge_RSAMG(Registry& reg, string grp)
 #endif
 
 	typedef registerRSAMG::Functionality Functionality;
-#ifdef UG_CPU_1
-	typedef boost::mpl::list<CPUAlgebra> AlgList;
+	// Register all configured CPU block algebras. RSAMG is used for coupled
+	// systems as well as scalar equations.
 	try{
-		RegisterAlgebraDependent<Functionality, AlgList>(reg,grp);
+		RegisterAlgebraDependent<Functionality>(reg,grp);
 	}
 	UG_REGISTRY_CATCH_THROW(grp);
-#endif
+
 /*#ifdef UG_CRS_1
     typedef boost::mpl::list<CRSAlgebra> AlgList2;
 	try{

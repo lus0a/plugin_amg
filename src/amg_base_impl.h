@@ -288,6 +288,10 @@ bool AMGBase<TAlgebra>::preprocess_create_level(size_t level, double &createAMGl
 
 	if(bCreateDirectSolver)
 	{
+		// The direct-solver level still participates in a multigrid cycle and
+		// therefore needs correction storage just like recursively built levels.
+		L.corr.resize(L.pAgglomeratedA->num_rows());
+
 		create_direct_solver(level);
 		return false;
 	}
@@ -1126,4 +1130,3 @@ AMGBase<TAlgebra>::calculate_smoothing_property(vector_type &t)
 #include "amg_basesolver.h"
 
 #endif //  __H__UG__LIB_ALGEBRA__AMG_SOLVER__AMG_BASE_IMPL_H__
-
